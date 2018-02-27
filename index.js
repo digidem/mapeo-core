@@ -1,5 +1,7 @@
 var mkdirp = require('mkdirp')
 var pump = require('pump')
+var xtend = require('xtend')
+var through = require('through2')
 var level = require('level')
 var osmdb = require('osm-p2p')
 var osmobs = require('osm-p2p-observations')
@@ -97,45 +99,26 @@ Store.prototype.observationUpdate = function (feature, cb) {
   this.observationCreate(feature, cb)
 }
 
-Store.prototype.observationList = function (cb) {
-  var features = []
-  pump(this.osm.kv.createReadStream(), through.obj(write), done)
+Store.prototype.observationStream = function (cb) {
+  return this.osm.kv.createReadStream().pipe(through.obj(write))
 
   function write (row, enc, next) {
-    var values = Object.keys(row.values || {})
-      .map(v => row.values[v])
-    if (values.length && values[0].type === 'observation') {
+    var values = Object.keys(row.values || {}).map(v => row.values[v])
+    if (values.length && values[0].value.type === 'observation') {
       // var latest = values.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0]
-      features.push(observationToFeature(values[0], row.key))
+      next(null, observationToFeature(values[0], row.key))
     }
-    next()
-  }
-
-  function done (err) {
-    if (err) return cb(err)
-    features = JSON.stringify(features)
-    cb(null, features)
+    else next()
   }
 }
 
+Store.prototype.observationList = function (cb) {
+  collect(this.observationStream(), function (err, data) {
+    if (err) return cb(err)
+    cb(null, data)
+  })
+}
+
 function observationToFeature (obs, id) {
-  var feature = {
-    id: id,
-    type: 'Feature',
-    geometry: null,
-    properties: obs.tags
-  }
-  if (obs.lon && obs.lat) {
-    feature.geometry = {
-      type: 'Point',
-      coordinates: [obs.lon, obs.lat]
-    }
-  }
-  if (typeof feature.properties.public === 'undefined') {
-    feature.properties.public = false
-  }
-  if (!feature.properties.summary) {
-    feature.properties.summary = ' '
-  }
-  return feature
+  return xtend(obs.value, {id: id})
 }
