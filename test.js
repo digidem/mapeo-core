@@ -2,7 +2,7 @@ const rimraf = require('rimraf')
 const fs = require('fs')
 const collect = require('collect-stream')
 const test = require('tape')
-const store = require('.')
+const store = require('mapfilter-db')
 const tmp = require('os-tmpdir')
 const path = require('path')
 
