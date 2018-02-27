@@ -1,0 +1,23 @@
+{
+  "name": "mapfilter-db",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "blob-store-replication-stream": "^1.0.0",
+    "collect-stream": "^1.2.1",
+    "level": "^3.0.0",
+    "mkdirp": "^0.5.1",
+    "os-tmpdir": "^1.0.2",
+    "osm-p2p": "^2.0.0",
+    "osm-p2p-observations": "^2.1.0",
+    "rimraf": "^2.6.2",
+    "safe-fs-blob-store": "0.0.2",
+    "tape": "^4.9.0"
+  }
+}
