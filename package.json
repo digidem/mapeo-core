@@ -1,13 +1,21 @@
 {
   "name": "mapfilter-db",
   "version": "1.0.0",
-  "description": "",
+  "description": "Media and observations store for Mapfilter.",
   "main": "index.js",
   "scripts": {
     "test": "node test.js"
   },
-  "author": "",
-  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/digidem/mapfilter-server.git"
+  },
+  "author": "Karissa McKelvey",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/digidem/mapfilter-server/issues"
+  },
+  "homepage": "https://github.com/digidem/mapfilter-server#readme",
   "dependencies": {
     "blob-store-replication-stream": "^1.0.0",
     "collect-stream": "^1.2.1",
