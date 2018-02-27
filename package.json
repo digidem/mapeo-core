@@ -16,6 +16,7 @@
     "os-tmpdir": "^1.0.2",
     "osm-p2p": "^2.0.0",
     "osm-p2p-observations": "^2.1.0",
+    "pump": "^3.0.0",
     "rimraf": "^2.6.2",
     "safe-fs-blob-store": "0.0.2",
     "tape": "^4.9.0"

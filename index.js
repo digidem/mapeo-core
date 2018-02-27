@@ -1,4 +1,5 @@
 var mkdirp = require('mkdirp')
+var pump = require('pump')
 var level = require('level')
 var osmdb = require('osm-p2p')
 var osmobs = require('osm-p2p-observations')
@@ -53,7 +54,10 @@ Store.prototype.replicateWithDirectory = function (dir, opts, done) {
   var mediaPath = path.join(dir, 'media')
 
   sneakernet(this.osm.log, {safetyFile: true}, dataPath, onFinished)
-  this.media.replicateStore(new MediaStore(mediaPath), opts, onFinished)
+  var dest = MediaStore(mediaPath)
+  var r1 = this.replicateMediaReplicationStream()
+  var r2 = createMediaReplicationStream(dest)
+  pump(r1, r2, r1, onFinished)
 
   function onFinished (err) {
     if (err) errs.push(err)
