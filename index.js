@@ -106,7 +106,7 @@ Store.prototype.observationStream = function (cb) {
     var values = Object.keys(row.values || {}).map(v => row.values[v])
     if (values.length && values[0].value.type === 'observation') {
       // var latest = values.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0]
-      next(null, observationToFeature(values[0], row.key))
+      next(null, xtend(values[0].value, {id: row.key}))
     }
     else next()
   }
@@ -117,8 +117,4 @@ Store.prototype.observationList = function (cb) {
     if (err) return cb(err)
     cb(null, data)
   })
-}
-
-function observationToFeature (obs, id) {
-  return xtend(obs.value, {id: id})
 }
