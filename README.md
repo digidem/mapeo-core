@@ -2,7 +2,15 @@
 
 Media and observations store for osm-p2p.
 
+```
+npm install mapfilter-db
+```
+
 ## API
+
+```
+var MapfilterDb = require('mapfilter-db')
+```
 
 ### `db = MapfilterDb(osmdir)`
 
