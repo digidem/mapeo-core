@@ -107,11 +107,12 @@ Store.prototype.observationStream = function (cb) {
 
   function write (row, enc, next) {
     var values = Object.keys(row.values || {}).map(v => row.values[v])
-    if (values.length && values[0].value.type === 'observation') {
-      // var latest = values.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0]
-      next(null, xtend(values[0].value, {id: row.key}))
+    if (values.length) {
+      if (values[0].deleted) return next()
+      if (values[0].value.type === 'observation') return next(null, xtend(values[0].value, {id: row.key}))
+      return next()
     }
-    else next()
+    return next()
   }
 }
 

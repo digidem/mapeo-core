@@ -8,6 +8,8 @@ const path = require('path')
 
 const tmpdir = path.join(tmp(), 'mapfilter-sync-server-test-files')
 const tmpdir2 = path.join(tmp(), 'mapfilter-sync-server-test-files-2')
+rimraf.sync(tmpdir)
+rimraf.sync(tmpdir2)
 const feature = {
   "type": "Feature",
   "properties": {},
@@ -21,6 +23,8 @@ const feature = {
 }
 var s1 = store(tmpdir)
 var s2 = store(tmpdir2)
+var id = null
+var node = null
 
 function cleanup (t) {
   s1.close(function () {
@@ -67,8 +71,6 @@ test('local media replication', function (t) {
 })
 
 test('local osm replication', function (t) {
-  var id = null
-  var node = null
   s1.observationCreate(feature, done)
   function done (err, _node) {
     t.error(err)
@@ -101,6 +103,31 @@ test('observationList', function (t) {
     t.ok(features[0].timestamp)
     t.ok(features[0].id)
     t.ok(features[0].tags)
-    cleanup(t)
+    t.end()
+  })
+})
+
+test('observationCreate', function (t) {
+  s1.observationCreate({
+    type: 'Feature',
+    properties: {'bee': 'bop'}
+  }, function (err) {
+    t.error(err)
+    s1.observationList(function (err, features) {
+      t.error(err)
+      t.same(features.length, 2)
+      t.end()
+    })
+  })
+})
+
+test('observationDelete', function (t) {
+  s1.observationDelete(id, function (err) {
+    t.error(err)
+    s1.observationList(function (err, features) {
+      t.error(err)
+      t.same(features.length, 1)
+      cleanup(t)
+    })
   })
 })
