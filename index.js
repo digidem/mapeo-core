@@ -1,3 +1,5 @@
+var randomBytes = require('randombytes')
+var collect = require('collect-stream')
 var mkdirp = require('mkdirp')
 var pump = require('pump')
 var xtend = require('xtend')
@@ -88,7 +90,7 @@ Store.prototype.observationCreate = function (feature, cb) {
     obs.lon = feature.geometry.coordinates[0]
     obs.lat = feature.geometry.coordinates[1]
   }
-  var id = feature.id + '' || randomBytes(8).toString('hex')
+  var id = feature.id ? feature.id + '' : randomBytes(8).toString('hex')
   this.osm.put(id, obs, cb)
 }
 

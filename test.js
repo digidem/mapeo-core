@@ -8,10 +8,21 @@ const path = require('path')
 
 const tmpdir = path.join(tmp(), 'mapfilter-sync-server-test-files')
 const tmpdir2 = path.join(tmp(), 'mapfilter-sync-server-test-files-2')
+const feature = {
+  "type": "Feature",
+  "properties": {},
+  "geometry": {
+    "type": "Point",
+    "coordinates": [
+      -96.1083984375,
+      39.57182223734374
+    ]
+  }
+}
 var s1 = store(tmpdir)
 var s2 = store(tmpdir2)
 
-function cleanup (s1, s2, t) {
+function cleanup (t) {
   s1.close(function () {
     s2.close(function () {
       rimraf.sync(tmpdir)
@@ -58,14 +69,11 @@ test('local media replication', function (t) {
 test('local osm replication', function (t) {
   var id = null
   var node = null
-  s1.osm.create({
-    foo: 'bar',
-    timestamp: new Date().toISOString()
-  }, done)
-  function done (err, _id, _node) {
+  s1.observationCreate(feature, done)
+  function done (err, _node) {
     t.error(err)
-    id = _id
     node = _node
+    id = node.value.k
     s1.osm.get(id, function (err, docs) {
       t.error(err)
       t.same(docs[node.key], node.value.v)
@@ -79,8 +87,20 @@ test('local osm replication', function (t) {
       s2.osm.get(id, function (err, docs) {
         t.error(err)
         t.same(docs[node.key], node.value.v)
-        cleanup(s1, s2, t)
+        t.end()
       })
     })
   }
+})
+
+test('observationList', function (t) {
+  s1.observationList(function (err, features) {
+    t.error(err)
+    t.same(features.length, 1)
+    t.same(features[0].type, 'observation')
+    t.ok(features[0].timestamp)
+    t.ok(features[0].id)
+    t.ok(features[0].tags)
+    cleanup(t)
+  })
 })
