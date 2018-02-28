@@ -6,6 +6,7 @@ var level = require('level')
 var osmdb = require('osm-p2p')
 var osmobs = require('osm-p2p-observations')
 var MediaStore = require('safe-fs-blob-store')
+var sneakernet = require('hyperlog-sneakernet-replicator')
 var path = require('path')
 var createMediaReplicationStream = require('blob-store-replication-stream')
 
