@@ -76,6 +76,7 @@ test('local osm replication', function (t) {
     t.error(err)
     node = _node
     id = node.value.k
+    feature.id = id
     s1.osm.get(id, function (err, docs) {
       t.error(err)
       t.same(docs[node.key], node.value.v)
@@ -116,6 +117,28 @@ test('observationCreate', function (t) {
     s1.observationList(function (err, features) {
       t.error(err)
       t.same(features.length, 2)
+      t.end()
+    })
+  })
+})
+
+test('observationUpdate', function (t) {
+  var coords = [
+    -95.1083984375,
+    40.57182223734374
+  ]
+  feature.geometry = {
+    "type": "Point",
+    "coordinates": coords
+  }
+  s1.observationUpdate(feature, function (err) {
+    t.error(err)
+    s1.osm.get(feature.id, function (err, doc) {
+      t.error(err)
+      t.ok(doc)
+      var value = Object.values(doc)[0]
+      t.same(value.lon, coords[0])
+      t.same(value.lat, coords[1])
       t.end()
     })
   })
