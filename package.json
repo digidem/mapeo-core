@@ -1,6 +1,6 @@
 {
   "name": "mapfilter-db",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Media and observations store for Mapfilter.",
   "main": "index.js",
   "scripts": {
