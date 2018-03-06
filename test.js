@@ -122,6 +122,19 @@ test('observationCreate', function (t) {
   })
 })
 
+test('observationList with opts', function (t) {
+  s1.observationList({}, function (err, features) {
+    t.error(err)
+    t.same(features.length, 2)
+    t.same(features[0].type, 'observation')
+    t.ok(features[0].timestamp)
+    t.ok(features[0].id)
+    t.ok(features[0].tags)
+    t.end()
+  })
+})
+
+
 test('observationUpdate', function (t) {
   var coords = [
     -95.1083984375,
