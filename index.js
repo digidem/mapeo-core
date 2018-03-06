@@ -77,11 +77,12 @@ Store.prototype.replicateWithDirectory = function (dir, opts, done) {
   }
 }
 
-Store.prototype.observationCreate = function (feature, cb) {
+Store.prototype._observationFromFeature = function (feature) {
   if (!(feature.type === 'Feature' && feature.properties)) {
     return cb(new Error('Expected GeoJSON feature object'))
   }
   var obs = {
+    id: feature.id || randomBytes(8).toString('hex'),
     type: 'observation',
     tags: feature.properties,
     timestamp: new Date().toISOString()
@@ -90,8 +91,22 @@ Store.prototype.observationCreate = function (feature, cb) {
     obs.lon = feature.geometry.coordinates[0]
     obs.lat = feature.geometry.coordinates[1]
   }
-  var id = feature.id ? feature.id + '' : randomBytes(8).toString('hex')
-  this.osm.put(id, obs, cb)
+  return obs
+}
+
+function isEmpty (obj) {
+   for (var x in obj) { return false; }
+   return true;
+}
+
+Store.prototype.observationCreate = function (feature, cb) {
+  var self = this
+  var obs = this._observationFromFeature(feature)
+  self.osm.get(obs.id, function (err, data) {
+    if (err) return cb(err)
+    if (isEmpty(data)) self.osm.put(obs.id, obs, cb)
+    else cb(new Error('That id ' + obs.id + ' already exists.'))
+  })
 }
 
 Store.prototype.observationDelete = function (id, cb) {
@@ -99,7 +114,8 @@ Store.prototype.observationDelete = function (id, cb) {
 }
 
 Store.prototype.observationUpdate = function (feature, cb) {
-  this.observationCreate(feature, cb)
+  var obs = this._observationFromFeature(feature)
+  this.osm.put(obs.id, obs, cb)
 }
 
 Store.prototype.observationStream = function (opts, cb) {

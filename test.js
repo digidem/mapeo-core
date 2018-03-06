@@ -157,6 +157,17 @@ test('observationUpdate', function (t) {
   })
 })
 
+test('observationCreate with existing feature results in error', function (t) {
+  s1.observationCreate({
+    id: id,
+    type: 'Feature',
+    properties: {'bee': 'bop'}
+  }, function (err) {
+    t.ok(err)
+    t.end()
+  })
+})
+
 test('observationDelete', function (t) {
   s1.observationDelete(id, function (err) {
     t.error(err)

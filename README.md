@@ -46,7 +46,8 @@ that can be used to sync across USB sticks, for example.
 
 ### `db.observationCreate(feature, cb)`
 
-Create a new observation given the feature.
+Create a new observation given the feature. Will fail if an object with the
+same id already exists. In that case, use `observationUpdate` more explicitly.
 
 ### `db.observationUpdate(feature, cb)`
 
