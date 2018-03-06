@@ -102,22 +102,31 @@ Store.prototype.observationUpdate = function (feature, cb) {
   this.observationCreate(feature, cb)
 }
 
-Store.prototype.observationStream = function (cb) {
-  return this.osm.kv.createReadStream().pipe(through.obj(write))
+Store.prototype.observationStream = function (opts, cb) {
+  if (typeof opts === 'function') {
+    cb = opts
+    opts = {}
+  }
+  return this.osm.kv.createReadStream(opts).pipe(through.obj(write))
 
   function write (row, enc, next) {
     var values = Object.keys(row.values || {}).map(v => row.values[v])
-    if (values.length) {
-      if (values[0].deleted) return next()
-      if (values[0].value.type === 'observation') return next(null, xtend(values[0].value, {id: row.key}))
-      return next()
+    if (!values.length) return next()
+    if (values[0].deleted) return next()
+    if (values[0].value.type === 'observation') {
+      var obs = xtend(values[0].value, {id: row.key})
+      return next(null, obs)
     }
     return next()
   }
 }
 
-Store.prototype.observationList = function (cb) {
-  collect(this.observationStream(), function (err, data) {
+Store.prototype.observationList = function (opts, cb) {
+  if (typeof opts === 'function') {
+    cb = opts
+    opts = {}
+  }
+  collect(this.observationStream(opts), function (err, data) {
     if (err) return cb(err)
     cb(null, data)
   })
