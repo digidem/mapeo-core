@@ -8,14 +8,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/digidem/mapfilter-server.git"
+    "url": "git+https://github.com/digidem/mapfilter-db.git"
   },
   "author": "Karissa McKelvey",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/digidem/mapfilter-server/issues"
+    "url": "https://github.com/digidem/mapfilter-db/issues"
   },
-  "homepage": "https://github.com/digidem/mapfilter-server#readme",
+  "homepage": "https://github.com/digidem/mapfilter-db#readme",
   "dependencies": {
     "blob-store-replication-stream": "^1.0.0",
     "collect-stream": "^1.2.1",
