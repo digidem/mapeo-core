@@ -1,5 +1,9 @@
 # mapfilter-db
 
+[![Build
+Status](https://travis-ci.org/digidem/mapfilter-db.svg?branch=master)](https://travis-ci.org/digidem/mapfilter-db)
+
+
 Media and observations store for osm-p2p.
 
 ```
