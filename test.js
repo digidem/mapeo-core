@@ -2,9 +2,11 @@ const rimraf = require('rimraf')
 const fs = require('fs')
 const collect = require('collect-stream')
 const test = require('tape')
-const store = require('.')
+const values = require('object.values')
 const tmp = require('os-tmpdir')
 const path = require('path')
+
+const store = require('.')
 
 const tmpdir = path.join(tmp(), 'mapfilter-sync-server-test-files')
 const tmpdir2 = path.join(tmp(), 'mapfilter-sync-server-test-files-2')
@@ -149,7 +151,7 @@ test('observationUpdate', function (t) {
     s1.osm.get(feature.id, function (err, doc) {
       t.error(err)
       t.ok(doc)
-      var value = Object.values(doc)[0]
+      var value = values(doc)[0]
       t.same(value.lon, coords[0])
       t.same(value.lat, coords[1])
       t.end()
