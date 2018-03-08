@@ -113,7 +113,11 @@ test('observationList', function (t) {
 test('observationCreate', function (t) {
   s1.observationCreate({
     type: 'Feature',
-    properties: {'bee': 'bop'}
+    properties: {'bee': 'bop'},
+    geometry: {
+      "type": "Point",
+      "coordinates": [0,0]
+    }
   }, function (err) {
     t.error(err)
     s1.observationList(function (err, features) {
@@ -121,6 +125,36 @@ test('observationCreate', function (t) {
       t.same(features.length, 2)
       t.end()
     })
+  })
+})
+
+test('observationStream with opts.features', function (t) {
+  var stream = s1.observationStream({features: true})
+  stream.on('data', function (feature) {
+    t.ok(feature.type === 'Feature', 'type is feature')
+  })
+
+  stream.on('error', function (err) {
+    t.error(err, 'no error')
+  })
+
+  stream.on('end', function () {
+    t.end()
+  })
+})
+
+test('observationStream with no opts', function (t) {
+  var stream = s1.observationStream()
+  stream.on('data', function (obs) {
+    t.ok(obs.type === 'observation')
+  })
+
+  stream.on('error', function (err) {
+    t.error(err)
+  })
+
+  stream.on('end', function () {
+    t.end()
   })
 })
 
@@ -142,8 +176,8 @@ test('observationList as features', function (t) {
     t.same(features.length, 2)
     t.same(features[0].type, 'Feature')
     t.same(features[0].properties.public, false)
-    t.ok(features[0].geometry)
-    t.ok(features[0].id)
+    t.ok(features[0].geometry, 'feature should have geom')
+    t.ok(features[0].id, 'feature should have id')
     t.end()
   })
 })

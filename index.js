@@ -153,7 +153,7 @@ Store.prototype.observationToFeature = function (obs) {
     geometry: null,
     properties: obs.tags
   }
-  if (obs.lon && obs.lat) {
+  if (typeof obs.lon === 'number' && typeof obs.lat === 'number') {
     feature.geometry = {
       type: 'Point',
       coordinates: [obs.lon, obs.lat]
