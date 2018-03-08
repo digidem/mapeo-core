@@ -119,21 +119,22 @@ Store.prototype.observationUpdate = function (feature, cb) {
 }
 
 Store.prototype.observationStream = function (opts, cb) {
+  var self = this
   if (typeof opts === 'function') {
     cb = opts
     opts = {}
   }
-  return this.osm.kv.createReadStream(opts).pipe(through.obj(write))
+
+  return pump(this.osm.kv.createReadStream(opts), through.obj(write))
 
   function write (row, enc, next) {
     var values = Object.keys(row.values || {}).map(v => row.values[v])
     if (!values.length) return next()
     if (values[0].deleted) return next()
-    if (values[0].value.type === 'observation') {
-      var obs = xtend(values[0].value, {id: row.key})
-      return next(null, obs)
-    }
-    return next()
+    if (values[0].value.type !== 'observation') return next()
+
+    var obs = xtend(values[0].value, {id: row.key})
+    return next(null, opts.features ? self.observationToFeature(obs) : obs)
   }
 }
 
@@ -146,4 +147,26 @@ Store.prototype.observationList = function (opts, cb) {
     if (err) return cb(err)
     cb(null, data)
   })
+}
+
+Store.prototype.observationToFeature = function (obs) {
+  var feature = {
+    id: obs.id,
+    type: 'Feature',
+    geometry: null,
+    properties: obs.tags
+  }
+  if (obs.lon && obs.lat) {
+    feature.geometry = {
+      type: 'Point',
+      coordinates: [obs.lon, obs.lat]
+    }
+  }
+  if (typeof feature.properties.public === 'undefined') {
+    feature.properties.public = false
+  }
+  if (!feature.properties.summary) {
+    feature.properties.summary = ' '
+  }
+  return feature
 }

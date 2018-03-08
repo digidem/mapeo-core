@@ -57,9 +57,17 @@ same id already exists. In that case, use `observationUpdate` more explicitly.
 
 Update an observation given the feature.
 
-### `db.observationList(cb)`
+### `db.observationList(opts, cb)`
 
-List all observations.
+List all observations, returns an array of JSON objects. Can pass `{features: true}` to get a list of GeoJSON features instead of observations.
+
+### `db.observationStream(opts)`
+
+Returns an object stream of all observations. Can pass `{features: true}` to convert each into a GeoJSON feature.
+
+### `db.observationToFeature(observation)`
+
+Convert a given observation object to a GeoJSON feature.
 
 ### `db.close(cb)`
 

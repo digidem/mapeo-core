@@ -136,6 +136,19 @@ test('observationList with opts', function (t) {
   })
 })
 
+test('observationList as features', function (t) {
+  s1.observationList({features: true}, function (err, features) {
+    t.error(err)
+    t.same(features.length, 2)
+    t.same(features[0].type, 'Feature')
+    t.same(features[0].properties.public, false)
+    t.ok(features[0].geometry)
+    t.ok(features[0].id)
+    t.end()
+  })
+})
+
+
 
 test('observationUpdate', function (t) {
   var coords = [
