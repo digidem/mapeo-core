@@ -118,12 +118,9 @@ Store.prototype.observationUpdate = function (feature, cb) {
   this.osm.put(obs.id, obs, cb)
 }
 
-Store.prototype.observationStream = function (opts, cb) {
+Store.prototype.observationStream = function (opts) {
   var self = this
-  if (typeof opts === 'function') {
-    cb = opts
-    opts = {}
-  }
+  if (!opts) opts = {}
 
   return pump(this.osm.kv.createReadStream(opts), through.obj(write))
 
