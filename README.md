@@ -1,19 +1,19 @@
-# mapfilter-db
+# mapeo-core
 
 [![Build
-Status](https://travis-ci.org/digidem/mapfilter-db.svg?branch=master)](https://travis-ci.org/digidem/mapfilter-db)
+Status](https://travis-ci.org/digidem/mapeo-core.svg?branch=master)](https://travis-ci.org/digidem/mapeo-core)
 
 
 Media and observations store for osm-p2p.
 
 ```
-npm install mapfilter-db
+npm install mapeo-core
 ```
 
 ## API
 
 ```
-var MapfilterDb = require('mapfilter-db')
+var MapfilterDb = require('mapeo-core')
 ```
 
 ### `db = MapfilterDb(osmdir)`

@@ -1,5 +1,5 @@
 {
-  "name": "mapfilter-db",
+  "name": "mapeo-core",
   "version": "1.2.2",
   "description": "Media and observations store for Mapfilter.",
   "main": "index.js",
@@ -8,14 +8,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/digidem/mapfilter-db.git"
+    "url": "git+https://github.com/digidem/mapeo-core.git"
   },
   "author": "Karissa McKelvey",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/digidem/mapfilter-db/issues"
+    "url": "https://github.com/digidem/mapeo-core/issues"
   },
-  "homepage": "https://github.com/digidem/mapfilter-db#readme",
+  "homepage": "https://github.com/digidem/mapeo-core#readme",
   "dependencies": {
     "blob-store-replication-stream": "^1.0.0",
     "collect-stream": "^1.2.1",
