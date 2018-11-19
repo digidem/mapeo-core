@@ -1,169 +1,201 @@
-var randomBytes = require('randombytes')
-var collect = require('collect-stream')
-var mkdirp = require('mkdirp')
-var pump = require('pump')
-var xtend = require('xtend')
-var through = require('through2')
-var level = require('level')
-var osmdb = require('osm-p2p')
-var osmobs = require('osm-p2p-observations')
-var MediaStore = require('safe-fs-blob-store')
-var sneakernet = require('hyperlog-sneakernet-replicator')
-var path = require('path')
-var createMediaReplicationStream = require('blob-store-replication-stream')
+const through = require('through2')
+const randombytes = require('randombytes')
 
-module.exports = Store
+const Sync = require('./sync')
+const errors = require('./errors')
 
-function Store (osmdir) {
-  if (!(this instanceof Store)) return new Store(osmdir)
-  var mediadir = path.join(osmdir, 'media')
-  mkdirp.sync(mediadir)
-  var obsdb = level(path.join(osmdir, 'obsdb'))
-  this.media = MediaStore(mediadir)
-  this.osm = osmdb(osmdir)
-  this.obs = osmobs({ db: obsdb, log: this.osm.log })
-}
-
-Store.prototype.mediaRead = function (name, cb) {
-  collect(this.media.createReadStream(name), cb)
-}
-
-Store.prototype.mediaCreate = function (filename, data, opts, cb) {
-  if (arguments.length === 3 && typeof opts === 'function') {
-    cb = opts
-    opts = {}
+class Core {
+  constructor (osm, media, opts) {
+    if (!opts) opts = {}
+    this.sync = new Sync(osm, media, opts)
+    this.osm = osm
+    this.media = media
   }
-  const ws = this.media.createWriteStream(filename, function (err) {
-    cb(err, 'mapfilter://' + filename)
+
+  observationCreate (obs, cb) {
+    try {
+      validateObservation(obs)
+    } catch (err) {
+      return cb(errors.InvalidFields(err.message))
+    }
+
+    const newObs = whitelistProps(obs)
+    newObs.type = 'observation'
+    newObs.timestamp = (new Date().toISOString())
+
+    this.osm.create(newObs, function (err, _, node) {
+      if (err) return cb(err)
+      newObs.id = node.value.k
+      newObs.version = node.key
+      cb(null, newObs)
+    })
+  }
+
+  observationGet (id, cb) {
+    this.osm.get(id, function (err, obses) {
+      if (err) return cb(err)
+      else return cb(null, flatObs(id, obses))
+    })
+  }
+
+  observationConvert (id, cb) {
+    var self = this
+    // 1. get the observation
+    this.osm.get(id, function (err, obses) {
+      if (err) return cb(err)
+      if (!Object.keys(obses).length) {
+        return cb(new Error('failed to lookup observation: not found'))
+      }
+
+      // 2. see if tags.element_id already present (short circuit)
+      var obs = obses[Object.keys(obses)[0]]
+      if (obs.tags && obs.tags.element_id) {
+        cb(null, obs.tags.element_id)
+        return
+      }
+
+      var batch = []
+
+      // 3. create node
+      batch.push({
+        type: 'put',
+        key: randombytes(8).toString('hex'),
+        value: Object.assign(obs, {
+          type: 'node'
+        })
+      })
+
+      // 4. modify observation tags
+      obs.tags = obs.tags || {}
+      obs.tags.element_id = batch[0].key
+      batch.push({
+        type: 'put',
+        key: id,
+        value: obs
+      })
+
+      // 5. batch modification
+      self.osm.batch(batch, function (err) {
+        if (err) return cb(err)
+        return cb(null, obs.tags.element_id)
+      })
+    })
+  }
+
+  observationUpdate (newObs, cb) {
+    var self = this
+    if (typeof newObs.version !== 'string') {
+      return cb(new Error('the given observation must have a "version" set'))
+    }
+    var id = newObs.id
+
+    try {
+      validateObservation(newObs)
+    } catch (err) {
+      return cb(errors.InvalidFields(err.message))
+    }
+
+    this.osm.getByVersion(newObs.version, function (err, obs) {
+      if (err && !err.notFound) return cb(err)
+      if (err && err.notFound) return cb(errors.NoVersion())
+      if (obs.id !== id) return cb(errors.TypeMismatch(obs.id, id))
+
+      var opts = {
+        links: [newObs.version]
+      }
+
+      var finalObs = whitelistProps(newObs)
+      finalObs.type = 'observation'
+      finalObs.timestamp = new Date().toISOString()
+      finalObs = Object.assign(obs, finalObs)
+
+      self.osm.put(id, finalObs, opts, function (err, node) {
+        if (err) return cb(err)
+        finalObs.id = node.value.k
+        finalObs.version = node.key
+        return cb(null, finalObs)
+      })
+    })
+  }
+
+  observationDelete (id, cb) {
+    this.osm.del(id, cb)
+  }
+
+  observationList (cb) {
+    var results = []
+    this.osm.kv.createReadStream()
+      .on('data', function (row) {
+        Object.keys(row.values).forEach(function (version) {
+          var obs = row.values[version].value
+          if (!obs) return
+          if (obs.type !== 'observation') return
+          obs.id = row.key
+          obs.version = version
+          results.push(obs)
+        })
+      })
+      .once('end', function () {
+        cb(null, results)
+      })
+      .once('error', function (err) {
+        cb(err)
+      })
+  }
+
+  observationStream () {
+    var parseObs = through.obj(function (enc, obj, next) {
+      if (obj.type === 'observation') return next(null, obj)
+      return next()
+    })
+
+    return this.osm.kv.createReadStream().pipe(parseObs)
+  }
+
+  close (cb) {
+    this.sync.close(cb)
+  }
+}
+
+function flatObs (id, obses) {
+  return Object.keys(obses).map(function (version) {
+    var obs = obses[version]
+    obs.id = id
+    obs.version = version
+    return obs
   })
-  ws.end(data)
 }
 
-
-Store.prototype.createOsmReplicationStream = function () {
-  return this.osm.log.replicate()
-}
-
-Store.prototype.createMediaReplicationStream = function () {
-  return createMediaReplicationStream(this.media)
-}
-
-Store.prototype.close = function (cb) {
-  this.osm.close(cb)
-}
-
-Store.prototype.replicateWithDirectory = function (dir, opts, done) {
-  var pending = 2
-  var errs = []
-  var dataPath = path.join(dir, 'data.tgz')
-  var mediaPath = path.join(dir, 'media')
-
-  sneakernet(this.osm.log, {safetyFile: true}, dataPath, onFinished)
-  var dest = MediaStore(mediaPath)
-  var r1 = this.replicateMediaReplicationStream()
-  var r2 = createMediaReplicationStream(dest)
-  pump(r1, r2, r1, onFinished)
-
-  function onFinished (err) {
-    if (err) errs.push(err)
-    if (--pending > 0) return
-    var txt = 'DO NOT MODIFY ANYTHING INSIDE THIS FOLDER PRETTY PLEASE'
-    fs.writeFile(path.join(dir, 'DO NOT MODIFY.txt'), txt, 'utf8', onWritten)
+function validateObservation (obs) {
+  if (!obs) throw new Error('Observation is undefined')
+  if (obs.type !== 'observation') throw new Error('Observation must be of type `observation`')
+  if (obs.attachments) {
+    if (!Array.isArray(obs.attachments)) throw new Error('Observation attachments must be an array')
+    obs.attachments.forEach(function (att, i) {
+      if (!att) throw new Error('Attachment at index `' + i + '` is undefined')
+      if (typeof att.id !== 'string') throw new Error('Attachment must have a string id property (at index `' + i + '`)')
+    })
   }
-
-  function onWritten (err) {
-    if (err) errs.push(err)
-    done(errs.length ? errs : null)
-  }
-}
-
-Store.prototype._observationFromFeature = function (feature) {
-  if (!(feature.type === 'Feature' && feature.properties)) {
-    return cb(new Error('Expected GeoJSON feature object'))
-  }
-  var obs = {
-    id: feature.id || randomBytes(8).toString('hex'),
-    type: 'observation',
-    tags: feature.properties,
-    timestamp: new Date().toISOString()
-  }
-  if (feature.geometry && feature.geometry.coordinates) {
-    obs.lon = feature.geometry.coordinates[0]
-    obs.lat = feature.geometry.coordinates[1]
-  }
-  return obs
-}
-
-function isEmpty (obj) {
-   for (var x in obj) { return false; }
-   return true;
-}
-
-Store.prototype.observationCreate = function (feature, cb) {
-  var self = this
-  var obs = this._observationFromFeature(feature)
-  self.osm.get(obs.id, function (err, data) {
-    if (err) return cb(err)
-    if (isEmpty(data)) self.osm.put(obs.id, obs, cb)
-    else cb(new Error('That id ' + obs.id + ' already exists.'))
-  })
-}
-
-Store.prototype.observationDelete = function (id, cb) {
-  this.osm.del(id, cb)
-}
-
-Store.prototype.observationUpdate = function (feature, cb) {
-  var obs = this._observationFromFeature(feature)
-  this.osm.put(obs.id, obs, cb)
-}
-
-Store.prototype.observationStream = function (opts) {
-  var self = this
-  if (!opts) opts = {}
-
-  return pump(this.osm.kv.createReadStream(opts), through.obj(write))
-
-  function write (row, enc, next) {
-    var values = Object.keys(row.values || {}).map(v => row.values[v])
-    if (!values.length) return next()
-    if (values[0].deleted) return next()
-    if (values[0].value.type !== 'observation') return next()
-
-    var obs = xtend(values[0].value, {id: row.key})
-    return next(null, opts.features ? self.observationToFeature(obs) : obs)
-  }
-}
-
-Store.prototype.observationList = function (opts, cb) {
-  if (typeof opts === 'function') {
-    cb = opts
-    opts = {}
-  }
-  collect(this.observationStream(opts), function (err, data) {
-    if (err) return cb(err)
-    cb(null, data)
-  })
-}
-
-Store.prototype.observationToFeature = function (obs) {
-  var feature = {
-    id: obs.id,
-    type: 'Feature',
-    geometry: null,
-    properties: obs.tags
-  }
-  if (typeof obs.lon === 'number' && typeof obs.lat === 'number') {
-    feature.geometry = {
-      type: 'Point',
-      coordinates: [obs.lon, obs.lat]
+  if (typeof obs.lat !== 'undefined' || typeof obs.lon !== 'undefined') {
+    if (typeof obs.lat === 'undefined' || typeof obs.lon === 'undefined') {
+      throw new Error('one of lat and lon are undefined')
+    }
+    if (typeof obs.lat !== 'number' || typeof obs.lon !== 'number') {
+      throw new Error('lon and lat must be a number')
     }
   }
-  if (typeof feature.properties.public === 'undefined') {
-    feature.properties.public = false
-  }
-  if (!feature.properties.summary) {
-    feature.properties.summary = ' '
-  }
-  return feature
 }
+
+var VALID_PROPS = ['lon', 'lat', 'attachments', 'tags', 'ref']
+
+// Filter whitelisted props
+function whitelistProps (obs) {
+  var newObs = {}
+  VALID_PROPS.forEach(function (prop) {
+    newObs[prop] = obs[prop]
+  })
+  return newObs
+}
+
+module.exports = Core
+Core.errors = errors
