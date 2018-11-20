@@ -4,7 +4,7 @@ const randombytes = require('randombytes')
 const Sync = require('./sync')
 const errors = require('./errors')
 
-class Core {
+class Mapeo {
   constructor (osm, media, opts) {
     if (!opts) opts = {}
     this.sync = new Sync(osm, media, opts)
@@ -197,5 +197,5 @@ function whitelistProps (obs) {
   return newObs
 }
 
-module.exports = Core
-Core.errors = errors
+module.exports = Mapeo
+Mapeo.errors = errors
