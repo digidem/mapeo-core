@@ -1,5 +1,6 @@
 const through = require('through2')
 const randombytes = require('randombytes')
+const pumpify = require('pumpify')
 
 const Sync = require('./sync')
 const errors = require('./errors')
@@ -124,16 +125,9 @@ class Mapeo {
 
   observationList (cb) {
     var results = []
-    this.osm.kv.createReadStream()
-      .on('data', function (row) {
-        Object.keys(row.values).forEach(function (version) {
-          var obs = row.values[version].value
-          if (!obs) return
-          if (obs.type !== 'observation') return
-          obs.id = row.key
-          obs.version = version
-          results.push(obs)
-        })
+    this.observationStream()
+      .on('data', function (obs) {
+        results.push(obs)
       })
       .once('end', function () {
         cb(null, results)
@@ -144,9 +138,14 @@ class Mapeo {
   }
 
   observationStream () {
-    var parseObs = through.obj(function (enc, obj, next) {
-      if (obj.type === 'observation') return next(null, obj)
-      return next()
+    var parseObs = through.obj(function (row, enc, next) {
+      Object.keys(row.values).forEach(function (version) {
+        var obs = row.values[version].value
+        if (!obs || obs.type !== 'observation') return next()
+        obs.id = row.key
+        obs.version = version
+        next(null, obs)
+      })
     })
 
     return this.osm.kv.createReadStream().pipe(parseObs)
@@ -192,7 +191,7 @@ var VALID_PROPS = ['lon', 'lat', 'attachments', 'tags', 'ref']
 function whitelistProps (obs) {
   var newObs = {}
   VALID_PROPS.forEach(function (prop) {
-    newObs[prop] = obs[prop]
+    if (obs[prop]) newObs[prop] = obs[prop]
   })
   return newObs
 }
