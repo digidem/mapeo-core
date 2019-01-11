@@ -1,14 +1,20 @@
 const through = require('through2')
 const randombytes = require('randombytes')
-const pumpify = require('pumpify')
+const events = require('events')
 
 const Sync = require('./sync')
 const errors = require('./errors')
 
-class Mapeo {
+const CURRENT_SCHEMA = 3
+
+class Mapeo extends events.EventEmitter {
   constructor (osm, media, opts) {
+    super()
     if (!opts) opts = {}
     this.sync = new Sync(osm, media, opts)
+    this.sync.on('error', (err) => {
+      this.emit('error', err)
+    })
     this.osm = osm
     this.media = media
   }
@@ -22,7 +28,9 @@ class Mapeo {
 
     const newObs = whitelistProps(obs)
     newObs.type = 'observation'
+    newObs.schemaVersion = obs.schemaVersion || CURRENT_SCHEMA
     newObs.timestamp = (new Date().toISOString())
+    newObs.created_at = (new Date()).toISOString()
 
     this.osm.create(newObs, function (err, _, node) {
       if (err) return cb(err)
@@ -35,7 +43,7 @@ class Mapeo {
   observationGet (id, cb) {
     this.osm.get(id, function (err, obses) {
       if (err) return cb(err)
-      else return cb(null, flatObs(id, obses))
+      else return cb(null, flatObs(id, obses).map(transformOldObservation))
     })
   }
 
@@ -144,7 +152,7 @@ class Mapeo {
         if (!obs || obs.type !== 'observation') return next()
         obs.id = row.key
         obs.version = version
-        next(null, obs)
+        next(null, transformOldObservation(obs))
       })
     })
 
@@ -185,16 +193,113 @@ function validateObservation (obs) {
   }
 }
 
-var VALID_PROPS = ['lon', 'lat', 'attachments', 'tags', 'ref']
+// Top-level props that can be modified by the user/client
+var USER_UPDATABLE_PROPS = [
+  'lon',
+  'lat',
+  'attachments',
+  'tags',
+  'ref',
+  'metadata',
+  'fields',
+  'schemaVersion'
+]
 
-// Filter whitelisted props
+// Filter whitelisted props the user can update
 function whitelistProps (obs) {
   var newObs = {}
-  VALID_PROPS.forEach(function (prop) {
+  USER_UPDATABLE_PROPS.forEach(function (prop) {
     if (obs[prop]) newObs[prop] = obs[prop]
   })
   return newObs
 }
 
-module.exports = Mapeo
+// All valid top-level props
+var TOP_LEVEL_PROPS = USER_UPDATABLE_PROPS.concat([
+  'created_at',
+  'timestamp',
+  'id',
+  'version',
+  'type'
+])
+
+// Props from old versions of mapeo-mobile that we can discard
+var SKIP_OLD_PROPS = [
+  'created_at_timestamp',
+  'link',
+  'device_id',
+  'observedBy'
+]
+
+function transformOldObservation (obs) {
+  switch (getSchemaVersion(obs)) {
+    case 1:
+      return transformObservationSchema1(obs)
+    case 2:
+      return transformObservationSchema2(obs)
+    default:
+      return obs
+  }
+}
+
+// Transform an observation from Sinangoe version of MM to the current format
+function transformObservationSchema1 (obs) {
+  var newObs = { tags: {} }
+  Object.keys(obs).forEach(function (prop) {
+    if (prop === 'attachments') {
+      // Attachments has changed from array of strings to array of objects
+      newObs.attachments = (obs.attachments || []).map(a => {
+        if (typeof a !== 'string') return a
+        return { id: a }
+      })
+    } else if (prop === 'fields') {
+      // fields.answer should be a tag
+      newObs.fields = obs.fields || []
+      newObs.fields.forEach(f => {
+        if (!f || !f.answer || !f.id) return
+        newObs.tags[f.id] = f.answer
+      })
+    } else if (SKIP_OLD_PROPS.indexOf(prop) > -1) {
+      // just ignore unused old props
+    } else if (TOP_LEVEL_PROPS.indexOf(prop) > -1) {
+      // Copy across valid top-level props
+      newObs[prop] = obs[prop]
+    } else if (prop === 'created') {
+      // created is changed to created_at
+      newObs.created_at = obs.created
+    } else {
+      newObs.tags[prop] = obs[prop]
+    }
+  })
+  return newObs
+}
+
+// Transform an observation from ECA version of MM to the current format
+function transformObservationSchema2 (obs) {
+  var newObs = Object.assign({}, obs, {tags: {}})
+  Object.keys(obs.tags || {}).forEach(function (prop) {
+    if (prop === 'fields') {
+      newObs.fields = obs.tags.fields
+    } else if (prop === 'created') newObs.created_at = obs.tags.created
+    else newObs.tags[prop] = obs.tags[prop]
+  })
+  return newObs
+}
+
+// Get the schema version of the observation
+// Prior to schema 3 we had two beta testing schemas in the wild
+// which did not have a schemaVersion property
+function getSchemaVersion (obs) {
+  if (obs.schemaVersion) return obs.schemaVersion
+  if (typeof obs.device_id === 'string' &&
+    typeof obs.created === 'string' &&
+    typeof obs.tags === 'undefined') return 1
+  if (typeof obs.created_at === 'undefined' &&
+    typeof obs.tags !== 'undefined' &&
+    typeof obs.tags.created === 'string') return 2
+  return null
+}
+
 Mapeo.errors = errors
+Mapeo.CURRENT_SCHEMA = CURRENT_SCHEMA
+module.exports = Mapeo

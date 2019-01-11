@@ -12,6 +12,8 @@ function createStores (opts, cb) {
   opts = opts || {}
   var api1 = helpers.createStore(helpers.tmpdir, opts)
   var api2 = helpers.createStore(helpers.tmpdir2, opts)
+  api1.on('error', console.error)
+  api2.on('error', console.error)
   function close () {
     api1.close()
     api2.close()

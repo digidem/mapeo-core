@@ -1,6 +1,6 @@
 var test = require('tape')
-var through = require('through2')
 var helpers = require('./helpers')
+var core = require('..')
 
 var obs = {
   attachments: [],
@@ -72,9 +72,9 @@ test('observationList', function (t) {
           t.error(err)
           t.equal(list.length, 2, 'contains 2 items')
           var match1 = list.find((n) => n.id === node1.id)
-          t.same(match1, node1, 'contains node1 in list')
+          t.same(match1.id, node1.id, 'contains node1 in list')
           var match2 = list.find((n) => n.id === node2.id)
-          t.same(match2, node2, 'contains node2 in list')
+          t.same(match2.id, node2.id, 'contains node2 in list')
           helpers.cleanup()
           t.end()
         })

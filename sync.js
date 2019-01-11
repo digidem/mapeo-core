@@ -106,8 +106,9 @@ class Sync extends events.EventEmitter {
       cb = opts
       opts = {}
     }
-    if (!this.browser) this.browser = this.listen(Object.assign({}, this.opts, opts), cb)
-    else {
+    if (!this.browser) {
+      this.browser = this.listen(Object.assign({}, this.opts, opts), cb)
+    } else {
       this.browser.update()
       cb()
     }
@@ -143,8 +144,7 @@ class Sync extends events.EventEmitter {
     self._targets = {}
     const type = opts.type || SYNC_TYPE
     if (!this.bonjour) this.bonjour = Bonjour()
-    this._replicationServer = http.createServer(function (req, res) {
-    })
+    this._replicationServer = http.createServer(function (req, res) {})
     const wss = wsock.createServer({noServer: true})
 
     this._replicationServer.on('upgrade', function (req, socket, head) {
@@ -170,12 +170,11 @@ class Sync extends events.EventEmitter {
         type: type,
         port: self._replicationServer.address().port
       })
-      self.service.start()
-      self.service.once('up', cb)
       self.service.on('error', self._onerror)
+      self.service.once('up', cb)
     }
 
-    const browser = this.bonjour.find({ type })
+    const browser = this.bonjour.find({ type }, this._onerror)
     browser.on('down', function (service) {
       const target = WifiTarget(service)
       self.emit('down', target)
