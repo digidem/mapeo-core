@@ -22,6 +22,14 @@ function createStores (opts, cb) {
   cb(api1.sync, api2.sync, close)
 }
 
+function verifyTarget (t, api, done) {
+  return (target) => {
+    var address = api._replicationServer.address()
+    t.same(target.port, address.port, 'target port')
+    done()
+  }
+}
+
 tape('sync: two servers find eachother', function (t) {
   createStores(function (api1, api2, close) {
     var pending = 2
@@ -33,13 +41,8 @@ tape('sync: two servers find eachother', function (t) {
       t.end()
     }
 
-    var verifyTarget = (api) => (target) => {
-      var address = api._replicationServer.address()
-      t.same(target.port, address.port, 'target port')
-      done()
-    }
-    api1.on('connection', verifyTarget(api2))
-    api2.on('connection', verifyTarget(api1))
+    api1.on('connection', verifyTarget(t, api2, done))
+    api2.on('connection', verifyTarget(t, api1, done))
     api1.listen()
     api2.listen()
   })
@@ -67,13 +70,8 @@ tape('sync: two servers find eachother twice', function (t) {
       })
     }
 
-    var verifyTarget = (api) => (target) => {
-      var address = api._replicationServer.address()
-      t.same(target.port, address.port, 'target port')
-      done()
-    }
-    api1.on('connection', verifyTarget(api2))
-    api2.on('connection', verifyTarget(api1))
+    api1.on('connection', verifyTarget(t, api2, done))
+    api2.on('connection', verifyTarget(t, api1, done))
     api1.listen()
     api2.listen()
   })
