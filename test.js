@@ -10,8 +10,10 @@ const store = require('.')
 
 const tmpdir = path.join(tmp(), 'mapfilter-sync-server-test-files')
 const tmpdir2 = path.join(tmp(), 'mapfilter-sync-server-test-files-2')
+const tmpdir3 = path.join(tmp(), 'mapfilter-sync-server-test-files-3')
 rimraf.sync(tmpdir)
 rimraf.sync(tmpdir2)
+rimraf.sync(tmpdir3)
 const feature = {
   "type": "Feature",
   "properties": {},
@@ -33,6 +35,7 @@ function cleanup (t) {
     s2.close(function () {
       rimraf.sync(tmpdir)
       rimraf.sync(tmpdir2)
+      rimraf.sync(tmpdir3)
       t.end()
     })
   })
@@ -226,4 +229,69 @@ test('observationDelete', function (t) {
       cleanup(t)
     })
   })
+})
+
+test('file-based replication', function (t) {
+  const feature = {
+    "type": "Feature",
+    "properties": {},
+    "geometry": {
+      "type": "Point",
+      "coordinates": [
+        -96.1083984375,
+        39.57182223734374
+      ]
+    }
+  }
+  var s1 = store(tmpdir)
+  var s2 = store(tmpdir2)
+  var pending  = 2
+  var node
+  var id
+
+  var ws = s1.media.createWriteStream('foo.txt')
+  ws.on('finish', written)
+  ws.on('error', written)
+  ws.write('bar')
+  ws.end()
+
+  s1.observationCreate(feature, function done (err, _node) {
+    t.error(err)
+    node = _node
+    id = node.value.k
+    feature.id = id
+    s1.osm.get(id, function (err, docs) {
+      t.error(err)
+      t.same(docs[node.key], node.value.v)
+      written()
+    })
+  })
+
+  function written (err) {
+    t.error(err)
+    if (--pending === 0) replicateToFile()
+  }
+
+  function replicateToFile () {
+    s1.replicateWithDirectory(tmpdir3, {}, replicateFromFile)
+  }
+
+  function replicateFromFile (err) {
+    t.error(err)
+    s2.replicateWithDirectory(tmpdir3, {}, done)
+  }
+
+  function done (err) {
+    t.error(err)
+    t.ok(true, 'replication ended')
+    t.ok(fs.existsSync(path.join(tmpdir2, 'media', 'foo', 'foo.txt')))
+    t.equal(fs.readFileSync(path.join(tmpdir2, 'media', 'foo', 'foo.txt')).toString(), 'bar')
+    s2.osm.get(id, function (err, docs) {
+      t.error(err)
+      t.same(docs[node.key], node.value.v)
+      cleanup()
+      t.end()
+    })
+  }
+
 })
