@@ -10,6 +10,7 @@ var osmobs = require('osm-p2p-observations')
 var MediaStore = require('safe-fs-blob-store')
 var sneakernet = require('hyperlog-sneakernet-replicator')
 var path = require('path')
+var fs = require('fs')
 var createMediaReplicationStream = require('blob-store-replication-stream')
 
 module.exports = Store
@@ -60,7 +61,7 @@ Store.prototype.replicateWithDirectory = function (dir, opts, done) {
 
   sneakernet(this.osm.log, {safetyFile: true}, dataPath, onFinished)
   var dest = MediaStore(mediaPath)
-  var r1 = this.replicateMediaReplicationStream()
+  var r1 = createMediaReplicationStream(this.media)
   var r2 = createMediaReplicationStream(dest)
   pump(r1, r2, r1, onFinished)
 

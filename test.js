@@ -31,8 +31,10 @@ var id = null
 var node = null
 
 function cleanup (t) {
-  s1.close(function () {
-    s2.close(function () {
+  s1.close(function (err) {
+    t.error(err)
+    s2.close(function (err) {
+      t.error(err)
       rimraf.sync(tmpdir)
       rimraf.sync(tmpdir2)
       rimraf.sync(tmpdir3)
@@ -256,19 +258,19 @@ test('file-based replication', function (t) {
   ws.end()
 
   s1.observationCreate(feature, function done (err, _node) {
-    t.error(err)
+    t.error(err, 'Created observation without error')
     node = _node
     id = node.value.k
     feature.id = id
     s1.osm.get(id, function (err, docs) {
-      t.error(err)
-      t.same(docs[node.key], node.value.v)
+      t.error(err, 'Got written observation')
+      t.same(docs[node.key], node.value.v, 'observation matches what was written')
       written()
     })
   })
 
   function written (err) {
-    t.error(err)
+    t.error(err, 'Wrote without error')
     if (--pending === 0) replicateToFile()
   }
 
@@ -277,20 +279,18 @@ test('file-based replication', function (t) {
   }
 
   function replicateFromFile (err) {
-    t.error(err)
+    t.error(err, 'replicated to file without error')
     s2.replicateWithDirectory(tmpdir3, {}, done)
   }
 
   function done (err) {
-    t.error(err)
-    t.ok(true, 'replication ended')
-    t.ok(fs.existsSync(path.join(tmpdir2, 'media', 'foo', 'foo.txt')))
-    t.equal(fs.readFileSync(path.join(tmpdir2, 'media', 'foo', 'foo.txt')).toString(), 'bar')
+    t.error(err, 'replicated from file without error')
+    t.ok(fs.existsSync(path.join(tmpdir2, 'media', 'foo', 'foo.txt')), 'media replicated')
+    t.equal(fs.readFileSync(path.join(tmpdir2, 'media', 'foo', 'foo.txt')).toString(), 'bar', 'media contents match')
     s2.osm.get(id, function (err, docs) {
       t.error(err)
-      t.same(docs[node.key], node.value.v)
-      cleanup()
-      t.end()
+      t.same(docs[node.key], node.value.v, 'osm data replicated')
+      cleanup(t)
     })
   }
 
