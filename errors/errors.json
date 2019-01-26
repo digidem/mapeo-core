@@ -1,0 +1,86 @@
+{
+  "NotFound": {
+    "code": 404,
+    "message": "Not Found"
+  },
+  "ChangesetIdMismatch": {
+    "code": 409,
+    "message": "diff contains elements with changeset IDs %s\nwhich don't match the changeset ID %s that the diff was uploaded to"
+  },
+  "ClosedChangeset": {
+    "code": 409,
+    "message": "The changeset %s was closed at %s."
+  },
+  "NoVersion": {
+    "code": 400,
+    "message": "No such observation with that version"
+  },
+  "DeleteMultiple": {
+    "code": 400,
+    "message": "Only one element can be deleted per request."
+  },
+  "ForkedChangeset": {
+    "code": 409,
+    "message": "Changeset %s has multiple forks, you must specify a version"
+  },
+  "IdMismatch": {
+    "code": 400,
+    "message": "Id mismatch between url parameter and xml.\n%s !== %s"
+  },
+  "InUse": {
+    "code": 412,
+    "message": "Cannot delete an element that is in use"
+  },
+  "InvalidBbox": {
+    "code": 400,
+    "message": "Invalid bbox query string parameter"
+  },
+  "MissingBbox": {
+    "code": 400,
+    "message": "Missing bbox query string parameter"
+  },
+  "DeleteFailed": {
+    "code": 400,
+    "message": "Failed to delete observation"
+  },
+  "MissingChangeset": {
+    "code": 400,
+    "message": "Changeset %s not found.\n The element must reference an existing changeset."
+  },
+  "MissingChangesetId": {
+    "code": 400,
+    "message": "Missing changeset ID: the element must have a changeset attribute with the id of an open changset"
+  },
+  "MissingParameter": {
+    "code": 400,
+    "message": "Missing parameter '%s'.\nThe parameter has to be the same in the URL (e.g. /api/0.6/nodes?nodes=123,456,789)"
+  },
+  "PlaceholderIdError": {
+    "code": 400,
+    "message": "Placeholder id is missing or non-unique"
+  },
+  "TypeMismatch": {
+    "code": 400,
+    "message": "Type mismatch between url parameter and body."
+  },
+  "UnsupportedContentType": {
+    "code": 400,
+    "message": "Unsupported content-type"
+  },
+  "XmlParseError": {
+    "code": 400,
+    "message": "Error parsing XML"
+  },
+  "JSONParseError": {
+    "code": 400,
+    "message": "Error parsing JSON"
+  },
+  "XmlMissingElement": {
+    "code": 400,
+    "message": "missing %s elements in XML"
+  },
+  "InvalidFields": {
+    "code": 400,
+    "message": "Invalid fields: %s"
+  }
+}
