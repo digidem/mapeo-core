@@ -46,37 +46,33 @@ class Sync extends events.EventEmitter {
 
     this.osm = osm
     this.media = media
-    this.id = opts.id || randombytes(8).toString('hex')
+    if (!opts.id) opts.id = randombytes(32)
     this.opts = opts
 
     // track replication progress states of files and wifi streams
     this._targets = {}
 
-    this.swarm = null
+    this.swarm = this._swarm()
+    if (opts.listen !== false) this.swarm.listen(this.opts.port)
   }
 
   _swarm () {
-    this.swarm = Swarm()
-    this.swarm.on('connection-closed', (connection, info) => {
+    var swarm = Swarm(this.opts)
+    swarm.on('connection-closed', (connection, info) => {
       const target = WifiTarget(info)
       this.emit('down', target)
       debug('down', target)
       delete this._targets[target.id]
     })
 
-    this.swarm.on('connection', (connection, info) => {
-      // Skip your own machine.
-      if (info.id === this.id) {
-        debug('skipping sync target: it\'s me')
-        return
-      }
-
+    swarm.on('connection', (connection, info) => {
       const target = WifiTarget(info)
       this._targets[target.id] = target
       this.emit('connection', target)
       debug('connection', target)
     })
     this._onerror = this._onerror.bind(this)
+    return swarm
   }
 
   targets () {
@@ -84,6 +80,9 @@ class Sync extends events.EventEmitter {
   }
 
   syncToTarget (_target, opts) {
+    var emitter = events.EventEmitter()
+    // TODO: sync it up
+    return emitter
   }
 
   _syncError (err, target) {
@@ -112,8 +111,8 @@ class Sync extends events.EventEmitter {
   /**
    * Convenience function for unanouncing and leaving the swarm
    */
-  unannounce (cb) {
-    if (!this.swarm) return cb()
+  unannounce () {
+    if (!this.swarm) return
     this.swarm.leave(SYNC_TYPE)
   }
 
@@ -122,15 +121,14 @@ class Sync extends events.EventEmitter {
   }
 
   listen (opts, cb) {
-    this.swarm.listen(Object.assign({}, this.opts, opts), cb)
+    this.swarm.listen(opts, cb)
   }
 
   /**
    * Broadcast and listen to targets on mdns
    */
-  announce (opts, cb) {
-    if (this.swarm) return cb()
-    this.listen(opts, () => this.swarm.join(SYNC_TYPE, cb))
+  announce (opts) {
+    this.swarm.join(SYNC_TYPE)
   }
 
   /**
