@@ -52,14 +52,17 @@ reference the observation you are updating.
 
 Delete the observation with the given id.
 
-### `mapeo.observationList(cb)`
+### `mapeo.observationStream(opts)`
+
+Returns a stream of observations. Options for filtering the data can be passed
+according to the [levelup createReadStream
+API](https://github.com/Level/levelup#createReadStream).
+
+### `mapeo.observationList(opts, cb)`
 
 Returns an array of observations to the given `callback`. Any errors are
-propagated as the first argument to the callback.
-
-### `mapeo.observationStream()`
-
-Returns a stream of observations.
+propagated as the first argument to the callback. Same options accepted as
+`mapeo.observationStream`.
 
 ### `mapeo.observationConvert(obs, cb)`
 
