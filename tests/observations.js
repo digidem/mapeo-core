@@ -1,6 +1,6 @@
 var test = require('tape')
 var helpers = require('./helpers')
-var core = require('..')
+var collect = require('collect-stream')
 
 var obs = {
   attachments: [],
@@ -83,6 +83,27 @@ test('observationList', function (t) {
   })
 })
 
+test('observationList with options', function (t) {
+  var m = helpers.createStore(helpers.tmpdir)
+  m.observationCreate(obs, (err, node1) => {
+    t.error(err)
+    m.observationList((err, list) => {
+      t.error(err)
+      var newObs = Object.assign(obs2, {})
+      t.equal(list.length, 1, 'contains 1 item')
+      m.observationCreate(newObs, (err, node2) => {
+        t.error(err)
+        m.observationList({limit: 1}, (err, list) => {
+          t.error(err)
+          t.equal(list.length, 1, 'contains 1 item')
+          helpers.cleanup()
+          t.end()
+        })
+      })
+    })
+  })
+})
+
 test('observationDelete', function (t) {
   var m = helpers.createStore(helpers.tmpdir)
   m.observationCreate(obs, (err, node) => {
@@ -114,11 +135,28 @@ test('observationStream', function (t) {
       var pending = 2
       m.observationStream().on('data', function (obs) {
         pending--
-        if (!pending) {
+        if (pending === 0) {
           helpers.cleanup()
         }
         if (obs.id === node1.id) t.same(obs, node1, 'obs 1 arrives')
         if (obs.id === node2.id) t.same(obs, node2, 'obs 2 arrives')
+      })
+    })
+  })
+})
+
+test('observationStream with options', function (t) {
+  t.plan(4)
+  var m = helpers.createStore(helpers.tmpdir)
+  m.observationCreate(obs, (err, node1) => {
+    t.error(err)
+    var newObs = Object.assign(obs2, {})
+    m.observationCreate(newObs, (err, node2) => {
+      t.error(err)
+      collect(m.observationStream({limit: 1}), (err, data) => {
+        t.error(err)
+        t.ok(data.length, 1)
+        helpers.cleanup()
       })
     })
   })

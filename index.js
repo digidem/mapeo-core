@@ -131,9 +131,13 @@ class Mapeo extends events.EventEmitter {
     this.osm.del(id, cb)
   }
 
-  observationList (cb) {
+  observationList (opts, cb) {
+    if (typeof opts === 'function') {
+      cb = opts
+      opts = {}
+    }
     var results = []
-    this.observationStream()
+    this.observationStream(opts)
       .on('data', function (obs) {
         results.push(obs)
       })
@@ -145,7 +149,7 @@ class Mapeo extends events.EventEmitter {
       })
   }
 
-  observationStream () {
+  observationStream (opts) {
     var parseObs = through.obj(function (row, enc, next) {
       Object.keys(row.values).forEach(function (version) {
         var obs = row.values[version].value
@@ -156,7 +160,7 @@ class Mapeo extends events.EventEmitter {
       })
     })
 
-    return this.osm.kv.createReadStream().pipe(parseObs)
+    return this.osm.kv.createReadStream(opts).pipe(parseObs)
   }
 
   close (cb) {
