@@ -1,12 +1,9 @@
 const path = require('path')
-const wsock = require('websocket-stream')
-const wsockstream = require('websocket-stream/stream')
-const http = require('http')
 const createMediaReplicationStream = require('blob-store-replication-stream')
 const sneakernet = require('hyperlog-sneakernet-replicator')
 const Syncfile = require('osm-p2p-syncfile')
 const debug = require('debug')('mapeo-sync')
-const Bonjour = require('bonjour')
+const Swarm = require('discovery-swarm')
 const values = require('object.values')
 const events = require('events')
 const fs = require('fs')
@@ -20,181 +17,118 @@ const SYNCFILE_FORMATS = {
   'osm-p2p-syncfile'   : 2
 }
 
+const DEFAULT_OPTS = {
+  dns: {
+    interval: 3000
+  },
+  dht: false
+}
+
+function WifiTarget (peer) {
+  peer.type = 'wifi'
+  return peer
+}
+
+function FileTarget (filename) {
+  return {
+    id: path.basename(filename),
+    filename,
+    type: 'file'
+  }
+}
+
 class Sync extends events.EventEmitter {
   constructor (osm, media, opts) {
     super()
-    if (!opts) opts = {}
+    this.opts = Object.assign(DEFAULT_OPTS, opts)
     opts.writeFormat = opts.writeFormat || 'hyperlog-sneakernet'
     if (!SYNCFILE_FORMATS[opts.writeFormat]) throw new Error('unknown syncfile write format: ' + opts.writeFormat)
 
     this.osm = osm
     this.media = media
-    this.host = opts.host
-    this.id = opts.id || 'Mapeo_' + randombytes(8).toString('hex')
+    if (!opts.id) opts.id = randombytes(32)
     this.opts = opts
+
+    // track replication progress states of files and wifi streams
     this._targets = {}
-    this._replicationServer = null
+
+    this.swarm = this._swarm()
+    if (opts.listen !== false) this.swarm.listen(this.opts.port)
+  }
+
+  _swarm () {
+    var swarm = Swarm(this.opts)
+    swarm.on('connection-closed', (connection, info) => {
+      const target = WifiTarget(info)
+      this.emit('down', target)
+      debug('down', target)
+      delete this._targets[target.id]
+    })
+
+    swarm.on('connection', (connection, info) => {
+      const target = WifiTarget(info)
+      this._targets[target.id] = target
+      this.emit('connection', target)
+      debug('connection', target)
+    })
     this._onerror = this._onerror.bind(this)
+    return swarm
   }
 
   targets () {
     return values(this._targets)
   }
 
-  /**
-   * Sync to Target
-   * @type {[type]}
-   */
   syncToTarget (_target, opts) {
-    var self = this
-    if (!opts) opts = {}
-
-    const emitter = new events.EventEmitter()
-    const url = `ws://${_target.host}:${_target.port}`
-
-    var pending = 2
-    var target = this._targets[_target.name]
-
-    const done = (err) => {
-      if (err) {
-        if (target) {
-          target.status = 'replication-error'
-          target.message = err.message
-        }
-        return emitter.emit('error', err)
-      }
-      if (--pending === 0) {
-        if (target) {
-          target.status = 'replication-complete'
-        }
-        emitter.emit('end')
-      }
-    }
-    emitter.emit('progress', 'replication-started')
-    if (target) target.status = 'replication-started'
-
-    const ws = wsock(`${url}/osm`, {
-      perMessageDeflate: false, objectMode: true
-    })
-    // TODO: real progress events
-    ws.once('data', () => {
-      if (target) target.status = 'osm-connected'
-      emitter.emit('progress', 'osm-connected')
-    })
-
-    const osm = self.osmReplicationStream(opts.osm)
-    replicate(osm, ws, done)
-
-    const ws2 = wsock(`${url}/media`, {
-      perMessageDeflate: false, objectMode: true
-    })
-    // TODO: real progress events
-    ws2.once('data', () => {
-      if (target) target.status = 'media-connected'
-      emitter.emit('progress', 'media-connected')
-    })
-    const media = self.mediaReplicationStream(opts.media)
-    replicate(media, ws2, done)
+    var emitter = events.EventEmitter()
+    // TODO: sync it up
     return emitter
   }
 
-  /**
-   * Convenience function for announcing and re-announcing
-   */
-  announce (opts, cb) {
-    if (typeof opts === 'function') {
-      cb = opts
-      opts = {}
-    }
-    if (!this.browser) {
-      this.browser = this.listen(Object.assign({}, this.opts, opts), cb)
-    } else {
-      this.browser.update()
-      cb()
-    }
+  _syncError (err, target) {
+    target.status = 'replication-error'
+    target.message = err.message
+  }
+
+  _syncComplete (target) {
+    target.status = 'replication-complete'
+  }
+
+  // FIXME: think about this API more
+  _syncProgress (target, percent) {
+    target.status = 'replication-progress'
+    target.percent = percent
+  }
+
+  _onMediaProgress (target, percent) {
+    target.status = 'media-connected'
+  }
+
+  _onOsmProgress (target, percent) {
+    target.status = 'osm-connected'
   }
 
   /**
    * Convenience function for unanouncing and leaving the swarm
    */
-  unannounce (cb) {
-    var self = this
-    self._targets = {}
-    if (!self.bonjour) return cb()
-    self.bonjour.unpublishAll(function () {
-      self.browser = null
-      if (self._replicationServer) {
-        self._replicationServer.close(cb)
-        self._replicationServer = null
-      } else cb()
-    })
+  unannounce () {
+    if (!this.swarm) return
+    this.swarm.leave(SYNC_TYPE)
   }
 
   _onerror (err) {
     this.emit('error', err)
   }
 
+  listen (opts, cb) {
+    this.swarm.listen(opts, cb)
+  }
+
   /**
    * Broadcast and listen to targets on mdns
    */
-  listen (opts, cb) {
-    var self = this
-    if (!opts) opts = {}
-    if (!cb) cb = function () {}
-    self._targets = {}
-    const type = opts.type || SYNC_TYPE
-    if (!this.bonjour) this.bonjour = Bonjour()
-    this._replicationServer = http.createServer(function (req, res) {})
-    const wss = wsock.createServer({noServer: true})
-
-    this._replicationServer.on('upgrade', function (req, socket, head) {
-      wss.handleUpgrade(req, socket, head, function (client) {
-        var stream
-        if (req.url === '/osm') stream = self.osmReplicationStream(opts.osm)
-        if (req.url === '/media') stream = self.mediaReplicationStream(opts.media)
-        if (!stream) return client.send('Not found')
-        replicate(stream, wsockstream(client), function (err) {
-          if (err) self._onerror(err)
-        })
-      })
-    })
-    wss.on('error', this._onerror)
-    this._replicationServer.on('error', this._onerror)
-    this._replicationServer.listen(done)
-
-    function done () {
-      debug('replication server live on port', self._replicationServer.address().port)
-      self.service = self.bonjour.publish({
-        name: self.id,
-        host: self.host,
-        type: type,
-        port: self._replicationServer.address().port
-      })
-      self.service.on('error', self._onerror)
-      self.service.once('up', cb)
-    }
-
-    const browser = this.bonjour.find({ type }, this._onerror)
-    browser.on('down', function (service) {
-      const target = WifiTarget(service)
-      self.emit('down', target)
-      debug('down', target)
-      delete self._targets[target.name]
-    })
-
-    browser.on('up', function (service) {
-      // Skip your own machine.
-      if (service.name === self.id) {
-        debug('skipping sync target: it\'s me')
-        return
-      }
-
-      const target = WifiTarget(service)
-      self._targets[target.name] = target
-      self.emit('connection', target)
-      debug('connection', target)
-    })
-    return browser
+  announce (opts) {
+    this.swarm.join(SYNC_TYPE)
   }
 
   /**
@@ -205,20 +139,16 @@ class Sync extends events.EventEmitter {
   replicateFromFile (sourceFile) {
     var self = this
     const emitter = new events.EventEmitter()
-    const target = {
-      id: this.id,
-      name: path.basename(sourceFile),
-      filename: sourceFile,
-      type: 'file'
-    }
-    self._targets[target.name] = target
+
+    const target = FileTarget(sourceFile)
+    self._targets[target.id] = target
 
     // FIXME: this wraps & re-wraps the function each time this func is called!
     const replicateOrig = this.osm.log.replicate
     this.osm.log.replicate = function () {
       const stream = replicateOrig.call(self.osm.log)
       stream.on('data', function () {
-        target.status = 'replication-progress'
+        self._syncProgress(target)
         emitter.emit('progress')
       })
       return stream
@@ -265,14 +195,13 @@ class Sync extends events.EventEmitter {
     }
 
     function onerror (err) {
-      target.status = 'replication-error'
-      target.message = err.message
+      self._syncError(err, target)
       emitter.emit('error', err)
     }
 
     function onend (err) {
       if (err) return onerror(err)
-      target.status = 'replication-complete'
+      self._syncComplete(target)
       self.osm.ready(function () {
         emitter.emit('end')
       })
@@ -290,13 +219,11 @@ class Sync extends events.EventEmitter {
   }
 
   close (cb) {
-    if (!cb) cb = function () {}
-    var self = this
-    self.unannounce(function () {
-      if (!self.bonjour) return cb()
-      self.bonjour.destroy()
-      self.bonjour = undefined
-      cb()
+    if (!cb) cb = () => {}
+    this.unannounce(() => {
+      this.swarm.destroy(() => {
+        this.swarm = null
+      })
     })
   }
 }
@@ -331,16 +258,6 @@ function isGzipFile (filepath, cb) {
       })
     })
   })
-}
-
-function WifiTarget (service) {
-  return {
-    id: service.name,
-    name: service.host,
-    host: service.referer.address,
-    port: service.port,
-    type: 'wifi'
-  }
 }
 
 module.exports = Sync

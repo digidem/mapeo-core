@@ -24,7 +24,7 @@ function createStores (opts, cb) {
 
 function verifyTarget (t, api, done) {
   return (target) => {
-    var address = api._replicationServer.address()
+    var address = api.swarm.address()
     t.same(target.port, address.port, 'target port')
     done()
   }
@@ -41,10 +41,10 @@ tape('sync: two servers find eachother', function (t) {
       t.end()
     }
 
-    api1.on('connection', verifyTarget(t, api2, done))
-    api2.on('connection', verifyTarget(t, api1, done))
-    api1.listen()
-    api2.listen()
+    api1.swarm.on('peer', verifyTarget(t, api2, done))
+    api2.swarm.on('peer', verifyTarget(t, api1, done))
+    api1.announce()
+    api2.announce()
   })
 })
 
@@ -53,27 +53,30 @@ tape('sync: two servers find eachother twice', function (t) {
     var pending = 2
     var closedOnce = false
 
-    function done () {
+    function done (conn, peer) {
       pending--
       if (pending) return
+
       if (closedOnce) {
         close()
         t.end()
         return
       }
 
-      api1.unannounce(function () {
-        closedOnce = true
-        pending = 2
-        api1.announce(function () {
-        })
-      })
+      api1.unannounce()
+      closedOnce = true
+      pending = 1
     }
 
-    api1.on('connection', verifyTarget(t, api2, done))
-    api2.on('connection', verifyTarget(t, api1, done))
-    api1.listen()
-    api2.listen()
+    api1.on('connection', done)
+    api2.on('connection', done)
+    api2.on('down', function (peer) {
+      if (closedOnce && peer.id !== api1.id) {
+        api1.announce()
+      }
+    })
+    api1.announce()
+    api2.announce()
   })
 })
 
@@ -95,8 +98,8 @@ tape('sync: replication of a simple observation with media', function (t) {
           t.error(err, 'obs1 created')
           id = _id
           api1.on('connection', sync)
-          api1.listen()
-          api2.listen()
+          api1.announce()
+          api2.announce()
         })
       }
     }
@@ -109,7 +112,7 @@ tape('sync: replication of a simple observation with media', function (t) {
         t.ok(value === 'osm-connected' || value === 'media-connected', 'progress message')
         var targets = api1.targets()
         t.ok(targets.length)
-        t.same(targets[0].host, target.host)
+        t.same(targets[0].id, target.id)
         t.same(targets[0].status, value)
       })
       syncer.on('error', function (err) {

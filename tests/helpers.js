@@ -21,7 +21,7 @@ function createStore (dir, opts) {
   var osm = Osm()
   var media = blobstore(dir)
   return new Mapeo(osm, media, Object.assign({}, opts, {
-    host: randombytes(8).toString('hex') // simulate two different hosts
+    id: randombytes(8).toString('hex')
   }))
 }
 
