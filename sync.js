@@ -9,32 +9,19 @@ const events = require('events')
 const fs = require('fs')
 const os = require('os')
 const randombytes = require('randombytes')
+const pump = require('pump')
+const MapeoSync = require('./lib/sync-stream')
 
 const SYNC_TYPE = 'mapeo-sync'
-
 const SYNCFILE_FORMATS = {
   'hyperlog-sneakernet': 1,
   'osm-p2p-syncfile'   : 2
 }
-
 const DEFAULT_OPTS = {
   dns: {
     interval: 3000
   },
   dht: false
-}
-
-function WifiTarget (peer) {
-  peer.type = 'wifi'
-  return peer
-}
-
-function FileTarget (filename) {
-  return {
-    id: path.basename(filename),
-    filename,
-    type: 'file'
-  }
 }
 
 class Sync extends events.EventEmitter {
@@ -49,86 +36,40 @@ class Sync extends events.EventEmitter {
     if (!opts.id) opts.id = randombytes(32)
     this.opts = opts
 
-    // track replication progress states of files and wifi streams
+    // track discovered wifi peers
     this._targets = {}
 
     this.swarm = this._swarm()
-    if (opts.listen !== false) this.swarm.listen(this.opts.port)
-  }
-
-  _swarm () {
-    var swarm = Swarm(this.opts)
-    swarm.on('connection-closed', (connection, info) => {
-      const target = WifiTarget(info)
-      this.emit('down', target)
-      debug('down', target)
-      delete this._targets[target.id]
-    })
-
-    swarm.on('connection', (connection, info) => {
-      const target = WifiTarget(info)
-      this._targets[target.id] = target
-      this.emit('connection', target)
-      debug('connection', target)
-    })
-    this._onerror = this._onerror.bind(this)
-    return swarm
   }
 
   targets () {
     return values(this._targets)
   }
 
-  syncToTarget (_target, opts) {
+  syncToTarget (target, opts) {
     var emitter = events.EventEmitter()
-    // TODO: sync it up
+    var stream = MapeoSync(this.osm, this.media, { deviceType: opts.deviceType || 'unknown' })
+    if (!target.socket) return emitter.emit('error', new Error('sync target has no socket'))
+    pump(stream, target.socket, stream, function (err) {
+      if (err) emitter.emit('error', err)
+      else emitter.emit('end')
+    })
     return emitter
   }
 
-  _syncError (err, target) {
-    target.status = 'replication-error'
-    target.message = err.message
-  }
-
-  _syncComplete (target) {
-    target.status = 'replication-complete'
-  }
-
-  // FIXME: think about this API more
-  _syncProgress (target, percent) {
-    target.status = 'replication-progress'
-    target.percent = percent
-  }
-
-  _onMediaProgress (target, percent) {
-    target.status = 'media-connected'
-  }
-
-  _onOsmProgress (target, percent) {
-    target.status = 'osm-connected'
-  }
-
-  /**
-   * Convenience function for unanouncing and leaving the swarm
-   */
-  unannounce () {
-    if (!this.swarm) return
-    this.swarm.leave(SYNC_TYPE)
-  }
-
-  _onerror (err) {
-    this.emit('error', err)
-  }
-
-  listen (opts, cb) {
-    this.swarm.listen(opts, cb)
-  }
-
-  /**
-   * Broadcast and listen to targets on mdns
-   */
-  announce (opts) {
+  listen (cb) {
     this.swarm.join(SYNC_TYPE)
+    this.swarm.listen(cb)
+  }
+
+  close (cb) {
+    if (!cb) cb = () => {}
+    this.unannounce(() => {
+      this.swarm.destroy(() => {
+        this.swarm = null
+        cb()
+      })
+    })
   }
 
   /**
@@ -140,15 +81,11 @@ class Sync extends events.EventEmitter {
     var self = this
     const emitter = new events.EventEmitter()
 
-    const target = FileTarget(sourceFile)
-    self._targets[target.id] = target
-
     // FIXME: this wraps & re-wraps the function each time this func is called!
     const replicateOrig = this.osm.log.replicate
     this.osm.log.replicate = function () {
       const stream = replicateOrig.call(self.osm.log)
       stream.on('data', function () {
-        self._syncProgress(target)
         emitter.emit('progress')
       })
       return stream
@@ -181,8 +118,8 @@ class Sync extends events.EventEmitter {
         const m2 = createMediaReplicationStream(self.media)
         var error
         var pending = 2
-        replicate(r1, r2, fin)
-        replicate(m1, m2, fin)
+        pump(r1, r2, r1, fin)
+        pump(m1, m2, m1, fin)
         function fin (err) {
           if (err) error = err
           if (!--pending) {
@@ -195,13 +132,11 @@ class Sync extends events.EventEmitter {
     }
 
     function onerror (err) {
-      self._syncError(err, target)
       emitter.emit('error', err)
     }
 
     function onend (err) {
       if (err) return onerror(err)
-      self._syncComplete(target)
       self.osm.ready(function () {
         emitter.emit('end')
       })
@@ -210,36 +145,23 @@ class Sync extends events.EventEmitter {
     return emitter
   }
 
-  osmReplicationStream (opts) {
-    return this.osm.log.replicate(opts)
-  }
-
-  mediaReplicationStream (opts) {
-    return createMediaReplicationStream(this.media, opts)
-  }
-
-  close (cb) {
-    if (!cb) cb = () => {}
-    this.unannounce(() => {
-      this.swarm.destroy(() => {
-        this.swarm = null
-      })
+  _swarm () {
+    var swarm = Swarm()
+    swarm.on('connection-closed', (connection, info) => {
+      const target = WifiTarget(info)
+      this.emit('down', target)
+      debug('down', target)
+      delete this._targets[target.id]
     })
-  }
-}
 
-function replicate (a, b, cb) {
-  var pending = 2
-  a.once('end', checkDone)
-  a.once('finish', checkDone)
-  a.once('error', checkDone)
-  b.once('end', checkDone)
-  b.once('finish', checkDone)
-  b.once('error', checkDone)
-  function checkDone () {
-    if (!--pending) cb()
+    swarm.on('connection', (connection, info) => {
+      const target = WifiTarget(connection, info)
+      this._targets[target.id] = target
+      this.emit('connection', target)
+      debug('connection', target)
+    })
+    return swarm
   }
-  a.pipe(b).pipe(a)
 }
 
 function isGzipFile (filepath, cb) {
@@ -258,6 +180,20 @@ function isGzipFile (filepath, cb) {
       })
     })
   })
+}
+
+function WifiTarget (connection, peer) {
+  peer.type = 'wifi'
+  peer.socket = connection
+  return peer
+}
+
+function FileTarget (filename) {
+  return {
+    id: path.basename(filename),
+    filename,
+    type: 'file'
+  }
 }
 
 module.exports = Sync

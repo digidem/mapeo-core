@@ -22,6 +22,9 @@ var Mapeo = require('@mapeo/core')
 * `media`: a blob storage instance
 * `opts`: options
 
+Valid `opts` options include:
+- `opts.deviceType` (string): one of `{'desktop', 'mobile'}`. This affects how sync works. Mobile targets will not receive full-resolution media from other devices, but share them *to* desktop devices.
+
 ## Observations API 
 
 A observation is a point on the map with particular metadata. 
@@ -77,19 +80,23 @@ WiFi and filesystem (i.e., over USB sneakernets).
 
 `const sync = mapeo.sync`
 
+```js
+var sync = mapeo.sync
+
+sync.listen(function () {
+  
+})
+```
+
 ### sync.listen(cb)
 
 Broadcast and listen on the local network for peers. `cb` is called once the service is up and broadcasting.
 
-### sync.announce(cb)
+### sync.close(cb)
 
-(Re-)broadcasts the sync service on the local network. Calls `sync.listen` if it wasn't called before. `cb` is called once the service is up and has broadcasted itself.
+Unannounces the sync service & cleans up the underlying UDP socket. `cb` is called once this is complete.
 
-### sync.unannounce(cb)
-
-Unpublishes the sync service from the local network. `cb` is called on completion.
-
-### sync.targets
+### sync.targets()
 
 Fetch a list of the current sync targets that have been found thus far.
 
@@ -99,8 +106,6 @@ A target can have the following properties:
   * `host`: the ip
   * `port`: the port
   * `type`: 'wifi' or 'file'
-  * `status`: 'replication-started', 'media-connected', 'osm-connected', 'replication-error'
-  * `message`: any extra information needed for this target, a message from mapeo-sync
 
 ### var ev = sync.syncToTarget(target)
 
@@ -121,30 +126,6 @@ An EventEmitter `ev` is returned. It can emit
 - `"error"`: gives an Error object signalling an error in syncing.
 - `"progress"`: gives a string describing the current sync state.
 - `"end"`: successful completion of OSM and media sync.
-
-### var r = sync.osmReplicationStream([opts])
-
-Returns the duplex replication stream `r`. This can be piped into another [osm-p2p-db][]'s replication stream to sync the two databases together, e.g.
-
-```js
-var r = sync.osmReplicationStream()
-r.pipe(myOsm.log.replicate()).pipe(r)
-```
-
-### var r sync.mediaReplicationStream([opts])
-
-Returns the duplex replication stream `r`. This can be piped into another [abstract-blob-store][]'s replication stream (created by [blob-store-replication-stream][]) to sync the two media sets together, e.g.
-
-```js
-var blobSync = require('blob-store-replication-stream')
-var r = sync.mediaReplicationStream()
-r.pipe(blobSync(myMediaBlobStore).pipe(r)
-```
-
-### sync.close(cb)
-
-Unannounces the sync service & cleans up the underlying UDP socket.
-
 
 ## License
 
