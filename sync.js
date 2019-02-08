@@ -29,7 +29,7 @@ const DEFAULT_OPTS = {
 class Sync extends events.EventEmitter {
   constructor (osm, media, opts) {
     super()
-    this.opts = Object.assign(DEFAULT_OPTS, opts)
+    opts = Object.assign(DEFAULT_OPTS, opts)
     opts.writeFormat = opts.writeFormat || 'hyperlog-sneakernet'
     if (!SYNCFILE_FORMATS[opts.writeFormat]) throw new Error('unknown syncfile write format: ' + opts.writeFormat)
 
