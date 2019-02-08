@@ -148,7 +148,8 @@ class Sync extends events.EventEmitter {
   }
 
   _swarm () {
-    var swarm = Swarm()
+    var self = this
+    var swarm = Swarm(this.opts)
     swarm.on('connection-closed', (connection, info) => {
       const target = WifiTarget(connection, info)
       this.emit('down', target)
