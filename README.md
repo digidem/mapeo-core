@@ -106,6 +106,10 @@ A target can have the following properties:
   * `host`: the ip
   * `port`: the port
   * `type`: 'wifi' or 'file'
+  
+### sync.on('target', target)
+
+Emitted when a new wifi target is discovered.
 
 ### var ev = sync.syncToTarget(target)
 

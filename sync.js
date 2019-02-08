@@ -12,6 +12,8 @@ const randombytes = require('randombytes')
 const pump = require('pump')
 const MapeoSync = require('./lib/sync-stream')
 
+var n = 4000
+
 const SYNC_TYPE = 'mapeo-sync'
 const SYNCFILE_FORMATS = {
   'hyperlog-sneakernet': 1,
@@ -47,8 +49,10 @@ class Sync extends events.EventEmitter {
   }
 
   syncToTarget (target, opts) {
-    var emitter = events.EventEmitter()
-    var stream = MapeoSync(this.osm, this.media, { deviceType: opts.deviceType || 'unknown' })
+    var emitter = new events.EventEmitter()
+    var stream = MapeoSync(this.osm, this.media, {
+      deviceType: this.opts.deviceType || 'unknown'
+    })
     if (!target.socket) return emitter.emit('error', new Error('sync target has no socket'))
     pump(stream, target.socket, stream, function (err) {
       if (err) emitter.emit('error', err)
@@ -58,17 +62,15 @@ class Sync extends events.EventEmitter {
   }
 
   listen (cb) {
+    this.swarm.listen(++n, cb)
     this.swarm.join(SYNC_TYPE)
-    this.swarm.listen(cb)
   }
 
   close (cb) {
     if (!cb) cb = () => {}
-    this.unannounce(() => {
-      this.swarm.destroy(() => {
-        this.swarm = null
-        cb()
-      })
+    this.swarm.destroy(() => {
+      this.swarm = null
+      cb()
     })
   }
 
@@ -148,7 +150,7 @@ class Sync extends events.EventEmitter {
   _swarm () {
     var swarm = Swarm()
     swarm.on('connection-closed', (connection, info) => {
-      const target = WifiTarget(info)
+      const target = WifiTarget(connection, info)
       this.emit('down', target)
       debug('down', target)
       delete this._targets[target.id]
@@ -157,7 +159,7 @@ class Sync extends events.EventEmitter {
     swarm.on('connection', (connection, info) => {
       const target = WifiTarget(connection, info)
       this._targets[target.id] = target
-      this.emit('connection', target)
+      this.emit('target', target)
       debug('connection', target)
     })
     return swarm

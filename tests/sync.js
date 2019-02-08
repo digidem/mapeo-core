@@ -4,14 +4,14 @@ var os = require('os')
 var tape = require('tape')
 var helpers = require('./helpers')
 
-function createStores (opts, cb) {
+function createApis (opts, cb) {
   if (!cb && typeof opts === 'function') {
     cb = opts
     opts = undefined
   }
   opts = opts || {}
-  var api1 = helpers.createStore(helpers.tmpdir, opts)
-  var api2 = helpers.createStore(helpers.tmpdir2, opts)
+  var api1 = helpers.createApi(helpers.tmpdir, opts)
+  var api2 = helpers.createApi(helpers.tmpdir2, opts)
   api1.on('error', console.error)
   api2.on('error', console.error)
   function close () {
@@ -19,77 +19,53 @@ function createStores (opts, cb) {
     api2.close()
     helpers.cleanup()
   }
-  cb(api1.sync, api2.sync, close)
+  cb(api1, api2, close)
 }
 
 function verifyTarget (t, api, done) {
   return (target) => {
-    var address = api.swarm.address()
+    var address = api.sync.swarm.address()
     t.same(target.port, address.port, 'target port')
     done()
   }
 }
 
 tape('sync: two servers find eachother', function (t) {
-  createStores(function (api1, api2, close) {
+  createApis(function (api1, api2, close) {
     var pending = 2
 
     function done () {
-      pending--
-      if (pending) return
+      if (--pending) return
       close()
       t.end()
     }
 
-    api1.swarm.on('peer', verifyTarget(t, api2, done))
-    api2.swarm.on('peer', verifyTarget(t, api1, done))
-    api1.announce()
-    api2.announce()
-  })
-})
-
-tape('sync: two servers find eachother twice', function (t) {
-  createStores(function (api1, api2, close) {
-    var pending = 2
-    var closedOnce = false
-
-    function done (conn, peer) {
-      pending--
-      if (pending) return
-
-      if (closedOnce) {
-        close()
-        t.end()
-        return
-      }
-
-      api1.unannounce()
-      closedOnce = true
-      pending = 1
-    }
-
-    api1.on('connection', done)
-    api2.on('connection', done)
-    api2.on('down', function (peer) {
-      if (closedOnce && peer.id !== api1.id) {
-        api1.announce()
-      }
+    api1.sync.listen(function () {
+      api2.sync.listen(function () {
+        api1.sync.on('target', function (target) {
+          var targetId = target.id.toString('hex')
+          t.same(targetId, api2.sync.swarm.id.toString('hex'), 'api2 id cmp')
+          done()
+        })
+        api2.sync.on('target', function (target) {
+          var targetId = target.id.toString('hex')
+          t.same(targetId, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
+          done()
+        })
+      })
     })
-    api1.announce()
-    api2.announce()
   })
 })
 
-tape('sync: replication of a simple observation with media', function (t) {
+tape.only('sync: replication of a simple observation with media', function (t) {
   t.plan(17)
-  createStores(function (api1, api2, close) {
+  createApis(function (api1, api2, close) {
     var obs = {lat: 1, lon: 2, type: 'observation'}
     var ws = api1.media.createWriteStream('foo.txt')
     var pending = 1
     ws.on('finish', written)
     ws.on('error', written)
-    ws.write('bar')
-    ws.end()
+    ws.end('bar')
 
     function written (err) {
       t.error(err)
@@ -97,9 +73,9 @@ tape('sync: replication of a simple observation with media', function (t) {
         api1.osm.create(obs, function (err, _id, node) {
           t.error(err, 'obs1 created')
           id = _id
-          api1.on('connection', sync)
-          api1.announce()
-          api2.announce()
+          api1.sync.once('target', sync)
+          api1.sync.listen()
+          api2.sync.listen()
         })
       }
     }
@@ -107,7 +83,7 @@ tape('sync: replication of a simple observation with media', function (t) {
     var id = null
 
     function sync (target) {
-      var syncer = api1.syncToTarget(target)
+      var syncer = api1.sync.syncToTarget(target)
       syncer.on('progress', function (value) {
         t.ok(value === 'osm-connected' || value === 'media-connected', 'progress message')
         var targets = api1.targets()
@@ -142,8 +118,8 @@ tape('sync: replication of a simple observation with media', function (t) {
 })
 
 tape('sync: media replication', function (t) {
-  var s1 = helpers.createStore(helpers.tmpdir)
-  var s2 = helpers.createStore(helpers.tmpdir2)
+  var s1 = helpers.createApi(helpers.tmpdir)
+  var s2 = helpers.createApi(helpers.tmpdir2)
   var ws = s1.media.createWriteStream('foo.txt')
   var pending = 1
   ws.on('finish', written)
@@ -180,7 +156,7 @@ tape('sync: media replication', function (t) {
 })
 
 tape('sync: syncfile replication: hyperlog-sneakernet', function (t) {
-  createStores({writeFormat: 'hyperlog-sneakernet'}, function (api1, api2, close) {
+  createApis({writeFormat: 'hyperlog-sneakernet'}, function (api1, api2, close) {
     // create test data
     var id
     var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
@@ -225,7 +201,7 @@ tape('sync: syncfile replication: hyperlog-sneakernet', function (t) {
 })
 
 tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
-  createStores({writeFormat: 'osm-p2p-syncfile'}, function (api1, api2, close) {
+  createApis({writeFormat: 'osm-p2p-syncfile'}, function (api1, api2, close) {
     // create test data
     var id
     var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
