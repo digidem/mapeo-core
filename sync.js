@@ -12,8 +12,6 @@ const randombytes = require('randombytes')
 const pump = require('pump')
 const MapeoSync = require('./lib/sync-stream')
 
-var n = 4000
-
 const SYNC_TYPE = 'mapeo-sync'
 const SYNCFILE_FORMATS = {
   'hyperlog-sneakernet': 1,
@@ -62,7 +60,7 @@ class Sync extends events.EventEmitter {
   }
 
   listen (cb) {
-    this.swarm.listen(++n, cb)
+    this.swarm.listen(0, cb)
     this.swarm.join(SYNC_TYPE)
   }
 
