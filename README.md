@@ -111,7 +111,7 @@ A target can have the following properties:
 
 Emitted when a new wifi target is discovered.
 
-### var ev = sync.syncToTarget(target)
+### var ev = sync.start(target)
 
 `target` is an object with properties `host`, `port`, and `name`.
 

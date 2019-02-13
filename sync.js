@@ -46,7 +46,7 @@ class Sync extends events.EventEmitter {
     return values(this._targets)
   }
 
-  syncToTarget (target, opts) {
+  start (target, opts) {
     var emitter = new events.EventEmitter()
     if (!target.handshake) {
       process.nextTick(function () {

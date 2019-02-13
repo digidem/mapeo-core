@@ -99,7 +99,7 @@ tape('sync: replication of a simple observation with media', function (t) {
     var id = null
 
     function sync (target) {
-      var syncer = api1.sync.syncToTarget(target)
+      var syncer = api1.sync.start(target)
       syncer.on('error', function (err) {
         t.error(err)
         close()
