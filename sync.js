@@ -38,8 +38,6 @@ class Sync extends events.EventEmitter {
 
     // track discovered wifi peers
     this._targets = {}
-
-    this.swarm = this._swarm()
   }
 
   targets () {
@@ -64,14 +62,20 @@ class Sync extends events.EventEmitter {
   }
 
   listen (cb) {
+    if (!cb) cb = () => {}
+    if (this.swarm || this._destroyingSwarm) return process.nextTick(cb)
+    this.swarm = this._swarm()
     this.swarm.listen(0, cb)
     this.swarm.join(SYNC_TYPE)
   }
 
   close (cb) {
     if (!cb) cb = () => {}
+    if (this._destroyingSwarm) return process.nextTick(cb)
+    this._destroyingSwarm = true
     this.swarm.destroy(() => {
       this.swarm = null
+      this._destroyingSwarm = false
       cb()
     })
   }
