@@ -232,8 +232,8 @@ function isGzipFile (filepath, cb) {
 
 function WifiTarget (connection, peer) {
   peer.type = 'wifi'
-  peer.socket = connection
   peer.swarmId = peer.swarmId || peer.id
+  // XXX: this is so that each connection has a unique id, even if it's from the same peer.
   peer.id = (!peer.id || peer.id.length!==12) ? randombytes(6).toString('hex') : peer.id
   return peer
 }
