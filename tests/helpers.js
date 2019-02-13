@@ -12,10 +12,10 @@ var tmpdir = path.join(tmp(), 'mapfilter-sync-server-test-files')
 var tmpdir2 = path.join(tmp(), 'mapfilter-sync-server-test-files-2')
 
 module.exports = {
-  tmpdir, tmpdir2, createStore, cleanup
+  tmpdir, tmpdir2, createApi, cleanupSync
 }
 
-function createStore (dir, opts) {
+function createApi (dir, opts) {
   rimraf.sync(dir)
   mkdirp.sync(dir)
   var osm = Osm()
@@ -25,7 +25,7 @@ function createStore (dir, opts) {
   }))
 }
 
-function cleanup () {
+function cleanupSync () {
   rimraf.sync(tmpdir)
   rimraf.sync(tmpdir2)
 }
