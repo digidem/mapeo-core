@@ -33,7 +33,7 @@ test('observationCreate', function (t) {
     m.observationGet(node.id, (err, _node) => {
       t.error(err)
       t.same(node, _node[0])
-      helpers.cleanup()
+      helpers.cleanupSync()
       t.end()
     })
   })
@@ -52,7 +52,7 @@ test('observationUpdate', function (t) {
       t.same(newObs.lon, updated.lon, 'updates lat and lon')
       t.same(newObs.tags, updated.tags, 'updates tags')
       t.notEqual(updated.version, node.version, 'updates version')
-      helpers.cleanup()
+      helpers.cleanupSync()
       t.end()
     })
   })
@@ -75,7 +75,7 @@ test('observationList', function (t) {
           t.same(match1.id, node1.id, 'contains node1 in list')
           var match2 = list.find((n) => n.id === node2.id)
           t.same(match2.id, node2.id, 'contains node2 in list')
-          helpers.cleanup()
+          helpers.cleanupSync()
           t.end()
         })
       })
@@ -83,7 +83,7 @@ test('observationList', function (t) {
   })
 })
 
-test('observationList with options', function (t) {
+test('observationList with limit=1', function (t) {
   var m = helpers.createApi(helpers.tmpdir)
   m.observationCreate(obs, (err, node1) => {
     t.error(err)
@@ -96,7 +96,7 @@ test('observationList with options', function (t) {
         m.observationList({limit: 1}, (err, list) => {
           t.error(err)
           t.equal(list.length, 1, 'contains 1 item')
-          helpers.cleanup()
+          helpers.cleanupSync()
           t.end()
         })
       })
@@ -117,7 +117,7 @@ test('observationDelete', function (t) {
         t.same(node2.id, node.id, 'id the same')
         t.notEqual(node2.version, node.version, 'updated version')
         t.same(node2.deleted, true, 'marked deleted')
-        helpers.cleanup()
+        helpers.cleanupSync()
         t.end()
       })
     })
@@ -136,7 +136,7 @@ test('observationStream', function (t) {
       m.observationStream().on('data', function (obs) {
         pending--
         if (pending === 0) {
-          helpers.cleanup()
+          helpers.cleanupSync()
         }
         if (obs.id === node1.id) t.same(obs, node1, 'obs 1 arrives')
         if (obs.id === node2.id) t.same(obs, node2, 'obs 2 arrives')
@@ -156,7 +156,7 @@ test('observationStream with options', function (t) {
       collect(m.observationStream({limit: 1}), (err, data) => {
         t.error(err)
         t.ok(data.length, 1)
-        helpers.cleanup()
+        helpers.cleanupSync()
       })
     })
   })

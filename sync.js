@@ -48,14 +48,18 @@ class Sync extends events.EventEmitter {
 
   syncToTarget (target, opts) {
     var emitter = new events.EventEmitter()
-    var stream = MapeoSync(this.osm, this.media, {
-      deviceType: this.opts.deviceType || 'unknown'
-    })
-    if (!target.socket) return emitter.emit('error', new Error('sync target has no socket'))
-    pump(stream, target.socket, stream, function (err) {
-      if (err) emitter.emit('error', err)
-      else emitter.emit('end')
-    })
+    if (!target.handshake) {
+      process.nextTick(function () {
+        emitter.emit('error', new Error('trying to sync before handshake has occurred'))
+      })
+      return emitter
+    }
+
+    // return existing emitter
+    if (target.sync) return target.sync
+
+    target.handshake.accept()
+    target.sync = emitter
     return emitter
   }
 
@@ -147,19 +151,62 @@ class Sync extends events.EventEmitter {
 
   _swarm () {
     var self = this
-    var swarm = Swarm(this.opts)
-    swarm.on('connection-closed', (connection, info) => {
-      const target = WifiTarget(connection, info)
-      this.emit('down', target)
-      debug('down', target)
-      delete this._targets[target.id]
-    })
+    // XXX(noffle): having opts.id set causes connections to get dropped on my
+    // local home network; haven't investigated deeper yet.
+    var swarm = Swarm(Object.assign({}, this.opts, {id: undefined}))
 
     swarm.on('connection', (connection, info) => {
       const target = WifiTarget(connection, info)
       this._targets[target.id] = target
-      this.emit('target', target)
       debug('connection', target)
+
+      connection.once('close', onClose)
+      connection.once('error', onClose)
+
+      var open = true
+
+      function onClose (err) {
+        open = false
+        const target = WifiTarget(connection, info)
+        this.emit('down', target)
+        debug('down', target)
+        delete self._targets[target.id]
+      }
+
+      var stream
+      setTimeout(doSync, 500)
+
+      function doSync () {
+        if (!open) return
+        // Set up the sync stream immediately, but don't do anything with it
+        // until one side initiates the sync operation.
+        stream = MapeoSync(self.osm, self.media, {
+          deviceType: self.opts.deviceType || 'unknown',
+          handshake: onHandshake
+        })
+        pump(stream, connection, stream, function (err) {
+          if (target.sync) {
+            if (err) target.sync.emit('error', err)
+            else target.sync.emit('end')
+          }
+          // delete target.handshake
+          // delete target.sync
+        })
+      }
+
+      function onHandshake (req, accept) {
+        target.handshake = {
+          accept: accept
+        }
+
+        // as soon as any data is received, accept! Because this means that
+        // the other side just have accepted & wants to start.
+        stream.once('accepted', function () {
+          accept()
+        })
+
+        self.emit('target', target)
+      }
     })
     return swarm
   }
@@ -186,6 +233,8 @@ function isGzipFile (filepath, cb) {
 function WifiTarget (connection, peer) {
   peer.type = 'wifi'
   peer.socket = connection
+  peer.swarmId = peer.swarmId || peer.id
+  peer.id = (!peer.id || peer.id.length!==12) ? randombytes(6).toString('hex') : peer.id
   return peer
 }
 

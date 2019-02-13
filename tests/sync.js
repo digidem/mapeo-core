@@ -14,10 +14,16 @@ function createApis (opts, cb) {
   var api2 = helpers.createApi(helpers.tmpdir2, opts)
   api1.on('error', console.error)
   api2.on('error', console.error)
-  function close () {
-    api1.close()
-    api2.close()
-    helpers.cleanup()
+  function close (cb) {
+    cb = cb || function () {}
+    var pending = 2
+    function done () {
+      if (!--pending) cb()
+    }
+
+    api1.close(done)
+    api2.close(done)
+    helpers.cleanupSync()
   }
   cb(api1, api2, close)
 }
@@ -43,12 +49,12 @@ tape('sync: two servers find eachother', function (t) {
     api1.sync.listen(function () {
       api2.sync.listen(function () {
         api1.sync.on('target', function (target) {
-          var targetId = target.id.toString('hex')
+          var targetId = target.swarmId.toString('hex')
           t.same(targetId, api2.sync.swarm.id.toString('hex'), 'api2 id cmp')
           done()
         })
         api2.sync.on('target', function (target) {
-          var targetId = target.id.toString('hex')
+          var targetId = target.swarmId.toString('hex')
           t.same(targetId, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
           done()
         })
@@ -57,8 +63,9 @@ tape('sync: two servers find eachother', function (t) {
   })
 })
 
-tape.only('sync: replication of a simple observation with media', function (t) {
-  t.plan(17)
+tape('sync: replication of a simple observation with media', function (t) {
+  t.plan(11)
+
   createApis(function (api1, api2, close) {
     var obs = {lat: 1, lon: 2, type: 'observation'}
     var ws = api1.media.createWriteStream('foo.txt')
@@ -66,6 +73,8 @@ tape.only('sync: replication of a simple observation with media', function (t) {
     ws.on('finish', written)
     ws.on('error', written)
     ws.end('bar')
+          api1.sync.listen()
+          api2.sync.listen()
 
     function written (err) {
       t.error(err)
@@ -73,9 +82,16 @@ tape.only('sync: replication of a simple observation with media', function (t) {
         api1.osm.create(obs, function (err, _id, node) {
           t.error(err, 'obs1 created')
           id = _id
-          api1.sync.once('target', sync)
-          api1.sync.listen()
-          api2.sync.listen()
+          setTimeout(function () {
+            t.ok(api1.sync.targets().length > 0, 'api 1 has targets')
+            t.ok(api2.sync.targets().length > 0, 'api 2 has targets')
+            if (api1.sync.targets().length >= 1) {
+              sync(api1.sync.targets()[0])
+            }
+          }, 1000)
+          // api1.sync.once('target', function (target) {
+          //   setTimeout(sync.bind(null, target), 1000)
+          // })
         })
       }
     }
@@ -84,23 +100,15 @@ tape.only('sync: replication of a simple observation with media', function (t) {
 
     function sync (target) {
       var syncer = api1.sync.syncToTarget(target)
-      syncer.on('progress', function (value) {
-        t.ok(value === 'osm-connected' || value === 'media-connected', 'progress message')
-        var targets = api1.targets()
-        t.ok(targets.length)
-        t.same(targets[0].id, target.id)
-        t.same(targets[0].status, value)
-      })
       syncer.on('error', function (err) {
         t.error(err)
         close()
-        t.end()
+        t.fail()
       })
 
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
-        var targets = api1.targets()
-        t.same(targets[0].status, 'replication-complete')
+        var targets = api1.sync.targets()
         api1.osm.get(id, function (err, node) {
           t.error(err)
           api2.osm.get(id, function (err, _node) {
@@ -108,51 +116,14 @@ tape.only('sync: replication of a simple observation with media', function (t) {
             t.same(node, _node, 'node replicated successfully')
             t.ok(fs.existsSync(path.join(helpers.tmpdir2, 'foo', 'foo.txt')), 'media replicated')
             t.equal(fs.readFileSync(path.join(helpers.tmpdir2, 'foo', 'foo.txt')).toString(), 'bar', 'media replicated')
-            close()
-            t.end()
+            close(function () {
+              t.ok(true)
+            })
           })
         })
       })
     }
   })
-})
-
-tape('sync: media replication', function (t) {
-  var s1 = helpers.createApi(helpers.tmpdir)
-  var s2 = helpers.createApi(helpers.tmpdir2)
-  var ws = s1.media.createWriteStream('foo.txt')
-  var pending = 1
-  ws.on('finish', written)
-  ws.on('error', written)
-  ws.write('bar')
-  ws.end()
-
-  function written (err) {
-    t.error(err)
-    if (--pending === 0) replicate()
-  }
-
-  function replicate () {
-    var r1 = s1.sync.mediaReplicationStream()
-    var r2 = s2.sync.mediaReplicationStream()
-    t.ok(true, 'replication started')
-
-    var pending = 2
-    r1.pipe(r2).pipe(r1)
-    r1.on('end', done)
-    r2.on('end', done)
-
-    function done () {
-      if (--pending === 0) {
-        t.ok(true, 'replication ended')
-        t.ok(fs.existsSync(path.join(helpers.tmpdir2, 'foo', 'foo.txt')))
-        t.equal(fs.readFileSync(path.join(helpers.tmpdir2, 'foo', 'foo.txt')).toString(), 'bar')
-        s1.close()
-        s2.close()
-        t.end()
-      }
-    }
-  }
 })
 
 tape('sync: syncfile replication: hyperlog-sneakernet', function (t) {
@@ -172,7 +143,7 @@ tape('sync: syncfile replication: hyperlog-sneakernet', function (t) {
       t.error(err, _id ? 'osm data written ok' : 'media data written ok')
       if (_id) id = _id
       if (--pending === 0) {
-        api1.replicateFromFile(tmpfile)
+        api1.sync.replicateFromFile(tmpfile)
           .once('end', syncfileWritten)
           .once('error', syncfileWritten)
       }
@@ -181,7 +152,7 @@ tape('sync: syncfile replication: hyperlog-sneakernet', function (t) {
     function syncfileWritten (err) {
       t.error(err, 'first syncfile written ok')
 
-      api2.replicateFromFile(tmpfile)
+      api2.sync.replicateFromFile(tmpfile)
         .once('end', secondSyncfileWritten)
         .once('error', secondSyncfileWritten)
     }
@@ -217,7 +188,7 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
       t.error(err, _id ? 'osm data written ok' : 'media data written ok')
       if (_id) id = _id
       if (--pending === 0) {
-        api1.replicateFromFile(tmpfile)
+        api1.sync.replicateFromFile(tmpfile)
           .once('end', syncfileWritten)
           .once('error', syncfileWritten)
       }
@@ -225,8 +196,7 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
 
     function syncfileWritten (err) {
       t.error(err, 'first syncfile written ok')
-      t.same(api1.targets()[0].status, 'replication-complete', 'replication-complete event')
-      api2.replicateFromFile(tmpfile)
+      api2.sync.replicateFromFile(tmpfile)
         .once('end', secondSyncfileWritten)
         .once('error', secondSyncfileWritten)
     }

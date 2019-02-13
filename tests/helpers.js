@@ -12,7 +12,7 @@ var tmpdir = path.join(tmp(), 'mapfilter-sync-server-test-files')
 var tmpdir2 = path.join(tmp(), 'mapfilter-sync-server-test-files-2')
 
 module.exports = {
-  tmpdir, tmpdir2, createApi, cleanup
+  tmpdir, tmpdir2, createApi, cleanupSync
 }
 
 function createApi (dir, opts) {
@@ -25,7 +25,7 @@ function createApi (dir, opts) {
   }))
 }
 
-function cleanup () {
+function cleanupSync () {
   rimraf.sync(tmpdir)
   rimraf.sync(tmpdir2)
 }
