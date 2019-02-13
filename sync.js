@@ -71,7 +71,7 @@ class Sync extends events.EventEmitter {
 
   close (cb) {
     if (!cb) cb = () => {}
-    if (this._destroyingSwarm) return process.nextTick(cb)
+    if (!this.swarm || this._destroyingSwarm) return process.nextTick(cb)
     this._destroyingSwarm = true
     this.swarm.destroy(() => {
       this.swarm = null
