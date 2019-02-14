@@ -187,17 +187,16 @@ class Sync extends events.EventEmitter {
       connection.once('error', onClose)
 
       var open = true
+      var stream
+      setTimeout(doSync, 500)
 
-      function onClose (err) {
+      function onClose () {
         open = false
         const target = WifiTarget(connection, info)
         this.emit('down', target)
         debug('down', target)
         delete self._targets[target.id]
       }
-
-      var stream
-      setTimeout(doSync, 500)
 
       function doSync () {
         if (!open) return
@@ -211,9 +210,8 @@ class Sync extends events.EventEmitter {
           if (target.sync) {
             if (err) target.sync.emit('error', err)
             else target.sync.emit('end')
+            onClose()
           }
-          // delete target.handshake
-          // delete target.sync
         })
       }
 
