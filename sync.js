@@ -44,8 +44,27 @@ class Sync extends events.EventEmitter {
     return values(this._targets)
   }
 
-  start (target, opts) {
+  _getTargetFromHostPort (host, port) {
+    var res = values(this._targets)
+      .filter(function (target) {
+        return target.port == port && target.host == host
+      })
+    if (res.length) {
+      return res[0]
+    } else {
+      return null
+    }
+  }
+
+  start ({host, port}, opts) {
     var emitter = new events.EventEmitter()
+    var target = this._getTargetFromHostPort(host, port)
+    if (!target) {
+      process.nextTick(function () {
+        emitter.emit('error', new Error('trying to sync to unknown target'))
+      })
+      return emitter
+    }
     if (!target.handshake) {
       process.nextTick(function () {
         emitter.emit('error', new Error('trying to sync before handshake has occurred'))
