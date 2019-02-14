@@ -73,8 +73,8 @@ tape('sync: replication of a simple observation with media', function (t) {
     ws.on('finish', written)
     ws.on('error', written)
     ws.end('bar')
-          api1.sync.listen()
-          api2.sync.listen()
+    api1.sync.listen()
+    api2.sync.listen()
 
     function written (err) {
       t.error(err)
@@ -82,16 +82,11 @@ tape('sync: replication of a simple observation with media', function (t) {
         api1.osm.create(obs, function (err, _id, node) {
           t.error(err, 'obs1 created')
           id = _id
-          setTimeout(function () {
-            t.ok(api1.sync.targets().length > 0, 'api 1 has targets')
-            t.ok(api2.sync.targets().length > 0, 'api 2 has targets')
-            if (api1.sync.targets().length >= 1) {
-              sync(api1.sync.targets()[0])
-            }
-          }, 1000)
-          // api1.sync.once('target', function (target) {
-          //   setTimeout(sync.bind(null, target), 1000)
-          // })
+          t.ok(api1.sync.targets().length > 0, 'api 1 has targets')
+          t.ok(api2.sync.targets().length > 0, 'api 2 has targets')
+          if (api1.sync.targets().length >= 1) {
+            sync(api1.sync.targets()[0])
+          }
         })
       }
     }
@@ -108,7 +103,6 @@ tape('sync: replication of a simple observation with media', function (t) {
 
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
-        var targets = api1.sync.targets()
         api1.osm.get(id, function (err, node) {
           t.error(err)
           api2.osm.get(id, function (err, _node) {

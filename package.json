@@ -4,7 +4,7 @@
   "description": "Offline p2p mapping library",
   "main": "index.js",
   "scripts": {
-    "test": "tape tests/*.js",
+    "test": "tape test/*.js",
     "deps": "dependency-check ."
   },
   "repository": {
