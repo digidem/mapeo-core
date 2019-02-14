@@ -64,17 +64,19 @@ tape('sync: two servers find eachother', function (t) {
 })
 
 tape('sync: replication of a simple observation with media', function (t) {
-  t.plan(11)
+  t.plan(13)
 
   createApis(function (api1, api2, close) {
     var obs = {lat: 1, lon: 2, type: 'observation'}
     var ws = api1.media.createWriteStream('foo.txt')
-    var pending = 1
+    var pending = 3
     ws.on('finish', written)
     ws.on('error', written)
     ws.end('bar')
     api1.sync.listen()
+    api1.sync.on('target', written.bind(null, null))
     api2.sync.listen()
+    api2.sync.on('target', written.bind(null, null))
 
     function written (err) {
       t.error(err)
