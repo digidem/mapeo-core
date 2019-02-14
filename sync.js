@@ -193,7 +193,7 @@ class Sync extends events.EventEmitter {
       function onClose () {
         open = false
         const target = WifiTarget(connection, info)
-        this.emit('down', target)
+        self.emit('down', target)
         debug('down', target)
         delete self._targets[target.id]
       }
