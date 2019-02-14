@@ -208,10 +208,11 @@ class Sync extends events.EventEmitter {
         })
         pump(stream, connection, stream, function (err) {
           if (target.sync) {
-            if (err) target.sync.emit('error', err)
-            else target.sync.emit('end')
-            onClose()
+            if (stream.goodFinish) return target.sync.emit('end')
+            if (!err) err = new Error('sync stream terminated on remote side')
+            target.sync.emit('error', err)
           }
+          onClose()
         })
       }
 
