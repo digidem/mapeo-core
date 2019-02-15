@@ -10,8 +10,8 @@ function createApis (opts, cb) {
     opts = undefined
   }
   opts = opts || {}
-  var api1 = helpers.createApi(helpers.tmpdir, opts)
-  var api2 = helpers.createApi(helpers.tmpdir2, opts)
+  var api1 = helpers.createApi(helpers.tmpdir, opts.api1)
+  var api2 = helpers.createApi(helpers.tmpdir2, opts.api2)
   api1.on('error', console.error)
   api2.on('error', console.error)
   function close (cb) {
@@ -26,14 +26,6 @@ function createApis (opts, cb) {
     helpers.cleanupSync()
   }
   cb(api1, api2, close)
-}
-
-function verifyTarget (t, api, done) {
-  return (target) => {
-    var address = api.sync.swarm.address()
-    t.same(target.port, address.port, 'target port')
-    done()
-  }
 }
 
 tape('sync: two servers find eachother', function (t) {
@@ -123,7 +115,7 @@ tape('sync: replication of a simple observation with media', function (t) {
 })
 
 tape('sync: syncfile replication: hyperlog-sneakernet', function (t) {
-  createApis({writeFormat: 'hyperlog-sneakernet'}, function (api1, api2, close) {
+  createApis({api1:{writeFormat: 'hyperlog-sneakernet'}}, function (api1, api2, close) {
     // create test data
     var id
     var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
@@ -168,7 +160,7 @@ tape('sync: syncfile replication: hyperlog-sneakernet', function (t) {
 })
 
 tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
-  createApis({writeFormat: 'osm-p2p-syncfile'}, function (api1, api2, close) {
+  createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
     // create test data
     var id
     var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
