@@ -10,7 +10,7 @@ function createApis (opts, cb) {
     opts = undefined
   }
   opts = opts || {}
-  var api1 = helpers.createApi(helpers.tmpdir, opts.api1)
+  var api1 = helpers.createApi(helpers.tmpdir1, opts.api1)
   var api2 = helpers.createApi(helpers.tmpdir2, opts.api2)
   api1.on('error', console.error)
   api2.on('error', console.error)
@@ -102,10 +102,12 @@ tape('sync: replication of a simple observation with media', function (t) {
           api2.osm.get(id, function (err, _node) {
             t.error(err)
             t.same(node, _node, 'node replicated successfully')
-            t.ok(fs.existsSync(path.join(helpers.tmpdir2, 'foo', 'foo.txt')), 'media replicated')
-            t.equal(fs.readFileSync(path.join(helpers.tmpdir2, 'foo', 'foo.txt')).toString(), 'bar', 'media replicated')
-            close(function () {
-              t.ok(true)
+            api2.media.exists('foo.txt', function (err, exists) {
+              t.error(err)
+              t.ok(exists)
+              close(function () {
+                t.ok(true)
+              })
             })
           })
         })
