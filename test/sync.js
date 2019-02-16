@@ -272,12 +272,12 @@ tape('sync: media: desktop <-> desktop', function (t) {
         ]
         api1.media.list(function (err, files) {
           t.error(err)
-          t.deepEquals(files, expected)
+          t.deepEquals(files.sort(), expected.sort())
           if (!--pending) close(() => t.ok(true))
         })
         api2.media.list(function (err, files) {
           t.error(err)
-          t.deepEquals(files, expected)
+          t.deepEquals(files.sort(), expected.sort())
           if (!--pending) close(() => t.ok(true))
         })
       })
@@ -355,12 +355,12 @@ tape('sync: media: mobile <-> desktop', function (t) {
         ]
         api1.media.list(function (err, files) {
           t.error(err)
-          t.deepEquals(files, expected1)
+          t.deepEquals(files.sort(), expected1.sort())
           if (!--pending) close(() => t.ok(true))
         })
         api2.media.list(function (err, files) {
           t.error(err)
-          t.deepEquals(files, expected2)
+          t.deepEquals(files.sort(), expected2.sort())
           if (!--pending) close(() => t.ok(true))
         })
       })
@@ -437,12 +437,12 @@ tape('sync: media: mobile <-> mobile', function (t) {
         ]
         api1.media.list(function (err, files) {
           t.error(err)
-          t.deepEquals(files, expected1)
+          t.deepEquals(files.sort(), expected1.sort())
           if (!--pending) close(() => t.ok(true))
         })
         api2.media.list(function (err, files) {
           t.error(err)
-          t.deepEquals(files, expected2)
+          t.deepEquals(files.sort(), expected2.sort())
           if (!--pending) close(() => t.ok(true))
         })
       })
