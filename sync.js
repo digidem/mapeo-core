@@ -34,7 +34,7 @@ class Sync extends events.EventEmitter {
     this.osm = osm
     this.media = media
     if (!opts.id) opts.id = randombytes(32)
-    this.opts = opts
+    this.opts = Object.assign({}, opts)
 
     // track discovered wifi peers
     this._targets = {}

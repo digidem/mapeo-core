@@ -208,3 +208,244 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
     }
   })
 })
+
+tape('sync: media: desktop <-> desktop', function (t) {
+  t.plan(18)
+
+  function writeBlob (api, filename, cb) {
+    var pending = 3
+    var ws = api.media.createWriteStream('original/' + filename, done)
+    ws.end(filename)
+
+    ws = api.media.createWriteStream('preview/' + filename, done)
+    ws.end(filename)
+
+    ws = api.media.createWriteStream('thumbnail/' + filename, done)
+    ws.end(filename)
+
+    function done (err) {
+      t.error(err)
+      if (!--pending) cb()
+    }
+  }
+
+  var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
+  createApis(opts, function (api1, api2, close) {
+    var pending = 4
+
+    api1.sync.listen()
+    api1.sync.on('target', written.bind(null, null))
+    api2.sync.listen()
+    api2.sync.on('target', written.bind(null, null))
+    writeBlob(api1, 'hello_world.png', written)
+    writeBlob(api2, 'goodbye_world.png', written)
+
+    function written (err) {
+      t.error(err)
+      if (--pending === 0) {
+        t.ok(api1.sync.targets().length > 0, 'api 1 has targets')
+        t.ok(api2.sync.targets().length > 0, 'api 2 has targets')
+        if (api1.sync.targets().length >= 1) {
+          sync(api1.sync.targets()[0])
+        }
+      }
+    }
+
+    function sync (target) {
+      var syncer = api1.sync.start(target)
+      syncer.on('error', function (err) {
+        t.error(err)
+        close()
+        t.fail()
+      })
+
+      syncer.on('end', function () {
+        t.ok(true, 'replication complete')
+        var pending = 2
+        var expected = [
+          'original/goodbye_world.png',
+          'original/hello_world.png',
+          'preview/goodbye_world.png',
+          'preview/hello_world.png',
+          'thumbnail/goodbye_world.png',
+          'thumbnail/hello_world.png'
+        ]
+        api1.media.list(function (err, files) {
+          t.error(err)
+          t.deepEquals(files, expected)
+          if (!--pending) close(() => t.ok(true))
+        })
+        api2.media.list(function (err, files) {
+          t.error(err)
+          t.deepEquals(files, expected)
+          if (!--pending) close(() => t.ok(true))
+        })
+      })
+    }
+  })
+})
+
+tape('sync: media: mobile <-> desktop', function (t) {
+  t.plan(18)
+
+  function writeBlob (api, filename, cb) {
+    var pending = 3
+    var ws = api.media.createWriteStream('original/' + filename, done)
+    ws.end(filename)
+
+    ws = api.media.createWriteStream('preview/' + filename, done)
+    ws.end(filename)
+
+    ws = api.media.createWriteStream('thumbnail/' + filename, done)
+    ws.end(filename)
+
+    function done (err) {
+      t.error(err)
+      if (!--pending) cb()
+    }
+  }
+
+  var opts = {api1:{deviceType:'mobile'}, api2:{deviceType:'desktop'}}
+  createApis(opts, function (api1, api2, close) {
+    var pending = 4
+
+    api1.sync.listen()
+    api1.sync.on('target', written.bind(null, null))
+    api2.sync.listen()
+    api2.sync.on('target', written.bind(null, null))
+    writeBlob(api1, 'hello_world.png', written)
+    writeBlob(api2, 'goodbye_world.png', written)
+
+    function written (err) {
+      t.error(err)
+      if (--pending === 0) {
+        t.ok(api1.sync.targets().length > 0, 'api 1 has targets')
+        t.ok(api2.sync.targets().length > 0, 'api 2 has targets')
+        if (api1.sync.targets().length >= 1) {
+          sync(api1.sync.targets()[0])
+        }
+      }
+    }
+
+    function sync (target) {
+      var syncer = api1.sync.start(target)
+      syncer.on('error', function (err) {
+        t.error(err)
+        close()
+        t.fail()
+      })
+
+      syncer.on('end', function () {
+        t.ok(true, 'replication complete')
+        var pending = 2
+        var expected1 = [
+          'original/hello_world.png',
+          'preview/goodbye_world.png',
+          'preview/hello_world.png',
+          'thumbnail/goodbye_world.png',
+          'thumbnail/hello_world.png'
+        ]
+        var expected2 = [
+          'original/goodbye_world.png',
+          'original/hello_world.png',
+          'preview/goodbye_world.png',
+          'preview/hello_world.png',
+          'thumbnail/goodbye_world.png',
+          'thumbnail/hello_world.png'
+        ]
+        api1.media.list(function (err, files) {
+          t.error(err)
+          t.deepEquals(files, expected1)
+          if (!--pending) close(() => t.ok(true))
+        })
+        api2.media.list(function (err, files) {
+          t.error(err)
+          t.deepEquals(files, expected2)
+          if (!--pending) close(() => t.ok(true))
+        })
+      })
+    }
+  })
+})
+
+tape('sync: media: mobile <-> mobile', function (t) {
+  t.plan(18)
+
+  function writeBlob (api, filename, cb) {
+    var pending = 3
+    var ws = api.media.createWriteStream('original/' + filename, done)
+    ws.end(filename)
+
+    ws = api.media.createWriteStream('preview/' + filename, done)
+    ws.end(filename)
+
+    ws = api.media.createWriteStream('thumbnail/' + filename, done)
+    ws.end(filename)
+
+    function done (err) {
+      t.error(err)
+      if (!--pending) cb()
+    }
+  }
+
+  var opts = {api1:{deviceType:'mobile'}, api2:{deviceType:'mobile'}}
+  createApis(opts, function (api1, api2, close) {
+    var pending = 4
+
+    api1.sync.listen()
+    api1.sync.on('target', written.bind(null, null))
+    api2.sync.listen()
+    api2.sync.on('target', written.bind(null, null))
+    writeBlob(api1, 'hello_world.png', written)
+    writeBlob(api2, 'goodbye_world.png', written)
+
+    function written (err) {
+      t.error(err)
+      if (--pending === 0) {
+        t.ok(api1.sync.targets().length > 0, 'api 1 has targets')
+        t.ok(api2.sync.targets().length > 0, 'api 2 has targets')
+        if (api1.sync.targets().length >= 1) {
+          sync(api1.sync.targets()[0])
+        }
+      }
+    }
+
+    function sync (target) {
+      var syncer = api1.sync.start(target)
+      syncer.on('error', function (err) {
+        t.error(err)
+        close()
+        t.fail()
+      })
+
+      syncer.on('end', function () {
+        t.ok(true, 'replication complete')
+        var pending = 2
+        var expected1 = [
+          'original/hello_world.png',
+          'preview/goodbye_world.png',
+          'preview/hello_world.png',
+          'thumbnail/goodbye_world.png',
+          'thumbnail/hello_world.png'
+        ]
+        var expected2 = [
+          'original/goodbye_world.png',
+          'preview/goodbye_world.png',
+          'preview/hello_world.png',
+          'thumbnail/goodbye_world.png',
+          'thumbnail/hello_world.png'
+        ]
+        api1.media.list(function (err, files) {
+          t.error(err)
+          t.deepEquals(files, expected1)
+          if (!--pending) close(() => t.ok(true))
+        })
+        api2.media.list(function (err, files) {
+          t.error(err)
+          t.deepEquals(files, expected2)
+          if (!--pending) close(() => t.ok(true))
+        })
+      })
+    }
+  })
+})
