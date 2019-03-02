@@ -22,7 +22,7 @@ var obs2 = {
 }
 
 test('observationCreate', function (t) {
-  var m = helpers.createApi(helpers.tmpdir)
+  var m = helpers.createApi(helpers.tmpdir1)
   m.observationCreate(obs, (err, node) => {
     t.error(err)
     t.ok(node.id)
@@ -40,7 +40,7 @@ test('observationCreate', function (t) {
 })
 
 test('observationUpdate', function (t) {
-  var m = helpers.createApi(helpers.tmpdir)
+  var m = helpers.createApi(helpers.tmpdir1)
   m.observationCreate(obs, (err, node) => {
     t.error(err)
     var newObs = Object.assign(obs2, {})
@@ -59,7 +59,7 @@ test('observationUpdate', function (t) {
 })
 
 test('observationList', function (t) {
-  var m = helpers.createApi(helpers.tmpdir)
+  var m = helpers.createApi(helpers.tmpdir1)
   m.observationCreate(obs, (err, node1) => {
     t.error(err)
     m.observationList((err, list) => {
@@ -84,7 +84,7 @@ test('observationList', function (t) {
 })
 
 test('observationList with limit=1', function (t) {
-  var m = helpers.createApi(helpers.tmpdir)
+  var m = helpers.createApi(helpers.tmpdir1)
   m.observationCreate(obs, (err, node1) => {
     t.error(err)
     m.observationList((err, list) => {
@@ -105,7 +105,7 @@ test('observationList with limit=1', function (t) {
 })
 
 test('observationDelete', function (t) {
-  var m = helpers.createApi(helpers.tmpdir)
+  var m = helpers.createApi(helpers.tmpdir1)
   m.observationCreate(obs, (err, node) => {
     t.error(err)
     m.observationDelete(node.id, (err) => {
@@ -126,7 +126,7 @@ test('observationDelete', function (t) {
 
 test('observationStream', function (t) {
   t.plan(4)
-  var m = helpers.createApi(helpers.tmpdir)
+  var m = helpers.createApi(helpers.tmpdir1)
   m.observationCreate(obs, (err, node1) => {
     t.error(err)
     var newObs = Object.assign(obs2, {})
@@ -147,7 +147,7 @@ test('observationStream', function (t) {
 
 test('observationStream with options', function (t) {
   t.plan(4)
-  var m = helpers.createApi(helpers.tmpdir)
+  var m = helpers.createApi(helpers.tmpdir1)
   m.observationCreate(obs, (err, node1) => {
     t.error(err)
     var newObs = Object.assign(obs2, {})
