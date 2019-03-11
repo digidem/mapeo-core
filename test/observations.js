@@ -1,6 +1,8 @@
 var test = require('tape')
-var helpers = require('./helpers')
 var collect = require('collect-stream')
+
+var helpers = require('./helpers')
+var generateObservations = require('./generateObservations')
 
 var obs = {
   attachments: [],
@@ -56,6 +58,39 @@ test('observationUpdate', function (t) {
       t.end()
     })
   })
+})
+
+test('update many and then list', function (t) {
+  var m = helpers.createApi(helpers.tmpdir)
+  var i = 2000
+
+  createAndUpdate(i, done)
+
+  function createAndUpdate (total, cb) {
+    generateObservations(i, function (_, obs) {
+      m.observationCreate(obs, (_, node) => {
+        var newObs = Object.assign(node, {})
+        newObs.tags.notes = 'im a new tag'
+        m.observationUpdate(newObs, (_, updated) => {
+          total--
+          if (total === 0) return done()
+        })
+      })
+    })
+  }
+
+  function done () {
+    var startTime = Date.now()
+    m.observationList((err, list) => {
+      t.error(err)
+      t.same(list.length, i)
+      console.log(list[0])
+      var timeit = (Date.now() - startTime) / 1000
+      console.log('listing took this many seconds', timeit)
+      t.ok(timeit < 2, 'listing took less than two seconds')
+      t.end()
+    })
+  }
 })
 
 test('observationList', function (t) {
