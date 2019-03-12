@@ -61,7 +61,7 @@ test('observationUpdate', function (t) {
 })
 
 test('update many and then list', function (t) {
-  var m = helpers.createApi(helpers.tmpdir)
+  var m = helpers.createApi(helpers.tmpdir1)
   var i = 2000
 
   createAndUpdate(i, done)
