@@ -3,7 +3,7 @@ var tmp = require('os-tmpdir')
 var path = require('path')
 var rimraf = require('rimraf')
 var randombytes = require('randombytes')
-var Osm = require('osm-p2p-mem')
+var Osm = require('osm-p2p')
 var blobstore = require('safe-fs-blob-store')
 
 var Mapeo = require('..')
@@ -18,8 +18,8 @@ module.exports = {
 function createApi (dir, opts) {
   rimraf.sync(dir)
   mkdirp.sync(dir)
-  var osm = Osm()
-  var media = blobstore(dir)
+  var osm = Osm(dir)
+  var media = blobstore(path.join(dir, 'media'))
   return new Mapeo(osm, media, Object.assign({}, opts, {
     id: randombytes(8).toString('hex')
   }))
