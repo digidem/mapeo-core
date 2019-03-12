@@ -41,7 +41,7 @@ class Mapeo extends events.EventEmitter {
   observationGet (id, cb) {
     this.osm.get(id, function (err, obses) {
       if (err) return cb(err)
-      else return cb(null, flatObs(id, obses).map(transformOldObservation))
+      else return cb(null, obses.map(transformOldObservation))
     })
   }
 
@@ -164,15 +164,6 @@ class Mapeo extends events.EventEmitter {
   close (cb) {
     this.sync.close(cb)
   }
-}
-
-function flatObs (id, obses) {
-  return Object.keys(obses).map(function (version) {
-    var obs = obses[version]
-    obs.id = id
-    obs.version = version
-    return obs
-  })
 }
 
 function validateObservation (obs) {
