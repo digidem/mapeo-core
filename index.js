@@ -32,11 +32,9 @@ class Mapeo extends events.EventEmitter {
     newObs.timestamp = (new Date().toISOString())
     newObs.created_at = (new Date()).toISOString()
 
-    this.osm.create(newObs, function (err, _, node) {
+    this.osm.create(newObs, function (err, node) {
       if (err) return cb(err)
-      newObs.id = node.value.k
-      newObs.version = node.key
-      cb(null, newObs)
+      cb(null, node)
     })
   }
 
