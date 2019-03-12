@@ -149,7 +149,7 @@ class Mapeo extends events.EventEmitter {
     var parseObs = through.obj(function (row, enc, next) {
       var obs = row.element
       if (!obs || obs.type !== 'observation') return next()
-      console.log(obs)
+      obs.id = row.id
       next(null, transformOldObservation(obs))
     })
 
