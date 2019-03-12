@@ -84,7 +84,6 @@ test('update many and then list', function (t) {
     m.observationList((err, list) => {
       t.error(err)
       t.same(list.length, i)
-      console.log(list[0])
       var timeit = (Date.now() - startTime) / 1000
       console.log('listing took this many seconds', timeit)
       t.ok(timeit < 2, 'listing took less than two seconds')
@@ -130,7 +129,7 @@ test('observationList with limit=1', function (t) {
         t.error(err)
         m.observationList({limit: 1}, (err, list) => {
           t.error(err)
-          t.equal(list.length, 1, 'contains 1 item')
+          t.equal(list.length, 1, 'contains 1 item with limit=1')
           helpers.cleanupSync()
           t.end()
         })

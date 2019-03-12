@@ -39,9 +39,10 @@ class Mapeo extends events.EventEmitter {
   }
 
   observationGet (id, cb) {
-    this.osm.get(id, function (err, obses) {
+    this.osm.get(id, function (err, elms) {
+      console.log(elms)
       if (err) return cb(err)
-      else return cb(null, obses.map(transformOldObservation))
+      else return cb(null, elms.map(toObs).map(transformOldObservation))
     })
   }
 
@@ -147,11 +148,15 @@ class Mapeo extends events.EventEmitter {
 
   observationStream (opts) {
     var parseObs = through.obj(function (row, enc, next) {
-      var obs = row.element
+      var obs = toObs(row)
       if (!obs || obs.type !== 'observation') return next()
-      obs.id = row.id
       next(null, transformOldObservation(obs))
     })
+    // TODO: where do we implement convenience functions
+    // for listing the stream?
+    if (opts && opts.limit) {
+      opts.end = opts.limit
+    }
 
     return this.osm.writer.createReadStream(opts).pipe(parseObs)
   }
@@ -260,6 +265,14 @@ function transformObservationSchema1 (obs) {
     }
   })
   return newObs
+}
+
+function toObs (elm) {
+  // TODO: sometimes the version is not here why?
+  var obs = elm.element
+  obs.id = elm.id
+  obs.version = elm.version
+  return obs
 }
 
 // Transform an observation from ECA version of MM to the current format
