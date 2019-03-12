@@ -50,12 +50,12 @@ class Mapeo extends events.EventEmitter {
     // 1. get the observation
     this.osm.get(id, function (err, obses) {
       if (err) return cb(err)
-      if (!Object.keys(obses).length) {
+      if (obses.length) {
         return cb(new Error('failed to lookup observation: not found'))
       }
 
       // 2. see if tags.element_id already present (short circuit)
-      var obs = obses[Object.keys(obses)[0]]
+      var obs = obses[0]
       if (obs.tags && obs.tags.element_id) {
         cb(null, obs.tags.element_id)
         return
@@ -118,9 +118,7 @@ class Mapeo extends events.EventEmitter {
 
       self.osm.put(id, finalObs, opts, function (err, node) {
         if (err) return cb(err)
-        finalObs.id = node.value.k
-        finalObs.version = node.key
-        return cb(null, finalObs)
+        return cb(null, node)
       })
     })
   }
@@ -149,16 +147,13 @@ class Mapeo extends events.EventEmitter {
 
   observationStream (opts) {
     var parseObs = through.obj(function (row, enc, next) {
-      Object.keys(row.values).forEach(function (version) {
-        var obs = row.values[version].value
-        if (!obs || obs.type !== 'observation') return next()
-        obs.id = row.key
-        obs.version = version
-        next(null, transformOldObservation(obs))
-      })
+      var obs = row.element
+      if (!obs || obs.type !== 'observation') return next()
+      console.log(obs)
+      next(null, transformOldObservation(obs))
     })
 
-    return this.osm.kv.createReadStream(opts).pipe(parseObs)
+    return this.osm.writer.createReadStream(opts).pipe(parseObs)
   }
 
   close (cb) {
