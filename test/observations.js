@@ -62,7 +62,7 @@ test('observationUpdate', function (t) {
 
 test('update many and then list', function (t) {
   var m = helpers.createApi(helpers.tmpdir1)
-  var i = 2000
+  var i = 200
 
   createAndUpdate(i, done)
 
@@ -80,13 +80,9 @@ test('update many and then list', function (t) {
   }
 
   function done () {
-    var startTime = Date.now()
     m.observationList((err, list) => {
       t.error(err)
       t.same(list.length, i)
-      var timeit = (Date.now() - startTime) / 1000
-      console.log('listing took this many seconds', timeit)
-      t.ok(timeit < 2, 'listing took less than two seconds')
       t.end()
     })
   }

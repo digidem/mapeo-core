@@ -40,7 +40,6 @@ class Mapeo extends events.EventEmitter {
 
   observationGet (id, cb) {
     this.osm.get(id, function (err, elms) {
-      console.log(elms)
       if (err) return cb(err)
       else return cb(null, elms.map(toObs).map(transformOldObservation))
     })
@@ -125,7 +124,7 @@ class Mapeo extends events.EventEmitter {
   }
 
   observationDelete (id, cb) {
-    this.osm.del(id, cb)
+    this.osm.del(id, {}, cb)
   }
 
   observationList (opts, cb) {
@@ -147,18 +146,7 @@ class Mapeo extends events.EventEmitter {
   }
 
   observationStream (opts) {
-    var parseObs = through.obj(function (row, enc, next) {
-      var obs = toObs(row)
-      if (!obs || obs.type !== 'observation') return next()
-      next(null, transformOldObservation(obs))
-    })
-    // TODO: where do we implement convenience functions
-    // for listing the stream?
-    if (opts && opts.limit) {
-      opts.end = opts.limit
-    }
-
-    return this.osm.writer.createReadStream(opts).pipe(parseObs)
+    return this.osm.byType('observation', opts)
   }
 
   close (cb) {
@@ -268,6 +256,7 @@ function transformObservationSchema1 (obs) {
 }
 
 function toObs (elm) {
+  return elm
   // TODO: sometimes the version is not here why?
   var obs = elm.element
   obs.id = elm.id

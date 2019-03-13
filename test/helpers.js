@@ -3,7 +3,7 @@ var tmp = require('os-tmpdir')
 var path = require('path')
 var rimraf = require('rimraf')
 var randombytes = require('randombytes')
-var Osm = require('osm-p2p')
+var Osm = require('osm-p2p-mem')
 var blobstore = require('safe-fs-blob-store')
 
 var Mapeo = require('..')
