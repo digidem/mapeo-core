@@ -71,7 +71,7 @@ test('update many and then list', function (t) {
         newObs.tags.notes = 'im a new tag'
         m.observationUpdate(newObs, (_, updated) => {
           total--
-          if (total === 0) return done()
+          if (total === 0) return cb()
         })
       })
     })

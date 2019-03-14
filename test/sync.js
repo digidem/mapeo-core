@@ -2,6 +2,7 @@ var path = require('path')
 var os = require('os')
 var tape = require('tape')
 var helpers = require('./helpers')
+var generateObservations = require('./generateObservations')
 
 function createApis (opts, cb) {
   if (!cb && typeof opts === 'function') {
@@ -114,7 +115,65 @@ tape('sync: replication of a simple observation with media', function (t) {
   })
 })
 
-tape('sync: syncfile replication: hyperlog-sneakernet', function (t) {
+tape('sync: access sync state and progress', function (t) {
+  var i = 200
+
+  function createManyObservations (m, total, cb) {
+    generateObservations(i, function (_, obs) {
+      m.observationCreate(obs, (_, node) => {
+        if (total-- === 1) {
+          t.ok('200 observations created')
+          return cb()
+        }
+      })
+    })
+  }
+
+  createApis(function (api1, api2, close) {
+    createManyObservations(api1, i, listen)
+
+    function listen () {
+      var found = (target) => {
+        if (api1.sync.targets().length >= 1) {
+          sync(api1.sync.targets()[0])
+        }
+      }
+      api1.sync.listen()
+      api1.sync.on('target', found.bind(null, null))
+      api2.sync.listen()
+      api2.sync.on('target', found.bind(null, null))
+    }
+
+    function sync (target) {
+      console.log(target)
+      var syncer = api1.sync.start(target)
+
+      syncer.on('error', function (err) {
+        t.error(err)
+        close()
+        t.fail()
+      })
+      var health = hyperhealth(api1.osm.writer)
+
+      var interval = setInterval(function () {
+        var data = health.get()
+        console.log(data)
+      }, 1000)
+
+      syncer.on('end', function () {
+        t.ok(true, 'replication complete')
+        clearInterval(interval)
+        close(function () {
+          var data = health.get()
+          console.log('done', data)
+          t.end()
+        })
+      })
+    }
+  })
+})
+
+tape.skip('sync: syncfile replication: hyperlog-sneakernet', function (t) {
   createApis({api1:{writeFormat: 'hyperlog-sneakernet'}}, function (api1, api2, close) {
     // create test data
     var id
@@ -159,7 +218,7 @@ tape('sync: syncfile replication: hyperlog-sneakernet', function (t) {
   })
 })
 
-tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
+tape.skip('sync: syncfile replication: osm-p2p-syncfile', function (t) {
   createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
     // create test data
     var id

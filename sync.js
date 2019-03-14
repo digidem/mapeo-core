@@ -180,8 +180,7 @@ class Sync extends events.EventEmitter {
 
     swarm.on('connection', (connection, info) => {
       const target = WifiTarget(connection, info)
-      this._targets[target.id] = target
-      debug('connection', target)
+      debug('connection', connection, info)
 
       connection.once('close', onClose)
       connection.once('error', onClose)
@@ -227,6 +226,7 @@ class Sync extends events.EventEmitter {
           accept()
         })
 
+        self._targets[target.id] = target
         self.emit('target', target)
       }
     })
