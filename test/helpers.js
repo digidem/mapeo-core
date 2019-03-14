@@ -1,21 +1,19 @@
 var mkdirp = require('mkdirp')
-var tmp = require('os-tmpdir')
 var path = require('path')
 var rimraf = require('rimraf')
 var randombytes = require('randombytes')
-var Osm = require('osm-p2p-mem')
+var Osm = require('osm-p2p')
 var blobstore = require('safe-fs-blob-store')
+var tmp = require('tmp')
 
 var Mapeo = require('..')
 
-var tmpdir1 = path.join(tmp(), 'mapfilter-sync-server-test-files')
-var tmpdir2 = path.join(tmp(), 'mapfilter-sync-server-test-files-2')
-
 module.exports = {
-  tmpdir1, tmpdir2, createApi, cleanupSync
+  createApi
 }
 
-function createApi (dir, opts) {
+function createApi (_, opts) {
+  var dir = tmp.dirSync().name
   rimraf.sync(dir)
   mkdirp.sync(dir)
   var osm = Osm(dir)
@@ -23,9 +21,4 @@ function createApi (dir, opts) {
   return new Mapeo(osm, media, Object.assign({}, opts, {
     id: randombytes(8).toString('hex')
   }))
-}
-
-function cleanupSync () {
-  rimraf.sync(tmpdir1)
-  rimraf.sync(tmpdir2)
 }

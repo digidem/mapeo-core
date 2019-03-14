@@ -1,4 +1,3 @@
-const through = require('through2')
 const randombytes = require('randombytes')
 const events = require('events')
 

@@ -23,7 +23,6 @@ function createApis (opts, cb) {
 
     api1.close(done)
     api2.close(done)
-    helpers.cleanupSync()
   }
   cb(api1, api2, close)
 }
