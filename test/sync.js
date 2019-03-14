@@ -1,5 +1,4 @@
 var path = require('path')
-var fs = require('fs')
 var os = require('os')
 var tape = require('tape')
 var helpers = require('./helpers')
