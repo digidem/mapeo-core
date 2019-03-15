@@ -1,6 +1,5 @@
 const path = require('path')
 const createMediaReplicationStream = require('blob-store-replication-stream')
-const sneakernet = require('hyperlog-sneakernet-replicator')
 const Syncfile = require('osm-p2p-syncfile')
 const debug = require('debug')('mapeo-sync')
 const Swarm = require('discovery-swarm')
@@ -108,46 +107,35 @@ class Sync extends events.EventEmitter {
     var self = this
     const emitter = new events.EventEmitter()
 
-    // FIXME: this wraps & re-wraps the function each time this func is called!
-    const replicateOrig = this.osm.log.replicate
-    this.osm.log.replicate = function () {
-      const stream = replicateOrig.call(self.osm.log)
-      stream.on('data', function () {
-        emitter.emit('progress')
-      })
-      return stream
-    }
-
     fs.access(sourceFile, function (err) {
       if (err) { // file doesn't exist, write
-        if (self.opts.writeFormat === 'hyperlog-sneakernet') syncOld()
-        else if (self.opts.writeFormat === 'osm-p2p-syncfile') syncNew()
+        if (self.opts.writeFormat === 'osm-p2p-syncfile') syncNew()
+        else return onerror(new Error('unsupported syncfile type'))
       } else { // read
         isGzipFile(sourceFile, function (err, isGzip) {
           if (err) return onerror(err)
-          if (isGzip) syncOld()
-          else syncNew()
+          if (!isGzip) syncNew()
+          else return onerror(new Error('unsupported syncfile type'))
         })
       }
     })
-
-    function syncOld () {
-      sneakernet(self.osm.log, { safetyFile: true }, sourceFile, onend)
-    }
 
     function syncNew () {
       const syncfile = new Syncfile(sourceFile, os.tmpdir())
       syncfile.ready(function (err) {
         if (err) return onerror(err)
-        const r1 = syncfile.osm.log.replicate({live: false})
-        const r2 = self.osm.log.replicate({live: false})
-        const m1 = createMediaReplicationStream(syncfile.media)
+        const r1 = syncfile.replicateData({live: false})
+        const r2 = self.osm.replicate({live: false})
+        const m1 = syncfile.replicateMedia()
         const m2 = createMediaReplicationStream(self.media)
         var error
         var pending = 2
         pump(r1, r2, r1, fin)
         pump(m1, m2, m1, fin)
         function fin (err) {
+          // HACK(noffle): workaround for multifeed bug
+          if (err && err.message === 'premature close') err = undefined
+
           if (err) error = err
           if (!--pending) {
             syncfile.userdata({'p2p-db': 'hyperlog'}, function () {
@@ -164,7 +152,9 @@ class Sync extends events.EventEmitter {
 
     function onend (err) {
       if (err) return onerror(err)
+      console.log(3)
       self.osm.ready(function () {
+        console.log(4)
         emitter.emit('end')
       })
     }

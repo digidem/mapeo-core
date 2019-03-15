@@ -26,7 +26,11 @@ function createApis (opts, cb) {
     api1.close(done)
     api2.close(done)
   }
-  cb(api1, api2, close)
+  api1.osm.ready(function () {
+    api2.osm.ready(function () {
+      cb(api1, api2, close)
+    })
+  })
 }
 
 tape('sync: two servers find eachother', function (t) {
@@ -192,51 +196,6 @@ tape('sync: access sync state and progress', function (t) {
   })
 })
 
-tape('sync: syncfile replication: hyperlog-sneakernet', function (t) {
-  createApis({api1:{writeFormat: 'hyperlog-sneakernet'}}, function (api1, api2, close) {
-    // create test data
-    var id
-    var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
-    var pending = 2
-    var obs = {lat: 1, lon: 2, type: 'observation'}
-    api1.osm.create(obs, written)
-    var ws = api1.media.createWriteStream('foo.txt')
-    ws.once('finish', written)
-    ws.once('error', written)
-    ws.end('bar')
-
-    function written (err, _id) {
-      t.error(err, _id ? 'osm data written ok' : 'media data written ok')
-      if (_id) id = _id
-      if (--pending === 0) {
-        api1.sync.replicateFromFile(tmpfile)
-          .once('end', syncfileWritten)
-          .once('error', syncfileWritten)
-      }
-    }
-
-    function syncfileWritten (err) {
-      t.error(err, 'first syncfile written ok')
-
-      api2.sync.replicateFromFile(tmpfile)
-        .once('end', secondSyncfileWritten)
-        .once('error', secondSyncfileWritten)
-    }
-
-    function secondSyncfileWritten (err) {
-      t.error(err, 'second syncfile written ok')
-
-      api2.osm.get(id, function (err, heads) {
-        t.error(err)
-        t.equals(Object.keys(heads).length, 1, 'one osm head')
-        var res = heads[Object.keys(heads)[0]]
-        t.deepEquals(res, obs, 'osm observation matches')
-        t.end()
-      })
-    }
-  })
-})
-
 tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
   createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
     // create test data
@@ -250,9 +209,9 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
     ws.once('error', written)
     ws.end('bar')
 
-    function written (err, _id) {
-      t.error(err, _id ? 'osm data written ok' : 'media data written ok')
-      if (_id) id = _id
+    function written (err, res) {
+      t.error(err, res ? 'osm data written ok' : 'media data written ok')
+      if (res) id = res.id
       if (--pending === 0) {
         api1.sync.replicateFromFile(tmpfile)
           .once('end', syncfileWritten)
@@ -274,7 +233,9 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
         t.error(err)
         t.equals(Object.keys(heads).length, 1, 'one osm head')
         var res = heads[Object.keys(heads)[0]]
-        t.deepEquals(res, obs, 'osm observation matches')
+        t.same(res.id, id)
+        t.same(res.lat, obs.lat)
+        t.same(res.lon, obs.lon)
         api2.media.createReadStream('foo.txt')
           .on('data', function (buf) {
             t.equals(buf.toString(), 'bar')
