@@ -131,11 +131,15 @@ tape('sync: access sync state and progress', function (t) {
 
   createApis(function (api1, api2, close) {
     createManyObservations(api1, i, listen)
+    var pending = 2
 
     function listen () {
       var found = (target) => {
-        if (api1.sync.targets().length >= 1) {
-          sync(api1.sync.targets()[0])
+        pending--
+        if (pending === 0) {
+          if (api1.sync.targets().length >= 1) {
+            sync(api1.sync.targets()[0])
+          }
         }
       }
       api1.sync.listen()
