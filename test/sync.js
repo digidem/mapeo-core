@@ -1,6 +1,8 @@
 var path = require('path')
 var os = require('os')
 var tape = require('tape')
+var hyperhealth = require('hyperhealth')
+
 var helpers = require('./helpers')
 var generateObservations = require('./generateObservations')
 
@@ -157,19 +159,19 @@ tape('sync: access sync state and progress', function (t) {
         close()
         t.fail()
       })
-      var health = hyperhealth(api1.osm.writer)
+      // var health = hyperhealth(api1.osm.writer)
 
       var interval = setInterval(function () {
-        var data = health.get()
-        console.log(data)
+        // var data = health.get()
+        // console.log(data)
       }, 1000)
 
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
         clearInterval(interval)
+        // var data = health.get()
+        // console.log('done', data)
         close(function () {
-          var data = health.get()
-          console.log('done', data)
           t.end()
         })
       })
