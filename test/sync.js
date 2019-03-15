@@ -178,7 +178,7 @@ tape('sync: access sync state and progress', function (t) {
   })
 })
 
-tape.skip('sync: syncfile replication: hyperlog-sneakernet', function (t) {
+tape('sync: syncfile replication: hyperlog-sneakernet', function (t) {
   createApis({api1:{writeFormat: 'hyperlog-sneakernet'}}, function (api1, api2, close) {
     // create test data
     var id
@@ -223,7 +223,7 @@ tape.skip('sync: syncfile replication: hyperlog-sneakernet', function (t) {
   })
 })
 
-tape.skip('sync: syncfile replication: osm-p2p-syncfile', function (t) {
+tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
   createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
     // create test data
     var id
