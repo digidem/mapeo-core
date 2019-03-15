@@ -158,18 +158,32 @@ tape('sync: access sync state and progress', function (t) {
         close()
         t.fail()
       })
-      var health = kappahealth(api1.osm.core)
+      var health = kappahealth(api2.osm.core)
+      var feeds = api1.osm.core.feeds()
+      var last = Infinity
+
+      function calculateProgress (remoteFeeds) {
+        var remoteHas = remoteFeeds[0].peers[0].have
+        if (last) t.ok(last > remoteHas)
+        last = remoteHas
+        var length = remoteFeeds[0].length
+        return ((length - remoteHas) / length) * 100
+      }
 
       var interval = setInterval(function () {
-        var data = health.get()
-        console.log(data)
-      }, 1000)
+        var remoteFeeds = health.get()
+        if (remoteFeeds.length) {
+          t.same(feeds[0].key.toString('hex'), remoteFeeds[0].key)
+          console.log('percent complete', calculateProgress(remoteFeeds))
+        }
+        //console.log(JSON.stringify(remoteFeeds, null, 2))
+      }, 100)
 
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
         clearInterval(interval)
-        var data = health.get()
-        console.log('done', data)
+        var remoteFeeds = health.get()
+        console.log('percent complete', calculateProgress(remoteFeeds))
         close(function () {
           t.end()
         })

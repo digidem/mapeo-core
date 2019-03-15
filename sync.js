@@ -180,7 +180,7 @@ class Sync extends events.EventEmitter {
 
     swarm.on('connection', (connection, info) => {
       const target = WifiTarget(connection, info)
-      debug('connection', connection, info)
+      debug('connection', info)
 
       connection.once('close', onClose)
       connection.once('error', onClose)
@@ -193,7 +193,7 @@ class Sync extends events.EventEmitter {
         open = false
         const target = WifiTarget(connection, info)
         self.emit('down', target)
-        debug('down', target)
+        debug('down', info)
         delete self._targets[target.id]
       }
 
@@ -207,7 +207,9 @@ class Sync extends events.EventEmitter {
         })
         pump(stream, connection, stream, function (err) {
           if (target.sync) {
-            if (stream.goodFinish) return target.sync.emit('end')
+            if (stream.goodFinish) {
+              return target.sync.emit('end')
+            }
             if (!err) err = new Error('sync stream terminated on remote side')
             target.sync.emit('error', err)
           }
