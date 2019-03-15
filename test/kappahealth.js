@@ -10,7 +10,7 @@ function hyperhealth (feed) {
     for (var i = 0; i < feed.peers.length; i++) {
       var have = 0
       var peer = feed.peers[i]
-      if (!peer.stream || !peer.remoteId) continue
+      if (!peer.remoteId) continue
 
       for (var j = 0; j < length; j++) {
         if (peer.remoteBitfield && peer.remoteBitfield.get(j)) have++
@@ -49,3 +49,13 @@ module.exports = function (core) {
     get: get
   }
 }
+
+/*
+ * var health = kappahealth(core)
+ * setInterval(() =>  {
+ *  var h = health.get()
+ *  var peer = h.peers[0]
+ *  peer.
+ * }, 100)
+ *
+ */
