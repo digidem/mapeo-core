@@ -1,8 +1,8 @@
 var path = require('path')
 var os = require('os')
 var tape = require('tape')
-var hyperhealth = require('hyperhealth')
 
+var kappahealth = require('./kappahealth')
 var helpers = require('./helpers')
 var generateObservations = require('./generateObservations')
 
@@ -151,7 +151,6 @@ tape('sync: access sync state and progress', function (t) {
     }
 
     function sync (target) {
-      console.log(target)
       var syncer = api1.sync.start(target)
 
       syncer.on('error', function (err) {
@@ -159,18 +158,18 @@ tape('sync: access sync state and progress', function (t) {
         close()
         t.fail()
       })
-      // var health = hyperhealth(api1.osm.writer)
+      var health = kappahealth(api1.osm.core)
 
       var interval = setInterval(function () {
-        // var data = health.get()
-        // console.log(data)
+        var data = health.get()
+        console.log(data)
       }, 1000)
 
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
         clearInterval(interval)
-        // var data = health.get()
-        // console.log('done', data)
+        var data = health.get()
+        console.log('done', data)
         close(function () {
           t.end()
         })
