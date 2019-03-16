@@ -1,4 +1,3 @@
-const through = require('through2')
 const randombytes = require('randombytes')
 const events = require('events')
 
@@ -32,18 +31,16 @@ class Mapeo extends events.EventEmitter {
     newObs.timestamp = (new Date().toISOString())
     newObs.created_at = (new Date()).toISOString()
 
-    this.osm.create(newObs, function (err, _, node) {
+    this.osm.create(newObs, function (err, node) {
       if (err) return cb(err)
-      newObs.id = node.value.k
-      newObs.version = node.key
-      cb(null, newObs)
+      cb(null, node)
     })
   }
 
   observationGet (id, cb) {
-    this.osm.get(id, function (err, obses) {
+    this.osm.get(id, function (err, elms) {
       if (err) return cb(err)
-      else return cb(null, flatObs(id, obses).map(transformOldObservation))
+      else return cb(null, elms.map(toObs).map(transformOldObservation))
     })
   }
 
@@ -52,12 +49,12 @@ class Mapeo extends events.EventEmitter {
     // 1. get the observation
     this.osm.get(id, function (err, obses) {
       if (err) return cb(err)
-      if (!Object.keys(obses).length) {
+      if (obses.length) {
         return cb(new Error('failed to lookup observation: not found'))
       }
 
       // 2. see if tags.element_id already present (short circuit)
-      var obs = obses[Object.keys(obses)[0]]
+      var obs = obses[0]
       if (obs.tags && obs.tags.element_id) {
         cb(null, obs.tags.element_id)
         return
@@ -120,15 +117,13 @@ class Mapeo extends events.EventEmitter {
 
       self.osm.put(id, finalObs, opts, function (err, node) {
         if (err) return cb(err)
-        finalObs.id = node.value.k
-        finalObs.version = node.key
-        return cb(null, finalObs)
+        return cb(null, node)
       })
     })
   }
 
   observationDelete (id, cb) {
-    this.osm.del(id, cb)
+    this.osm.del(id, {}, cb)
   }
 
   observationList (opts, cb) {
@@ -150,31 +145,12 @@ class Mapeo extends events.EventEmitter {
   }
 
   observationStream (opts) {
-    var parseObs = through.obj(function (row, enc, next) {
-      Object.keys(row.values).forEach(function (version) {
-        var obs = row.values[version].value
-        if (!obs || obs.type !== 'observation') return next()
-        obs.id = row.key
-        obs.version = version
-        next(null, transformOldObservation(obs))
-      })
-    })
-
-    return this.osm.kv.createReadStream(opts).pipe(parseObs)
+    return this.osm.byType('observation', opts)
   }
 
   close (cb) {
     this.sync.close(cb)
   }
-}
-
-function flatObs (id, obses) {
-  return Object.keys(obses).map(function (version) {
-    var obs = obses[version]
-    obs.id = id
-    obs.version = version
-    return obs
-  })
 }
 
 function validateObservation (obs) {
@@ -276,6 +252,15 @@ function transformObservationSchema1 (obs) {
     }
   })
   return newObs
+}
+
+function toObs (elm) {
+  return elm
+  // TODO: sometimes the version is not here why?
+  var obs = elm.element
+  obs.id = elm.id
+  obs.version = elm.version
+  return obs
 }
 
 // Transform an observation from ECA version of MM to the current format

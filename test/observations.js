@@ -35,7 +35,6 @@ test('observationCreate', function (t) {
     m.observationGet(node.id, (err, _node) => {
       t.error(err)
       t.same(node, _node[0])
-      helpers.cleanupSync()
       t.end()
     })
   })
@@ -54,7 +53,6 @@ test('observationUpdate', function (t) {
       t.same(newObs.lon, updated.lon, 'updates lat and lon')
       t.same(newObs.tags, updated.tags, 'updates tags')
       t.notEqual(updated.version, node.version, 'updates version')
-      helpers.cleanupSync()
       t.end()
     })
   })
@@ -62,7 +60,7 @@ test('observationUpdate', function (t) {
 
 test('update many and then list', function (t) {
   var m = helpers.createApi(helpers.tmpdir1)
-  var i = 2000
+  var i = 200
 
   createAndUpdate(i, done)
 
@@ -73,21 +71,16 @@ test('update many and then list', function (t) {
         newObs.tags.notes = 'im a new tag'
         m.observationUpdate(newObs, (_, updated) => {
           total--
-          if (total === 0) return done()
+          if (total === 0) return cb()
         })
       })
     })
   }
 
   function done () {
-    var startTime = Date.now()
     m.observationList((err, list) => {
       t.error(err)
       t.same(list.length, i)
-      console.log(list[0])
-      var timeit = (Date.now() - startTime) / 1000
-      console.log('listing took this many seconds', timeit)
-      t.ok(timeit < 2, 'listing took less than two seconds')
       t.end()
     })
   }
@@ -110,7 +103,6 @@ test('observationList', function (t) {
           t.same(match1.id, node1.id, 'contains node1 in list')
           var match2 = list.find((n) => n.id === node2.id)
           t.same(match2.id, node2.id, 'contains node2 in list')
-          helpers.cleanupSync()
           t.end()
         })
       })
@@ -130,8 +122,7 @@ test('observationList with limit=1', function (t) {
         t.error(err)
         m.observationList({limit: 1}, (err, list) => {
           t.error(err)
-          t.equal(list.length, 1, 'contains 1 item')
-          helpers.cleanupSync()
+          t.equal(list.length, 1, 'contains 1 item with limit=1')
           t.end()
         })
       })
@@ -152,7 +143,6 @@ test('observationDelete', function (t) {
         t.same(node2.id, node.id, 'id the same')
         t.notEqual(node2.version, node.version, 'updated version')
         t.same(node2.deleted, true, 'marked deleted')
-        helpers.cleanupSync()
         t.end()
       })
     })
@@ -170,9 +160,6 @@ test('observationStream', function (t) {
       var pending = 2
       m.observationStream().on('data', function (obs) {
         pending--
-        if (pending === 0) {
-          helpers.cleanupSync()
-        }
         if (obs.id === node1.id) t.same(obs, node1, 'obs 1 arrives')
         if (obs.id === node2.id) t.same(obs, node2, 'obs 2 arrives')
       })
@@ -191,7 +178,6 @@ test('observationStream with options', function (t) {
       collect(m.observationStream({limit: 1}), (err, data) => {
         t.error(err)
         t.ok(data.length, 1)
-        helpers.cleanupSync()
       })
     })
   })
