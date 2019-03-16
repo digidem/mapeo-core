@@ -2,7 +2,6 @@ var path = require('path')
 var os = require('os')
 var tape = require('tape')
 
-var kappahealth = require('./kappahealth')
 var helpers = require('./helpers')
 var generateObservations = require('./generateObservations')
 
@@ -118,94 +117,6 @@ tape('sync: replication of a simple observation with media', function (t) {
         })
       })
     }
-  })
-})
-
-tape('sync: access sync state and progress', function (t) {
-  var i = 200
-
-  function createManyObservations (m, total, cb) {
-    generateObservations(i, function (_, obs) {
-      m.observationCreate(obs, (_, node) => {
-        if (total-- === 1) {
-          t.ok('200 observations created')
-          return cb()
-        }
-      })
-    })
-  }
-
-  createApis(function (api1, api2, close1) {
-    createApis(function (api3, _, close2) {
-      createManyObservations(api2, i, function () {
-        createManyObservations(api3, i, function () {
-          listen()
-        })
-      })
-
-      function listen () {
-        var pending = 6
-        var found = () => {
-          pending--
-          if (pending === 0) {
-            var targets = api1.sync.targets()
-            if (targets.length === 2) {
-              sync(api1, targets[0])
-            }
-          }
-        }
-        api1.sync.listen()
-        api1.sync.on('target', found)
-        api2.sync.listen()
-        api2.sync.on('target', found)
-        api3.sync.listen()
-        api3.sync.on('target', found)
-      }
-
-      function sync (api, target) {
-        console.log('syncing with', target)
-        var syncer = api.sync.start(target)
-        syncer.on('error', function (err) {
-          t.error(err)
-          close()
-          t.fail()
-        })
-        var health = kappahealth(api.osm.core)
-
-        function calculateProgress (remoteFeeds) {
-          return remoteFeeds.map((feed) => {
-            var peers = feed.peers
-            console.log(feed.key.toString('hex'), peers)
-            var res = peers.map((peer) => {
-              if (!peer) return 0
-              var remoteHas = peer.have
-              var length = remoteFeeds[0].length
-              return ((length - remoteHas) / length) * 100
-            })
-            return res
-          })
-        }
-
-        var interval = setInterval(function () {
-          var remoteFeeds = health.get()
-          if (remoteFeeds.length) {
-            // t.same(feeds[0].key.toString('hex'), remoteFeeds[0].key)
-            console.log('percent complete', calculateProgress(remoteFeeds))
-          }
-          // console.log(JSON.stringify(remoteFeeds, null, 2))
-        }, 100)
-
-        syncer.on('end', function () {
-          t.ok(true, 'replication complete')
-          clearInterval(interval)
-          var remoteFeeds = health.get()
-          console.log('done percent complete', calculateProgress(remoteFeeds))
-          close1(() => {
-            close2(() => t.end())
-          })
-        })
-      }
-    })
   })
 })
 
