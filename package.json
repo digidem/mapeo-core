@@ -25,6 +25,7 @@
     "end-of-stream": "^1.4.1",
     "handshake-stream": "^3.0.0",
     "hyperhealth": "^2.0.0",
+    "inherits": "^2.0.3",
     "multiplex": "^6.7.0",
     "object.values": "^1.0.4",
     "osm-p2p-syncfile": "^2.0.0",
