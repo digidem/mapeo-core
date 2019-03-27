@@ -49,7 +49,7 @@ class Mapeo extends events.EventEmitter {
     // 1. get the observation
     this.osm.get(id, function (err, obses) {
       if (err) return cb(err)
-      if (obses.length) {
+      if (!obses.length) {
         return cb(new Error('failed to lookup observation: not found'))
       }
 
@@ -65,7 +65,7 @@ class Mapeo extends events.EventEmitter {
       // 3. create node
       batch.push({
         type: 'put',
-        key: randombytes(8).toString('hex'),
+        id: randombytes(8).toString('hex'),
         value: Object.assign(obs, {
           type: 'node'
         })
@@ -73,10 +73,10 @@ class Mapeo extends events.EventEmitter {
 
       // 4. modify observation tags
       obs.tags = obs.tags || {}
-      obs.tags.element_id = batch[0].key
+      obs.tags.element_id = batch[0].id
       batch.push({
         type: 'put',
-        key: id,
+        id: id,
         value: obs
       })
 
