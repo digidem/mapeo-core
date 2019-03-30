@@ -27,7 +27,7 @@ class Sync extends events.EventEmitter {
   constructor (osm, media, opts) {
     super()
     opts = Object.assign(DEFAULT_OPTS, opts)
-    opts.writeFormat = opts.writeFormat || 'hyperlog-sneakernet'
+    opts.writeFormat = opts.writeFormat || 'osm-p2p-syncfile'
     if (!SYNCFILE_FORMATS[opts.writeFormat]) throw new Error('unknown syncfile write format: ' + opts.writeFormat)
 
     this.osm = osm
