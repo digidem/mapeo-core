@@ -27,7 +27,7 @@ class Sync extends events.EventEmitter {
   constructor (osm, media, opts) {
     super()
     opts = Object.assign(DEFAULT_OPTS, opts)
-    opts.writeFormat = opts.writeFormat || 'hyperlog-sneakernet'
+    opts.writeFormat = opts.writeFormat || 'osm-p2p-syncfile'
     if (!SYNCFILE_FORMATS[opts.writeFormat]) throw new Error('unknown syncfile write format: ' + opts.writeFormat)
 
     this.osm = osm
@@ -138,7 +138,7 @@ class Sync extends events.EventEmitter {
 
           if (err) error = err
           if (!--pending) {
-            syncfile.userdata({'p2p-db': 'hyperlog'}, function () {
+            syncfile.userdata({'p2p-db': 'kappa-osm'}, function () {
               syncfile.close(onend.bind(null, error))
             })
           }
