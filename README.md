@@ -18,8 +18,8 @@ var Mapeo = require('@mapeo/core')
 
 ### `mapeo = new Mapeo(osm, media, opts)`
 
-* `osm`: an `osm-p2p-db` instance
-* `media`: a blob storage instance
+* `osm`: an `osm-p2p` (or `kappa-osm`) instance
+* `media`: a blob storage instance (e.g., `safe-fs-blob-store`)
 * `opts`: options
 
 Valid `opts` options include:

@@ -138,7 +138,7 @@ class Sync extends events.EventEmitter {
 
           if (err) error = err
           if (!--pending) {
-            syncfile.userdata({'p2p-db': 'hyperlog'}, function () {
+            syncfile.userdata({'p2p-db': 'kappa-osm'}, function () {
               syncfile.close(onend.bind(null, error))
             })
           }
