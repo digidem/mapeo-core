@@ -2,6 +2,7 @@ const path = require('path')
 const createMediaReplicationStream = require('blob-store-replication-stream')
 const Syncfile = require('osm-p2p-syncfile')
 const debug = require('debug')('mapeo-sync')
+const through = require('through2')
 const Swarm = require('discovery-swarm')
 const values = require('object.values')
 const events = require('events')
@@ -195,7 +196,11 @@ class Sync extends events.EventEmitter {
           deviceType: self.opts.deviceType || 'unknown',
           handshake: onHandshake
         })
-        pump(stream, connection, stream, function (err) {
+        var measureProgress = through.obj(function (data, enc, next) {
+          if (target.sync) target.sync.emit('progress', data.length)
+          next(null, data)
+        })
+        pump(stream, connection, measureProgress, stream, function (err) {
           if (target.sync) {
             if (stream.goodFinish) {
               return target.sync.emit('end')

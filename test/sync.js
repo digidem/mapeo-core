@@ -1,9 +1,9 @@
 var path = require('path')
 var os = require('os')
 var tape = require('tape')
+var tmp = require('tmp')
 
 var helpers = require('./helpers')
-var generateObservations = require('./generateObservations')
 
 function createApis (opts, cb) {
   if (!cb && typeof opts === 'function') {
@@ -170,35 +170,19 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
   })
 })
 
-tape('sync: media: desktop <-> desktop', function (t) {
-  t.plan(18)
-
-  function writeBlob (api, filename, cb) {
-    var pending = 3
-    var ws = api.media.createWriteStream('original/' + filename, done)
-    ws.end(filename)
-
-    ws = api.media.createWriteStream('preview/' + filename, done)
-    ws.end(filename)
-
-    ws = api.media.createWriteStream('thumbnail/' + filename, done)
-    ws.end(filename)
-
-    function done (err) {
-      t.error(err)
-      if (!--pending) cb()
-    }
-  }
+tape.only('sync: big media data: desktop <-> desktop', function (t) {
+  t.plan(12)
 
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
+    var total = 200
 
     api1.sync.listen()
     api1.sync.on('target', written.bind(null, null))
     api2.sync.listen()
     api2.sync.on('target', written.bind(null, null))
-    writeBlob(api1, 'hello_world.png', written)
+    helpers.writeBigData(api1, total, written.bind(null, null))
     writeBlob(api2, 'goodbye_world.png', written)
 
     function written (err) {
@@ -220,25 +204,27 @@ tape('sync: media: desktop <-> desktop', function (t) {
         t.fail()
       })
 
+      syncer.on('progress', function (data) {
+        t.ok(typeof data === 'number', data)
+      })
+
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
         var pending = 2
-        var expected = [
-          'original/goodbye_world.png',
-          'original/hello_world.png',
-          'preview/goodbye_world.png',
-          'preview/hello_world.png',
-          'thumbnail/goodbye_world.png',
-          'thumbnail/hello_world.png'
-        ]
+        var expected = mockExpectedMedia(total)
+          .concat([
+            'original/goodbye_world.png',
+            'preview/goodbye_world.png',
+            'thumbnail/goodbye_world.png'
+          ])
         api1.media.list(function (err, files) {
           t.error(err)
-          t.deepEquals(files.sort(), expected.sort())
+          t.deepEquals(files.sort(), expected.sort(), 'api1 has the files')
           if (!--pending) close(() => t.ok(true))
         })
         api2.media.list(function (err, files) {
           t.error(err)
-          t.deepEquals(files.sort(), expected.sort())
+          t.deepEquals(files.sort(), expected.sort(), 'api2 has the files')
           if (!--pending) close(() => t.ok(true))
         })
       })
@@ -247,49 +233,38 @@ tape('sync: media: desktop <-> desktop', function (t) {
 })
 
 tape('sync: media: mobile <-> desktop', function (t) {
-  t.plan(18)
+  t.plan(11)
 
-  function writeBlob (api, filename, cb) {
-    var pending = 3
-    var ws = api.media.createWriteStream('original/' + filename, done)
-    ws.end(filename)
-
-    ws = api.media.createWriteStream('preview/' + filename, done)
-    ws.end(filename)
-
-    ws = api.media.createWriteStream('thumbnail/' + filename, done)
-    ws.end(filename)
-
-    function done (err) {
-      t.error(err)
-      if (!--pending) cb()
-    }
+  var opts = {
+    api1: { deviceType: 'mobile' },
+    api2: { deviceType: 'desktop' }
   }
-
-  var opts = {api1:{deviceType:'mobile'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
+    var total = 100
+    var mobile = api1
+    var desktop = api2
 
-    api1.sync.listen()
-    api1.sync.on('target', written.bind(null, null))
-    api2.sync.listen()
-    api2.sync.on('target', written.bind(null, null))
-    writeBlob(api1, 'hello_world.png', written)
-    writeBlob(api2, 'goodbye_world.png', written)
+    mobile.sync.listen()
+    mobile.sync.on('target', written.bind(null, null))
+    desktop.sync.listen()
+    desktop.sync.on('target', written.bind(null, null))
+    helpers.writeBigData(mobile, total, written.bind(null, null))
+    writeBlob(desktop, 'goodbye_world.png', written)
 
     function written (err) {
       t.error(err)
       if (--pending === 0) {
-        t.ok(api1.sync.targets().length > 0, 'api 1 has targets')
-        t.ok(api2.sync.targets().length > 0, 'api 2 has targets')
-        if (api1.sync.targets().length >= 1) {
-          sync(api1.sync.targets()[0])
+        t.ok(mobile.sync.targets().length > 0, 'api 1 has targets')
+        t.ok(desktop.sync.targets().length > 0, 'api 2 has targets')
+        if (mobile.sync.targets().length >= 1) {
+          sync(mobile.sync.targets()[0])
         }
       }
     }
 
     function sync (target) {
-      var syncer = api1.sync.start(target)
+      var syncer = mobile.sync.start(target)
       syncer.on('error', function (err) {
         t.error(err)
         close()
@@ -299,29 +274,25 @@ tape('sync: media: mobile <-> desktop', function (t) {
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
         var pending = 2
-        var expected1 = [
-          'original/hello_world.png',
-          'preview/goodbye_world.png',
-          'preview/hello_world.png',
-          'thumbnail/goodbye_world.png',
-          'thumbnail/hello_world.png'
-        ]
-        var expected2 = [
-          'original/goodbye_world.png',
-          'original/hello_world.png',
-          'preview/goodbye_world.png',
-          'preview/hello_world.png',
-          'thumbnail/goodbye_world.png',
-          'thumbnail/hello_world.png'
-        ]
-        api1.media.list(function (err, files) {
+        var expectedMobile = mockExpectedMedia(total)
+          .concat([
+            'preview/goodbye_world.png',
+            'thumbnail/goodbye_world.png'
+          ])
+        var expectedDesktop = mockExpectedMedia(total)
+          .concat([
+            'original/goodbye_world.png',
+            'preview/goodbye_world.png',
+            'thumbnail/goodbye_world.png'
+          ])
+        mobile.media.list(function (err, files) {
           t.error(err)
-          t.deepEquals(files.sort(), expected1.sort())
+          t.deepEquals(files.sort(), expectedMobile.sort())
           if (!--pending) close(() => t.ok(true))
         })
-        api2.media.list(function (err, files) {
+        desktop.media.list(function (err, files) {
           t.error(err)
-          t.deepEquals(files.sort(), expected2.sort())
+          t.deepEquals(files.sort(), expectedDesktop.sort())
           if (!--pending) close(() => t.ok(true))
         })
       })
@@ -332,39 +303,25 @@ tape('sync: media: mobile <-> desktop', function (t) {
 tape('sync: media: mobile <-> mobile', function (t) {
   t.plan(18)
 
-  function writeBlob (api, filename, cb) {
-    var pending = 3
-    var ws = api.media.createWriteStream('original/' + filename, done)
-    ws.end(filename)
-
-    ws = api.media.createWriteStream('preview/' + filename, done)
-    ws.end(filename)
-
-    ws = api.media.createWriteStream('thumbnail/' + filename, done)
-    ws.end(filename)
-
-    function done (err) {
-      t.error(err)
-      if (!--pending) cb()
-    }
-  }
-
   var opts = {api1:{deviceType:'mobile'}, api2:{deviceType:'mobile'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
+    var total = 100
+
+    var clone = api2
 
     api1.sync.listen()
     api1.sync.on('target', written.bind(null, null))
-    api2.sync.listen()
-    api2.sync.on('target', written.bind(null, null))
-    writeBlob(api1, 'hello_world.png', written)
-    writeBlob(api2, 'goodbye_world.png', written)
+    clone.sync.listen()
+    clone.sync.on('target', written.bind(null, null))
+    helpers.writeBigData(api1, total, written)
+    writeBlob(clone, 'goodbye_world.png', written)
 
     function written (err) {
       t.error(err)
       if (--pending === 0) {
         t.ok(api1.sync.targets().length > 0, 'api 1 has targets')
-        t.ok(api2.sync.targets().length > 0, 'api 2 has targets')
+        t.ok(clone.sync.targets().length > 0, 'api 2 has targets')
         if (api1.sync.targets().length >= 1) {
           sync(api1.sync.targets()[0])
         }
@@ -382,31 +339,56 @@ tape('sync: media: mobile <-> mobile', function (t) {
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
         var pending = 2
-        var expected1 = [
-          'original/hello_world.png',
+        var expected1 = mockExpectedMedia(total).concat([
           'preview/goodbye_world.png',
-          'preview/hello_world.png',
-          'thumbnail/goodbye_world.png',
-          'thumbnail/hello_world.png'
-        ]
-        var expected2 = [
-          'original/goodbye_world.png',
-          'preview/goodbye_world.png',
-          'preview/hello_world.png',
-          'thumbnail/goodbye_world.png',
-          'thumbnail/hello_world.png'
-        ]
+          'thumbnail/goodbye_world.png'
+        ])
+        var expectedClone = mockExpectedMedia(total)
+          .filter((m) => !m.startsWith('original'))
+          .concat([
+            'original/goodbye_world.png',
+            'preview/goodbye_world.png',
+            'thumbnail/goodbye_world.png'
+          ])
         api1.media.list(function (err, files) {
           t.error(err)
           t.deepEquals(files.sort(), expected1.sort())
           if (!--pending) close(() => t.ok(true))
         })
-        api2.media.list(function (err, files) {
+        clone.media.list(function (err, files) {
           t.error(err)
-          t.deepEquals(files.sort(), expected2.sort())
+          t.deepEquals(files.sort(), expectedClone.sort())
           if (!--pending) close(() => t.ok(true))
         })
       })
     }
   })
 })
+
+function mockExpectedMedia (total) {
+  var expected = []
+  for (var i = 0; i < total; i++) {
+    expected.push(`original/foo-${i}.jpg`)
+    expected.push(`thumbnail/foo-${i}.jpg`)
+    expected.push(`preview/foo-${i}.jpg`)
+  }
+  return expected
+}
+
+function writeBlob (api, filename, cb) {
+  var pending = 3
+  var ws = api.media.createWriteStream('original/' + filename, done)
+  ws.end(filename)
+
+  ws = api.media.createWriteStream('preview/' + filename, done)
+  ws.end(filename)
+
+  ws = api.media.createWriteStream('thumbnail/' + filename, done)
+  ws.end(filename)
+
+  function done (err) {
+    if (err) return cb(err)
+    if (!--pending) cb()
+  }
+}
+

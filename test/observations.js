@@ -2,7 +2,6 @@ var test = require('tape')
 var collect = require('collect-stream')
 
 var helpers = require('./helpers')
-var generateObservations = require('./generateObservations')
 
 var obs = {
   attachments: [],
@@ -65,7 +64,7 @@ test('update many and then list', function (t) {
   createAndUpdate(i, done)
 
   function createAndUpdate (total, cb) {
-    generateObservations(i, function (_, obs) {
+    helpers.generateObservations(i, function (_, obs) {
       m.observationCreate(obs, (_, node) => {
         var newObs = Object.assign(node, {})
         newObs.tags.notes = 'im a new tag'

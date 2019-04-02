@@ -44,6 +44,7 @@
     "level": "^4.0.0",
     "mock-data": "^1.5.5",
     "nyc": "^12.0.2",
+    "pump": "^3.0.0",
     "random-access-file": "^2.1.0",
     "rimraf": "^2.6.2",
     "safe-fs-blob-store": "^1.0.0",
