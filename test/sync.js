@@ -182,7 +182,7 @@ tape.only('sync: big media data: desktop <-> desktop', function (t) {
     api1.sync.on('target', written.bind(null, null))
     api2.sync.listen()
     api2.sync.on('target', written.bind(null, null))
-    helpers.writeBigData(api1, total, written.bind(null, null))
+    helpers.writeBigData(api1, total, written)
     writeBlob(api2, 'goodbye_world.png', written)
 
     function written (err) {
@@ -249,7 +249,7 @@ tape('sync: media: mobile <-> desktop', function (t) {
     mobile.sync.on('target', written.bind(null, null))
     desktop.sync.listen()
     desktop.sync.on('target', written.bind(null, null))
-    helpers.writeBigData(mobile, total, written.bind(null, null))
+    helpers.writeBigData(mobile, total, written)
     writeBlob(desktop, 'goodbye_world.png', written)
 
     function written (err) {
