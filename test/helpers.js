@@ -58,7 +58,7 @@ function writeBigData (mapeo, n, cb) {
           var ws = mapeo.media.createWriteStream(`original/foo-${n}.jpg`)
           var rs = fs.createReadStream(path.join(__dirname, 'hi-res.jpg'))
           pump(rs, ws, function (err) {
-            if (err) return cb()
+            if (err) return cb(err)
             toFinish++
             console.log(`wrote ${toFinish}/${total}`)
             if (toFinish === total) return cb()
