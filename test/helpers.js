@@ -42,26 +42,21 @@ function createApi (_, opts) {
 }
 
 function writeBigData (mapeo, n, cb) {
-  var total = n
-  var toFinish = 0
-  generateObservations(n, function (_, obs) {
+  generateObservations(n, function (_, obs, i) {
     mapeo.observationCreate(obs, (_, node) => {
-      n--
-      var ws = mapeo.media.createWriteStream(`preview/foo-${n}.jpg`)
+      var ws = mapeo.media.createWriteStream(`preview/foo-${i}.jpg`)
       var rs = fs.createReadStream(path.join(__dirname, 'hi-res.jpg'))
       pump(rs, ws, function (err) {
         if (err) return cb(err)
-        var ws = mapeo.media.createWriteStream(`thumbnail/foo-${n}.jpg`)
+        var ws = mapeo.media.createWriteStream(`thumbnail/foo-${i}.jpg`)
         var rs = fs.createReadStream(path.join(__dirname, 'hi-res.jpg'))
         pump(rs, ws, function (err) {
           if (err) return cb(err)
-          var ws = mapeo.media.createWriteStream(`original/foo-${n}.jpg`)
+          var ws = mapeo.media.createWriteStream(`original/foo-${i}.jpg`)
           var rs = fs.createReadStream(path.join(__dirname, 'hi-res.jpg'))
           pump(rs, ws, function (err) {
             if (err) return cb(err)
-            toFinish++
-            console.log(`wrote ${toFinish}/${total}`)
-            if (toFinish === total) return cb()
+            if (i === 1) return cb()
           })
         })
       })
@@ -97,7 +92,8 @@ function generateObservations (count, bounds, cb) {
             observedBy: 'you'
           }
         }
-        cb(null, obs)
+        count--
+        cb(null, obs, count)
       })
     })
   })

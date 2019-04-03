@@ -170,13 +170,13 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
   })
 })
 
-tape.only('sync: big media data: desktop <-> desktop', function (t) {
-  t.plan(12)
+tape('sync: big media data: desktop <-> desktop 300 photos', function (t) {
+  t.plan(13)
 
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
-    var total = 200
+    var total = 300
 
     api1.sync.listen()
     api1.sync.on('target', written.bind(null, null))
@@ -204,7 +204,7 @@ tape.only('sync: big media data: desktop <-> desktop', function (t) {
         t.fail()
       })
 
-      syncer.on('progress', function (data) {
+      syncer.once('progress', function (data) {
         t.ok(typeof data === 'number', data)
       })
 
@@ -232,8 +232,8 @@ tape.only('sync: big media data: desktop <-> desktop', function (t) {
   })
 })
 
-tape('sync: media: mobile <-> desktop', function (t) {
-  t.plan(11)
+tape('sync: media: mobile <-> desktop 50 photos', function (t) {
+  t.plan(12)
 
   var opts = {
     api1: { deviceType: 'mobile' },
@@ -241,7 +241,7 @@ tape('sync: media: mobile <-> desktop', function (t) {
   }
   createApis(opts, function (api1, api2, close) {
     var pending = 4
-    var total = 100
+    var total = 50
     var mobile = api1
     var desktop = api2
 
@@ -300,8 +300,8 @@ tape('sync: media: mobile <-> desktop', function (t) {
   })
 })
 
-tape('sync: media: mobile <-> mobile', function (t) {
-  t.plan(18)
+tape('sync: media: mobile <-> mobile 100 photos', function (t) {
+  t.plan(12)
 
   var opts = {api1:{deviceType:'mobile'}, api2:{deviceType:'mobile'}}
   createApis(opts, function (api1, api2, close) {
@@ -344,7 +344,7 @@ tape('sync: media: mobile <-> mobile', function (t) {
           'thumbnail/goodbye_world.png'
         ])
         var expectedClone = mockExpectedMedia(total)
-          .filter((m) => !m.startsWith('original'))
+          .filter((m) => !m.startsWith('original/'))
           .concat([
             'original/goodbye_world.png',
             'preview/goodbye_world.png',
