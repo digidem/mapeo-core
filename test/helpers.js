@@ -11,6 +11,7 @@ var level = require('level')
 var blobstore = require('safe-fs-blob-store')
 var tmp = require('tmp')
 var mock = require('mock-data')
+var run = require('run-parallel-limit')
 
 var Mapeo = require('..')
 
@@ -42,24 +43,42 @@ function createApi (_, opts) {
 }
 
 function writeBigData (mapeo, n, cb) {
+  var tasks = []
+  var left = n
+
   generateObservations(n, function (_, obs, i) {
     mapeo.observationCreate(obs, (_, node) => {
-      var ws = mapeo.media.createWriteStream(`preview/foo-${i}.jpg`)
-      var rs = fs.createReadStream(path.join(__dirname, 'hi-res.jpg'))
-      pump(rs, ws, function (err) {
-        if (err) return cb(err)
-        var ws = mapeo.media.createWriteStream(`thumbnail/foo-${i}.jpg`)
+      var task = function (cb) {
+        var pending = 3
+        var error
+
+        var ws = mapeo.media.createWriteStream(`preview/foo-${i}.jpg`, done)
         var rs = fs.createReadStream(path.join(__dirname, 'hi-res.jpg'))
-        pump(rs, ws, function (err) {
-          if (err) return cb(err)
-          var ws = mapeo.media.createWriteStream(`original/foo-${i}.jpg`)
-          var rs = fs.createReadStream(path.join(__dirname, 'hi-res.jpg'))
-          pump(rs, ws, function (err) {
-            if (err) return cb(err)
-            if (i === 1) return cb()
-          })
-        })
-      })
+        pump(rs, ws)
+
+        var ws = mapeo.media.createWriteStream(`thumbnail/foo-${i}.jpg`, done)
+        var rs = fs.createReadStream(path.join(__dirname, 'hi-res.jpg'))
+        pump(rs, ws)
+
+        var ws = mapeo.media.createWriteStream(`original/foo-${i}.jpg`, done)
+        var rs = fs.createReadStream(path.join(__dirname, 'hi-res.jpg'))
+        pump(rs, ws)
+
+        function done (err) {
+          if (error) return
+          if (err) {
+            error = err
+            cb(err)
+          } else if (!--pending) {
+            cb()
+          }
+        }
+      }
+      tasks.push(task)
+
+      if (tasks.length === n) {
+        run(tasks, 10, cb)
+      }
     })
   })
 }
