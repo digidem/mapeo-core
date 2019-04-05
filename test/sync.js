@@ -2,6 +2,7 @@ var path = require('path')
 var os = require('os')
 var tape = require('tape')
 var tmp = require('tmp')
+var rimraf = require('rimraf')
 
 var helpers = require('./helpers')
 
@@ -19,7 +20,11 @@ function createApis (opts, cb) {
     cb = cb || function () {}
     var pending = 2
     function done () {
-      if (!--pending) cb()
+      if (!--pending) {
+        rimraf.sync(api1._dir)
+        rimraf.sync(api2._dir)
+        cb()
+      }
     }
 
     api1.close(done)

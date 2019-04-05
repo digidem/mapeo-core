@@ -37,9 +37,12 @@ function createApi (_, opts) {
 
   var media = blobstore(path.join(dir, 'media'))
 
-  return new Mapeo(osm, media, Object.assign({}, opts, {
+  var mapeo = new Mapeo(osm, media, Object.assign({}, opts, {
     id: randombytes(8).toString('hex')
   }))
+
+  mapeo._dir = dir
+  return mapeo
 }
 
 function writeBigData (mapeo, n, cb) {
