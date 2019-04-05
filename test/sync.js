@@ -175,13 +175,13 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
   })
 })
 
-tape('sync: big media data: desktop <-> desktop 300 photos', function (t) {
+tape('sync: desktop <-> desktop photos', function (t) {
   t.plan(13)
 
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
-    var total = 300
+    var total = 5
 
     api1.sync.listen()
     api1.sync.on('target', written.bind(null, null))
@@ -237,7 +237,7 @@ tape('sync: big media data: desktop <-> desktop 300 photos', function (t) {
   })
 })
 
-tape('sync: media: mobile <-> desktop 50 photos', function (t) {
+tape('sync: mobile <-> desktop photos', function (t) {
   t.plan(12)
 
   var opts = {
@@ -246,7 +246,7 @@ tape('sync: media: mobile <-> desktop 50 photos', function (t) {
   }
   createApis(opts, function (api1, api2, close) {
     var pending = 4
-    var total = 50
+    var total = 5
     var mobile = api1
     var desktop = api2
 
@@ -305,13 +305,13 @@ tape('sync: media: mobile <-> desktop 50 photos', function (t) {
   })
 })
 
-tape('sync: media: mobile <-> mobile 100 photos', function (t) {
+tape('sync: mobile <-> mobile photos', function (t) {
   t.plan(12)
 
   var opts = {api1:{deviceType:'mobile'}, api2:{deviceType:'mobile'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
-    var total = 100
+    var total = 5
 
     var clone = api2
 
@@ -363,6 +363,68 @@ tape('sync: media: mobile <-> mobile 100 photos', function (t) {
         clone.media.list(function (err, files) {
           t.error(err)
           t.deepEquals(files.sort(), expectedClone.sort())
+          if (!--pending) close(() => t.ok(true))
+        })
+      })
+    }
+  })
+})
+
+tape('sync: 200 photos', function (t) {
+  t.plan(13)
+
+  var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
+  createApis(opts, function (api1, api2, close) {
+    var pending = 4
+    var total = 200
+
+    api1.sync.listen()
+    api1.sync.on('target', written.bind(null, null))
+    api2.sync.listen()
+    api2.sync.on('target', written.bind(null, null))
+    helpers.writeBigData(api1, total, written)
+    writeBlob(api2, 'goodbye_world.png', written)
+
+    function written (err) {
+      t.error(err)
+      if (--pending === 0) {
+        t.ok(api1.sync.targets().length > 0, 'api 1 has targets')
+        t.ok(api2.sync.targets().length > 0, 'api 2 has targets')
+        if (api1.sync.targets().length >= 1) {
+          sync(api1.sync.targets()[0])
+        }
+      }
+    }
+
+    function sync (target) {
+      var syncer = api1.sync.start(target)
+      syncer.on('error', function (err) {
+        t.error(err)
+        close()
+        t.fail()
+      })
+
+      syncer.once('progress', function (data) {
+        t.ok(typeof data === 'number', data)
+      })
+
+      syncer.on('end', function () {
+        t.ok(true, 'replication complete')
+        var pending = 2
+        var expected = mockExpectedMedia(total)
+          .concat([
+            'original/goodbye_world.png',
+            'preview/goodbye_world.png',
+            'thumbnail/goodbye_world.png'
+          ])
+        api1.media.list(function (err, files) {
+          t.error(err)
+          t.deepEquals(files.sort(), expected.sort(), 'api1 has the files')
+          if (!--pending) close(() => t.ok(true))
+        })
+        api2.media.list(function (err, files) {
+          t.error(err)
+          t.deepEquals(files.sort(), expected.sort(), 'api2 has the files')
           if (!--pending) close(() => t.ok(true))
         })
       })
