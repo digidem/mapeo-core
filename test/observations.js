@@ -33,6 +33,8 @@ test('observationCreate', function (t) {
     t.same(obs.tags, node.tags)
     m.observationGet(node.id, (err, _node) => {
       t.error(err)
+      delete node.timestamp
+      delete _node[0].timestamp
       t.same(node, _node[0])
       t.end()
     })
