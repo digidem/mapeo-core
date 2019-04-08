@@ -74,6 +74,7 @@ class Mapeo extends events.EventEmitter {
       // 4. modify observation tags
       obs.tags = obs.tags || {}
       obs.tags.element_id = batch[0].id
+      delete obs.links  // otherwise [] will be used, signalling that this is a fork
       batch.push({
         type: 'put',
         id: id,
