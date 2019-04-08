@@ -66,7 +66,7 @@ class Mapeo extends events.EventEmitter {
       batch.push({
         type: 'put',
         id: randombytes(8).toString('hex'),
-        value: Object.assign(obs, {
+        value: Object.assign({}, obs, {
           type: 'node'
         })
       })
