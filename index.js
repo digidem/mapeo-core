@@ -200,7 +200,8 @@ var TOP_LEVEL_PROPS = USER_UPDATABLE_PROPS.concat([
   'timestamp',
   'id',
   'version',
-  'type'
+  'type',
+  'links'
 ])
 
 // Props from old versions of mapeo-mobile that we can discard
