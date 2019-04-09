@@ -41,6 +41,8 @@ function createApi (_, opts) {
     id: randombytes(8).toString('hex')
   }))
 
+  // TODO: expose a cleanup function
+
   mapeo._dir = dir
   return mapeo
 }

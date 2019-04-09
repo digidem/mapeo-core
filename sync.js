@@ -11,6 +11,7 @@ const os = require('os')
 const randombytes = require('randombytes')
 const pump = require('pump')
 const MapeoSync = require('./lib/sync-stream')
+const progressSync = require('./lib/db-sync-progress')
 
 const SYNC_TYPE = 'mapeo-sync'
 const SYNCFILE_FORMATS = {
@@ -126,7 +127,7 @@ class Sync extends events.EventEmitter {
       syncfile.ready(function (err) {
         if (err) return onerror(err)
         const r1 = syncfile.replicateData({live: false})
-        const r2 = self.osm.replicate({live: false})
+        const r2 = progressSync(self.osm, {live: false})
         const m1 = syncfile.replicateMedia()
         const m2 = createMediaReplicationStream(self.media)
         var error
