@@ -12,8 +12,8 @@ function createApis (opts, cb) {
     opts = undefined
   }
   opts = opts || {}
-  var api1 = helpers.createApi(helpers.tmpdir1, opts.api1)
-  var api2 = helpers.createApi(helpers.tmpdir2, opts.api2)
+  var api1 = helpers.createApi(null, opts.api1)
+  var api2 = helpers.createApi(null, opts.api2)
   api1.on('error', console.error)
   api2.on('error', console.error)
   function close (cb) {
@@ -21,9 +21,11 @@ function createApis (opts, cb) {
     var pending = 2
     function done () {
       if (!--pending) {
-        rimraf.sync(api1._dir)
-        rimraf.sync(api2._dir)
-        cb()
+        rimraf(api1._dir, function () {
+          rimraf(api2._dir, function () {
+            cb()
+          })
+        })
       }
     }
 
