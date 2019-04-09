@@ -32,7 +32,7 @@ function setup (numEntries, cb) {
   })
 }
 
-test('multifeed sync progress: no entries', function (t) {
+test('sync progress: no entries', function (t) {
   t.plan(6)
 
   setup(0, function (err, db1) {
@@ -53,7 +53,7 @@ test('multifeed sync progress: no entries', function (t) {
   })
 })
 
-test('multifeed sync progress: 6 entries', function (t) {
+test('sync progress: 6 entries', function (t) {
   t.plan(9)
 
   setup(3, function (err, db1) {
@@ -88,7 +88,7 @@ test('multifeed sync progress: 6 entries', function (t) {
   })
 })
 
-test('multifeed sync progress: 200 entries', function (t) {
+test('sync progress: 200 entries', function (t) {
   t.plan(11)
 
   setup(100, function (err, db1) {
