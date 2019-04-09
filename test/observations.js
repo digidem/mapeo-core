@@ -161,6 +161,9 @@ test('observationStream', function (t) {
       var pending = 2
       m.observationStream().on('data', function (obs) {
         pending--
+        delete obs.timestamp
+        delete node1.timestamp
+        delete node2.timestamp
         if (obs.id === node1.id) t.same(obs, node1, 'obs 1 arrives')
         if (obs.id === node2.id) t.same(obs, node2, 'obs 2 arrives')
       })

@@ -12,8 +12,8 @@ function createApis (opts, cb) {
     opts = undefined
   }
   opts = opts || {}
-  var api1 = helpers.createApi(helpers.tmpdir1, opts.api1)
-  var api2 = helpers.createApi(helpers.tmpdir2, opts.api2)
+  var api1 = helpers.createApi(null, opts.api1)
+  var api2 = helpers.createApi(null, opts.api2)
   api1.on('error', console.error)
   api2.on('error', console.error)
   function close (cb) {
@@ -21,9 +21,11 @@ function createApis (opts, cb) {
     var pending = 2
     function done () {
       if (!--pending) {
-        rimraf.sync(api1._dir)
-        rimraf.sync(api2._dir)
-        cb()
+        rimraf(api1._dir, function () {
+          rimraf(api2._dir, function () {
+            cb()
+          })
+        })
       }
     }
 
@@ -131,7 +133,9 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
     var id
     var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
     var pending = 2
+    var lastProgress
     var obs = {lat: 1, lon: 2, type: 'observation'}
+
     api1.osm.create(obs, written)
     var ws = api1.media.createWriteStream('foo.txt')
     ws.once('finish', written)
@@ -145,18 +149,32 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
         api1.sync.replicateFromFile(tmpfile)
           .once('end', syncfileWritten)
           .once('error', syncfileWritten)
+          .on('progress', function (progress) {
+            lastProgress = progress
+          })
       }
     }
 
     function syncfileWritten (err) {
       t.error(err, 'first syncfile written ok')
+      t.deepEquals(lastProgress, {
+        db: { sofar: 1, total: 1 },
+        media: { sofar: 1, total: 1 }
+      }, 'first progress state ok')
       api2.sync.replicateFromFile(tmpfile)
         .once('end', secondSyncfileWritten)
         .once('error', secondSyncfileWritten)
+        .on('progress', function (progress) {
+          lastProgress = progress
+        })
     }
 
     function secondSyncfileWritten (err) {
       t.error(err, 'second syncfile written ok')
+      t.deepEquals(lastProgress, {
+        db: { sofar: 1, total: 1 },
+        media: { sofar: 1, total: 1 }
+      }, 'second progress state ok')
 
       api2.osm.get(id, function (err, heads) {
         t.error(err)
@@ -182,6 +200,7 @@ tape('sync: desktop <-> desktop photos', function (t) {
   createApis(opts, function (api1, api2, close) {
     var pending = 4
     var total = 5
+    var lastProgress
 
     api1.sync.listen()
     api1.sync.on('target', written.bind(null, null))
@@ -209,12 +228,17 @@ tape('sync: desktop <-> desktop photos', function (t) {
         t.fail()
       })
 
-      syncer.once('progress', function (data) {
-        t.ok(typeof data === 'number', data)
+      syncer.once('progress', function (progress) {
+        lastProgress = progress
       })
 
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
+        t.deepEquals(lastProgress, {
+          db: { sofar: 0, total: 0 },
+          media: { sofar: 18, total: 18 }
+        }, 'progress state ok')
+
         var pending = 2
         var expected = mockExpectedMedia(total)
           .concat([
@@ -404,12 +428,18 @@ tape('sync: 200 photos', function (t) {
         t.fail()
       })
 
-      syncer.once('progress', function (data) {
-        t.ok(typeof data === 'number', data)
+      var lastProgress
+      syncer.once('progress', function (progress) {
+        lastProgress = progress
       })
 
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
+        t.deepEquals(lastProgress, {
+          db: { sofar: 0, total: 0 },
+          media: { sofar: 603, total: 603 }
+        }, 'progress state ok')
+
         var pending = 2
         var expected = mockExpectedMedia(total)
           .concat([

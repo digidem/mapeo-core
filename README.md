@@ -117,8 +117,8 @@ Emitted when a new wifi target is discovered.
 
 An EventEmitter `ev` is returned. It can emit
 
-- `"error"`: gives an Error object signalling an error in syncing.
-- `"progress"`: gives a string describing the current sync state.
+- `"error" (err)`: gives an Error object signalling an error in syncing.
+- `"progress" (progress)`: gives information about how many objects have been synced and how many to be synced in total, e.g. `{ db: { sofar: 5, total: 10 }, media: { sofar: 18, total: 100 } }`
 - `"end"`: successful completion of OSM and media sync.
 
 ### var ev = sync.replicateFromFile(filepath)
@@ -127,8 +127,8 @@ An EventEmitter `ev` is returned. It can emit
 
 An EventEmitter `ev` is returned. It can emit
 
-- `"error"`: gives an Error object signalling an error in syncing.
-- `"progress"`: gives a string describing the current sync state.
+- `"error" (err)`: gives an Error object signalling an error in syncing.
+- `"progress" (progress)`: gives information about how many objects have been synced and how many to be synced in total, e.g. `{ db: { sofar: 5, total: 10 }, media: { sofar: 18, total: 100 } }`
 - `"end"`: successful completion of OSM and media sync.
 
 ## License
