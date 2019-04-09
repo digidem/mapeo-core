@@ -127,7 +127,7 @@ class Sync extends events.EventEmitter {
       syncfile.ready(function (err) {
         if (err) return onerror(err)
         const r1 = syncfile.replicateData({live: false})
-        const r2 = progressSync(self.osm, {live: false})
+        const r2 = progressSync(self, {live: false})
         const m1 = syncfile.replicateMedia()
         const m2 = createMediaReplicationStream(self.media)
         var error
