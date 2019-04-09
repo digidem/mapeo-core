@@ -2,7 +2,6 @@ var mkdirp = require('mkdirp')
 var path = require('path')
 var fs = require('fs')
 var pump = require('pump')
-var rimraf = require('rimraf')
 var randombytes = require('randombytes')
 var osmdb = require('kappa-osm')
 var kappa = require('kappa-core')
@@ -24,7 +23,6 @@ module.exports = {
 function createApi (_, opts) {
   var dir = tmp.dirSync().name
 
-  rimraf.sync(dir)
   mkdirp.sync(dir)
 
   var osm = osmdb({
