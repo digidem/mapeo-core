@@ -78,6 +78,7 @@ class Sync extends events.EventEmitter {
 
     target.handshake.accept()
     target.sync = emitter
+
     return emitter
   }
 
@@ -111,18 +112,18 @@ class Sync extends events.EventEmitter {
 
     fs.access(sourceFile, function (err) {
       if (err) { // file doesn't exist, write
-        if (self.opts.writeFormat === 'osm-p2p-syncfile') syncNew()
+        if (self.opts.writeFormat === 'osm-p2p-syncfile') sync()
         else return onerror(new Error('unsupported syncfile type'))
       } else { // read
         isGzipFile(sourceFile, function (err, isGzip) {
           if (err) return onerror(err)
-          if (!isGzip) syncNew()
+          if (!isGzip) sync()
           else return onerror(new Error('unsupported syncfile type'))
         })
       }
     })
 
-    function syncNew () {
+    function sync () {
       const syncfile = new Syncfile(sourceFile, os.tmpdir())
       syncfile.ready(function (err) {
         if (err) return onerror(err)
@@ -135,7 +136,7 @@ class Sync extends events.EventEmitter {
         pump(r1, r2, r1, fin)
         pump(m1, m2, m1, fin)
         function fin (err) {
-          // HACK(noffle): workaround for multifeed bug
+          // HACK(noffle): workaround for sync bug
           if (err && err.message === 'premature close') err = undefined
 
           if (err) error = err
@@ -145,6 +146,22 @@ class Sync extends events.EventEmitter {
             })
           }
         }
+
+        // track sync progress
+        var progress = {
+          db: { sofar: 0, total: 0 },
+          media: { sofar: 0, total: 0 }
+        }
+        r2.on('progress', function (sofar, total) {
+          progress.db.sofar = sofar
+          progress.db.total = total
+          emitter.emit('progress', progress)
+        })
+        m2.on('progress', function (sofar, total) {
+          progress.media.sofar = sofar
+          progress.media.total = total
+          emitter.emit('progress', progress)
+        })
       })
     }
 
@@ -154,9 +171,7 @@ class Sync extends events.EventEmitter {
 
     function onend (err) {
       if (err) return onerror(err)
-      console.log(3)
       self.osm.ready(function () {
-        console.log(4)
         emitter.emit('end')
       })
     }
@@ -197,11 +212,10 @@ class Sync extends events.EventEmitter {
           deviceType: self.opts.deviceType || 'unknown',
           handshake: onHandshake
         })
-        var measureProgress = through.obj(function (data, enc, next) {
-          if (target.sync) target.sync.emit('progress', data.length)
-          next(null, data)
+        stream.on('progress', function (progress) {
+          if (target.sync) target.sync.emit('progress', progress)
         })
-        pump(stream, connection, measureProgress, stream, function (err) {
+        pump(stream, connection, stream, function (err) {
           if (target.sync) {
             if (stream.goodFinish) {
               return target.sync.emit('end')
