@@ -88,6 +88,11 @@ sync.listen(function () {
 })
 ```
 
+### sync.setName(name)
+
+Set the name of this peer / device, which will appear to others when they call
+`sync.targets()`.
+
 ### sync.listen(cb)
 
 Broadcast and listen on the local network for peers. `cb` is called once the service is up and broadcasting.

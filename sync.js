@@ -179,6 +179,10 @@ class Sync extends events.EventEmitter {
     return emitter
   }
 
+  setName (name) {
+    this.name = name
+  }
+
   _swarm () {
     var self = this
     // XXX(noffle): having opts.id set causes connections to get dropped on my
@@ -210,6 +214,7 @@ class Sync extends events.EventEmitter {
         // until one side initiates the sync operation.
         stream = MapeoSync(self.osm, self.media, {
           deviceType: self.opts.deviceType || 'unknown',
+          deviceName: self.name || 'unnamed device',
           handshake: onHandshake
         })
         stream.on('progress', function (progress) {
@@ -231,6 +236,7 @@ class Sync extends events.EventEmitter {
         target.handshake = {
           accept: accept
         }
+        target.name = req.deviceName
 
         // as soon as any data is received, accept! Because this means that
         // the other side just have accepted & wants to start.
