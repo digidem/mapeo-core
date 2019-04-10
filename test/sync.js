@@ -429,7 +429,7 @@ tape('sync: 200 photos', function (t) {
       })
 
       var lastProgress
-      syncer.once('progress', function (progress) {
+      syncer.on('progress', function (progress) {
         lastProgress = progress
       })
 
