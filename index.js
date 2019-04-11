@@ -30,11 +30,13 @@ class Mapeo extends events.EventEmitter {
     newObs.schemaVersion = obs.schemaVersion || CURRENT_SCHEMA
     newObs.timestamp = (new Date().toISOString())
     newObs.created_at = (new Date()).toISOString()
+    if (obs.id) this.osm.put(obs.id, newObs, done)
+    else this.osm.create(newObs, done)
 
-    this.osm.create(newObs, function (err, node) {
+    function done (err, node) {
       if (err) return cb(err)
       cb(null, node)
-    })
+    }
   }
 
   observationGet (id, cb) {
