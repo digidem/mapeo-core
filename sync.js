@@ -2,7 +2,6 @@ const path = require('path')
 const createMediaReplicationStream = require('blob-store-replication-stream')
 const Syncfile = require('osm-p2p-syncfile')
 const debug = require('debug')('mapeo-sync')
-const through = require('through2')
 const Swarm = require('discovery-swarm')
 const values = require('object.values')
 const events = require('events')
@@ -18,6 +17,7 @@ const SYNCFILE_FORMATS = {
   'hyperlog-sneakernet': 1,
   'osm-p2p-syncfile'   : 2
 }
+
 const DEFAULT_OPTS = {
   dns: {
     interval: 3000
@@ -38,17 +38,17 @@ class Sync extends events.EventEmitter {
     this.opts = Object.assign({}, opts)
 
     // track discovered wifi peers
-    this._targets = {}
+    this._peers = {}
   }
 
-  targets () {
-    return values(this._targets)
+  peers () {
+    return values(this._peers)
   }
 
-  _getTargetFromHostPort (host, port) {
-    var res = values(this._targets)
-      .filter(function (target) {
-        return target.port == port && target.host == host
+  _getPeerFromHostPort (host, port) {
+    var res = values(this._peers)
+      .filter(function (peer) {
+        return peer.port === port && peer.host === host
       })
     if (res.length) {
       return res[0]
@@ -59,14 +59,14 @@ class Sync extends events.EventEmitter {
 
   start ({host, port}, opts) {
     var emitter = new events.EventEmitter()
-    var target = this._getTargetFromHostPort(host, port)
-    if (!target) {
+    var peer = this._getPeerFromHostPort(host, port)
+    if (!peer) {
       process.nextTick(function () {
-        emitter.emit('error', new Error('trying to sync to unknown target'))
+        emitter.emit('error', new Error('trying to sync to unknown peer'))
       })
       return emitter
     }
-    if (!target.handshake) {
+    if (!peer.handshake) {
       process.nextTick(function () {
         emitter.emit('error', new Error('trying to sync before handshake has occurred'))
       })
@@ -74,10 +74,10 @@ class Sync extends events.EventEmitter {
     }
 
     // return existing emitter
-    if (target.sync) return target.sync
+    if (peer.sync) return peer.sync
 
-    target.handshake.accept()
-    target.sync = emitter
+    peer.handshake.accept()
+    peer.sync = emitter
 
     return emitter
   }
@@ -87,7 +87,18 @@ class Sync extends events.EventEmitter {
     if (this.swarm || this._destroyingSwarm) return process.nextTick(cb)
     this.swarm = this._swarm()
     this.swarm.listen(0, cb)
-    this.swarm.join(SYNC_TYPE)
+  }
+
+  leave (_type) {
+    this.swarm.leave(_type || SYNC_TYPE)
+  }
+
+  join (_type) {
+    this.swarm.join(_type || SYNC_TYPE)
+  }
+
+  destroy (cb) {
+    this.close(cb)
   }
 
   close (cb) {
@@ -103,7 +114,7 @@ class Sync extends events.EventEmitter {
 
   /**
    * Replicate from a given file
-   * @param  {String}   path    The target source filepath
+   * @param  {String}   path    The source filepath
    * @return {EventEmitter}     Listen to 'error', 'end' and 'progress' events
    */
   replicateFromFile (sourceFile) {
@@ -190,8 +201,8 @@ class Sync extends events.EventEmitter {
     var swarm = Swarm(Object.assign({}, this.opts, {id: undefined}))
 
     swarm.on('connection', (connection, info) => {
-      const target = WifiTarget(connection, info)
-      debug('connection', info)
+      const peer = WifiPeer(connection, info)
+      debug('connection', peer)
 
       connection.once('close', onClose)
       connection.once('error', onClose)
@@ -202,10 +213,10 @@ class Sync extends events.EventEmitter {
 
       function onClose () {
         open = false
-        const target = WifiTarget(connection, info)
-        self.emit('down', target)
-        debug('down', info)
-        delete self._targets[target.id]
+        const peer = WifiPeer(connection, info)
+        self.emit('down', peer)
+        debug('down', peer)
+        delete self._peers[peer.id]
       }
 
       function doSync () {
@@ -218,25 +229,25 @@ class Sync extends events.EventEmitter {
           handshake: onHandshake
         })
         stream.on('progress', function (progress) {
-          if (target.sync) target.sync.emit('progress', progress)
+          if (peer.sync) peer.sync.emit('progress', progress)
         })
         pump(stream, connection, stream, function (err) {
-          if (target.sync) {
+          if (peer.sync) {
             if (stream.goodFinish) {
-              return target.sync.emit('end')
+              return peer.sync.emit('end')
             }
             if (!err) err = new Error('sync stream terminated on remote side')
-            target.sync.emit('error', err)
+            peer.sync.emit('error', err)
           }
           onClose()
         })
       }
 
       function onHandshake (req, accept) {
-        target.handshake = {
+        peer.handshake = {
           accept: accept
         }
-        target.name = req.deviceName
+        peer.name = req.deviceName
 
         // as soon as any data is received, accept! Because this means that
         // the other side just have accepted & wants to start.
@@ -244,8 +255,8 @@ class Sync extends events.EventEmitter {
           accept()
         })
 
-        self._targets[target.id] = target
-        self.emit('target', target)
+        self._peers[peer.id] = peer
+        self.emit('peer', peer)
       }
     })
     return swarm
@@ -270,21 +281,13 @@ function isGzipFile (filepath, cb) {
   })
 }
 
-function WifiTarget (connection, peer) {
-  peer.type = 'wifi'
-  peer.swarmId = peer.swarmId || peer.id
+function WifiPeer (connection, info) {
+  info.type = 'wifi'
+  info.swarmId = info.swarmId || info.id
   // XXX: this is so that each connection has a unique id, even if it's from the same peer.
-  peer.id = (!peer.id || peer.id.length!==12) ? randombytes(6).toString('hex') : peer.id
-  peer.connection = connection
-  return peer
-}
-
-function FileTarget (filename) {
-  return {
-    id: path.basename(filename),
-    filename,
-    type: 'file'
-  }
+  info.id = (!info.id || info.id.length !== 12) ? randombytes(6).toString('hex') : info.id
+  info.connection = connection
+  return info
 }
 
 module.exports = Sync
