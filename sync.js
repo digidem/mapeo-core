@@ -48,7 +48,8 @@ class Sync extends events.EventEmitter {
   _getPeerFromHostPort (host, port) {
     var res = values(this._peers)
       .filter(function (peer) {
-        return peer.port === port && peer.host === host
+        // this needs not triple equals, for some reason it fails
+        return peer.port == port && peer.host == host
       })
     if (res.length) {
       return res[0]
