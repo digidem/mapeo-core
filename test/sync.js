@@ -51,14 +51,16 @@ tape('sync: two servers find eachother', function (t) {
 
     api1.sync.listen(function () {
       api2.sync.listen(function () {
-        api1.sync.on('target', function (target) {
-          var targetId = target.swarmId.toString('hex')
-          t.same(targetId, api2.sync.swarm.id.toString('hex'), 'api2 id cmp')
+        api1.sync.join()
+        api2.sync.join()
+        api1.sync.on('peer', function (peer) {
+          var peerId = peer.swarmId.toString('hex')
+          t.same(peerId, api2.sync.swarm.id.toString('hex'), 'api2 id cmp')
           done()
         })
-        api2.sync.on('target', function (target) {
-          var targetId = target.swarmId.toString('hex')
-          t.same(targetId, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
+        api2.sync.on('peer', function (peer) {
+          var peerId = peer.swarmId.toString('hex')
+          t.same(peerId, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
           done()
         })
       })
@@ -77,9 +79,11 @@ tape('sync: replication of a simple observation with media', function (t) {
     ws.on('error', written)
     ws.end('bar')
     api1.sync.listen()
-    api1.sync.on('target', written.bind(null, null))
+    api1.sync.join()
+    api1.sync.on('peer', written.bind(null, null))
     api2.sync.listen()
-    api2.sync.on('target', written.bind(null, null))
+    api2.sync.join()
+    api2.sync.on('peer', written.bind(null, null))
 
     function written (err) {
       t.error(err)
@@ -87,10 +91,10 @@ tape('sync: replication of a simple observation with media', function (t) {
         api1.osm.create(obs, function (err, _id, node) {
           t.error(err, 'obs1 created')
           id = _id
-          t.ok(api1.sync.targets().length > 0, 'api 1 has targets')
-          t.ok(api2.sync.targets().length > 0, 'api 2 has targets')
-          if (api1.sync.targets().length >= 1) {
-            sync(api1.sync.targets()[0])
+          t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
+          t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
+          if (api1.sync.peers().length >= 1) {
+            sync(api1.sync.peers()[0])
           }
         })
       }
@@ -98,8 +102,8 @@ tape('sync: replication of a simple observation with media', function (t) {
 
     var id = null
 
-    function sync (target) {
-      var syncer = api1.sync.start(target)
+    function sync (peer) {
+      var syncer = api1.sync.start(peer)
       syncer.on('error', function (err) {
         t.error(err)
         close()
@@ -205,27 +209,28 @@ tape('sync: desktop <-> desktop photos', function (t) {
     api2.sync.setName('device_2')
 
     api1.sync.listen()
-    api1.sync.on('target', written.bind(null, null))
+    api1.sync.join()
+    api1.sync.on('peer', written.bind(null, null))
     api2.sync.listen()
-    api2.sync.on('target', written.bind(null, null))
+    api2.sync.join()
+    api2.sync.on('peer', written.bind(null, null))
     helpers.writeBigData(api1, total, written)
     writeBlob(api2, 'goodbye_world.png', written)
 
     function written (err) {
       t.error(err)
       if (--pending === 0) {
-        t.ok(api1.sync.targets().length > 0, 'api 1 has targets')
-        t.ok(api2.sync.targets().length > 0, 'api 2 has targets')
-        if (api1.sync.targets().length >= 1) {
-          sync(api1.sync.targets()[0])
+        t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
+        t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
+        if (api1.sync.peers().length >= 1) {
+          sync(api1.sync.peers()[0])
         }
       }
     }
 
-    function sync (target) {
-      t.equals(target.name, 'device_2')
-
-      var syncer = api1.sync.start(target)
+    function sync (peer) {
+      t.equals(peer.name, 'device_2')
+      var syncer = api1.sync.start(peer)
       syncer.on('error', function (err) {
         t.error(err)
         close()
@@ -279,25 +284,27 @@ tape('sync: mobile <-> desktop photos', function (t) {
     var desktop = api2
 
     mobile.sync.listen()
-    mobile.sync.on('target', written.bind(null, null))
+    mobile.sync.join()
+    mobile.sync.on('peer', written.bind(null, null))
     desktop.sync.listen()
-    desktop.sync.on('target', written.bind(null, null))
+    desktop.sync.join()
+    desktop.sync.on('peer', written.bind(null, null))
     helpers.writeBigData(mobile, total, written)
     writeBlob(desktop, 'goodbye_world.png', written)
 
     function written (err) {
       t.error(err)
       if (--pending === 0) {
-        t.ok(mobile.sync.targets().length > 0, 'api 1 has targets')
-        t.ok(desktop.sync.targets().length > 0, 'api 2 has targets')
-        if (mobile.sync.targets().length >= 1) {
-          sync(mobile.sync.targets()[0])
+        t.ok(mobile.sync.peers().length > 0, 'api 1 has peers')
+        t.ok(desktop.sync.peers().length > 0, 'api 2 has peers')
+        if (mobile.sync.peers().length >= 1) {
+          sync(mobile.sync.peers()[0])
         }
       }
     }
 
-    function sync (target) {
-      var syncer = mobile.sync.start(target)
+    function sync (peer) {
+      var syncer = mobile.sync.start(peer)
       syncer.on('error', function (err) {
         t.error(err)
         close()
@@ -344,25 +351,27 @@ tape('sync: mobile <-> mobile photos', function (t) {
     var clone = api2
 
     api1.sync.listen()
-    api1.sync.on('target', written.bind(null, null))
+    api1.sync.join()
+    api1.sync.on('peer', written.bind(null, null))
     clone.sync.listen()
-    clone.sync.on('target', written.bind(null, null))
+    clone.sync.join()
+    clone.sync.on('peer', written.bind(null, null))
     helpers.writeBigData(api1, total, written)
     writeBlob(clone, 'goodbye_world.png', written)
 
     function written (err) {
       t.error(err)
       if (--pending === 0) {
-        t.ok(api1.sync.targets().length > 0, 'api 1 has targets')
-        t.ok(clone.sync.targets().length > 0, 'api 2 has targets')
-        if (api1.sync.targets().length >= 1) {
-          sync(api1.sync.targets()[0])
+        t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
+        t.ok(clone.sync.peers().length > 0, 'api 2 has peers')
+        if (api1.sync.peers().length >= 1) {
+          sync(api1.sync.peers()[0])
         }
       }
     }
 
-    function sync (target) {
-      var syncer = api1.sync.start(target)
+    function sync (peer) {
+      var syncer = api1.sync.start(peer)
       syncer.on('error', function (err) {
         t.error(err)
         close()
@@ -407,25 +416,27 @@ tape('sync: 200 photos', function (t) {
     var total = 200
 
     api1.sync.listen()
-    api1.sync.on('target', written.bind(null, null))
+    api1.sync.join()
+    api1.sync.on('peer', written.bind(null, null))
     api2.sync.listen()
-    api2.sync.on('target', written.bind(null, null))
+    api2.sync.join()
+    api2.sync.on('peer', written.bind(null, null))
     helpers.writeBigData(api1, total, written)
     writeBlob(api2, 'goodbye_world.png', written)
 
     function written (err) {
       t.error(err)
       if (--pending === 0) {
-        t.ok(api1.sync.targets().length > 0, 'api 1 has targets')
-        t.ok(api2.sync.targets().length > 0, 'api 2 has targets')
-        if (api1.sync.targets().length >= 1) {
-          sync(api1.sync.targets()[0])
+        t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
+        t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
+        if (api1.sync.peers().length >= 1) {
+          sync(api1.sync.peers()[0])
         }
       }
     }
 
-    function sync (target) {
-      var syncer = api1.sync.start(target)
+    function sync (peer) {
+      var syncer = api1.sync.start(peer)
       syncer.on('error', function (err) {
         t.error(err)
         close()

@@ -23,7 +23,7 @@ var Mapeo = require('@mapeo/core')
 * `opts`: options
 
 Valid `opts` options include:
-- `opts.deviceType` (string): one of `{'desktop', 'mobile'}`. This affects how sync works. Mobile targets will not receive full-resolution media from other devices, but share them *to* desktop devices.
+- `opts.deviceType` (string): one of `{'desktop', 'mobile'}`. This affects how sync works. Mobile peers will not receive full-resolution media from other devices, but share them *to* desktop devices.
 
 ## Observations API 
 
@@ -91,34 +91,45 @@ sync.listen(function () {
 ### sync.setName(name)
 
 Set the name of this peer / device, which will appear to others when they call
-`sync.targets()`.
+`sync.peers()`.
 
 ### sync.listen(cb)
 
 Broadcast and listen on the local network for peers. `cb` is called once the service is up and broadcasting.
 
+### sync.join()
+
+Join the swarm and begin making introductory connections with other peers. 
+### sync.leave()
+
+Leave the swarm and no longer be discoverable by other peers. Any currently
+open connections are kept until the swarm is destroyed (using `close` or
+`destroy`).
+
 ### sync.close(cb)
 
 Unannounces the sync service & cleans up the underlying UDP socket. `cb` is called once this is complete.
 
-### sync.targets()
+### sync.peers()
 
-Fetch a list of the current sync targets that have been found thus far.
+Fetch a list of the current sync peers that have been found thus far.
 
-A target can have the following properties:
+A peer can have the following properties:
 
-  * `name`: a human-readable identifier for the target (e.g., hostname)
+  * `name`: a human-readable identifier for the peer (e.g., hostname)
+  * `connection`: The open connection to this peer. Can be closed manually to
+    stop any data transfer. 
   * `host`: the ip
   * `port`: the port
   * `type`: 'wifi' or 'file'
   
-### sync.on('target', target)
+### sync.on('peer', peer)
 
-Emitted when a new wifi target is discovered.
+Emitted when a new wifi peer connection is discovered.
 
-### var ev = sync.start(target)
+### var ev = sync.start(peer)
 
-`target` is an object with properties `host`, `port`, and `name`.
+`peer` is an object with properties `host`, `port`, and `name`.
 
 An EventEmitter `ev` is returned. It can emit
 
