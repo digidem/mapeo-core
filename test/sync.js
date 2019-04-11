@@ -194,13 +194,15 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
 })
 
 tape('sync: desktop <-> desktop photos', function (t) {
-  t.plan(13)
+  t.plan(14)
 
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
     var total = 5
     var lastProgress
+
+    api2.sync.setName('device_2')
 
     api1.sync.listen()
     api1.sync.on('target', written.bind(null, null))
@@ -221,6 +223,8 @@ tape('sync: desktop <-> desktop photos', function (t) {
     }
 
     function sync (target) {
+      t.equals(target.name, 'device_2')
+
       var syncer = api1.sync.start(target)
       syncer.on('error', function (err) {
         t.error(err)
