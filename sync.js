@@ -34,6 +34,7 @@ class Sync extends events.EventEmitter {
 
     this.osm = osm
     this.media = media
+    this.name = opts.name
     if (!opts.id) opts.id = randombytes(32)
     this.opts = Object.assign({}, opts)
 
@@ -226,7 +227,7 @@ class Sync extends events.EventEmitter {
         // until one side initiates the sync operation.
         stream = MapeoSync(self.osm, self.media, {
           deviceType: self.opts.deviceType || 'unknown',
-          deviceName: self.name || 'unnamed device',
+          deviceName: self.name || os.hostname() || 'unnamed device',
           handshake: onHandshake
         })
         stream.on('progress', function (progress) {
