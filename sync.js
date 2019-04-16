@@ -230,15 +230,23 @@ class Sync extends events.EventEmitter {
           deviceName: self.name || os.hostname() || 'unnamed device',
           handshake: onHandshake
         })
-        stream.on('progress', function (progress) {
-          if (peer.sync) peer.sync.emit('progress', progress)
+        stream.on('progress', function (sofar, total) {
+          if (peer.sync) {
+            peer.status = 'replication-progress'
+            peer.message = { sofar, total }
+            peer.sync.emit('progress', peer.progress)
+          }
         })
         pump(stream, connection, stream, function (err) {
           if (peer.sync) {
             if (stream.goodFinish) {
+              peer.status = 'replication-complete'
+              peer.message = undefined
               return peer.sync.emit('end')
             }
             if (!err) err = new Error('sync stream terminated on remote side')
+            peer.status = 'replication-error'
+            peer.message = err
             peer.sync.emit('error', err)
           }
           onClose()
