@@ -86,7 +86,10 @@ class Sync extends events.EventEmitter {
 
   listen (cb) {
     if (!cb) cb = () => {}
-    if (this.swarm || this._destroyingSwarm) return process.nextTick(cb)
+    if (this.swarm || this._destroyingSwarm) {
+      console.error('Swarm already exists or is currently destroying itself..')
+      return process.nextTick(cb)
+    }
     this.swarm = this._swarm()
     this.swarm.listen(0, cb)
   }
