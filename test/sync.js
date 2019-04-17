@@ -198,7 +198,7 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
 })
 
 tape('sync: desktop <-> desktop photos', function (t) {
-  t.plan(14)
+  t.plan(15)
 
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
@@ -248,6 +248,11 @@ tape('sync: desktop <-> desktop photos', function (t) {
           media: { sofar: 18, total: 18 }
         }, 'progress state ok')
 
+        var peers1 = api1.sync.peers()
+        var peers2 = api2.sync.peers()
+        t.ok(peers1[0].progress, 'api1 peers have progress')
+        // TODO: show sync progress on the other peer, too
+        // t.ok(peers2[0].progress, 'api2 peers have progress')
         var pending = 2
         var expected = mockExpectedMedia(total)
           .concat([

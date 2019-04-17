@@ -233,10 +233,10 @@ class Sync extends events.EventEmitter {
           deviceName: self.name || os.hostname() || 'unnamed device',
           handshake: onHandshake
         })
-        stream.on('progress', function (sofar, total) {
+        stream.on('progress', function (progress) {
           if (peer.sync) {
             peer.status = 'replication-progress'
-            peer.message = { sofar, total }
+            peer.progress = progress
             peer.sync.emit('progress', peer.progress)
           }
         })
@@ -249,7 +249,7 @@ class Sync extends events.EventEmitter {
             }
             if (!err) err = new Error('sync stream terminated on remote side')
             peer.status = 'replication-error'
-            peer.message = err
+            peer.error = err
             peer.sync.emit('error', err)
           }
           onClose()
@@ -265,6 +265,7 @@ class Sync extends events.EventEmitter {
         // as soon as any data is received, accept! Because this means that
         // the other side just have accepted & wants to start.
         stream.once('accepted', function () {
+          // TODO: show peer status here
           accept()
         })
 
