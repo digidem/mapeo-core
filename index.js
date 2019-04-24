@@ -1,5 +1,7 @@
 const randombytes = require('randombytes')
 const events = require('events')
+const pumpify = require('pumpify')
+const through = require('through2')
 
 const Sync = require('./sync')
 const errors = require('./errors')
@@ -126,7 +128,11 @@ class Mapeo extends events.EventEmitter {
   }
 
   observationDelete (id, cb) {
-    this.osm.del(id, {}, cb)
+    this.observationGet(id, (err, obs) => {
+      if (err) return cb(err)
+      if (!obs.length) return cb(new Error('Observation with id does not exist'))
+      this.osm.del(id, obs[0], cb)
+    })
   }
 
   observationList (opts, cb) {
@@ -148,7 +154,11 @@ class Mapeo extends events.EventEmitter {
   }
 
   observationStream (opts) {
-    return this.osm.byType('observation', opts)
+    var removeDeleted = through.obj(function (row, enc, next) {
+      if (row.deleted) next()
+      else next(null, row)
+    })
+    return pumpify.obj(this.osm.byType('observation', opts), removeDeleted)
   }
 
   close (cb) {

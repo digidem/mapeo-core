@@ -144,7 +144,7 @@ test('observationDelete', function (t) {
         t.same(node2.id, node.id, 'id the same')
         t.notEqual(node2.version, node.version, 'updated version')
         t.same(node2.deleted, true, 'marked deleted')
-        m.observationList(node.id, (err, list) => {
+        m.observationList((err, list) => {
           t.error(err)
           var deleted = list.filter((o) => o.id === node.id)
           t.same(deleted.length, 0, 'deleted not returned in list')
