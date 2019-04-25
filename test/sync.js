@@ -39,6 +39,22 @@ function createApis (opts, cb) {
   })
 }
 
+tape('sync: trying to sync to unknown peer', function (t) {
+  var api1 = helpers.createApi(null)
+  function done () {
+    api1.close()
+    t.end()
+  }
+
+  api1.sync.listen()
+  api1.sync.join()
+  var emitter = api1.sync.replicate({host: 'not a thing', port: 1337})
+  emitter.on('error', (err) => {
+    t.ok(err)
+    done()
+  })
+})
+
 tape('sync: two servers find eachother', function (t) {
   createApis(function (api1, api2, close) {
     var pending = 2
@@ -68,8 +84,56 @@ tape('sync: two servers find eachother', function (t) {
   })
 })
 
+tape.skip('sync: join/leaving swarm is reflected in peer state', function (t) {
+  createApis(function (api1, api2, close) {
+    var pending = 4
+
+    function done () {
+      if (pending) return
+      close()
+      t.end()
+    }
+
+    api1.sync.listen(function () {
+      api2.sync.listen(function () {
+        function check (api) {
+          return (peer) => {
+            pending--
+            if (pending === 2) {
+              setTimeout(() => {
+                api1.sync.leave()
+                api2.sync.leave()
+              }, 2000)
+            }
+            var peerId = peer.swarmId.toString('hex')
+            t.same(peerId, api.sync.swarm.id.toString('hex'), 'api2 id cmp')
+            done()
+          }
+        }
+        api1.sync.on('peer', check(api2))
+        api2.sync.on('peer', check(api1))
+        api1.sync.on('down', function (peer) {
+          var peerId = peer.swarmId.toString('hex')
+          t.same(peerId, api2.sync.swarm.id.toString('hex'), 'api2 id cmp')
+          t.same(api1.sync.peers().length, 0)
+          done()
+        })
+        api2.sync.on('down', function (peer) {
+          var peerId = peer.swarmId.toString('hex')
+          t.same(peerId, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
+          t.same(api2.sync.peers().length, 0)
+          done()
+        })
+        api1.sync.join()
+        api2.sync.join()
+      })
+    })
+  })
+})
+
 tape('sync: replication of a simple observation with media', function (t) {
-  t.plan(13)
+  t.plan(15)
+  var complete = false
 
   createApis(function (api1, api2, close) {
     var obs = {lat: 1, lon: 2, type: 'observation'}
@@ -94,7 +158,8 @@ tape('sync: replication of a simple observation with media', function (t) {
           t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
           t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
           if (api1.sync.peers().length >= 1) {
-            sync(api1.sync.peers()[0])
+            var peer = api1.sync.peers()[0]
+            sync(peer)
           }
         })
       }
@@ -103,14 +168,14 @@ tape('sync: replication of a simple observation with media', function (t) {
     var id = null
 
     function sync (peer) {
-      var syncer = api1.sync.start(peer)
+      var syncer = api1.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
         close()
         t.fail()
       })
-
       syncer.on('end', function () {
+        complete = true
         t.ok(true, 'replication complete')
         api1.osm.get(id, function (err, node) {
           t.error(err)
@@ -122,6 +187,11 @@ tape('sync: replication of a simple observation with media', function (t) {
               t.ok(exists)
               close(function () {
                 t.ok(true)
+                if (complete) {
+                  t.same(peer.state.topic, 'replication-complete')
+                  var date = new Date(peer.state.message)
+                  t.ok(date.getTime() < new Date().getTime(), 'last completed date')
+                }
               })
             })
           })
@@ -150,7 +220,7 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
       t.error(err, res ? 'osm data written ok' : 'media data written ok')
       if (res) id = res.id
       if (--pending === 0) {
-        api1.sync.replicateFromFile(tmpfile)
+        api1.sync.replicate({filename: tmpfile})
           .once('end', syncfileWritten)
           .once('error', syncfileWritten)
           .on('progress', function (progress) {
@@ -165,7 +235,8 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
         db: { sofar: 1, total: 1 },
         media: { sofar: 1, total: 1 }
       }, 'first progress state ok')
-      api2.sync.replicateFromFile(tmpfile)
+
+      api2.sync.replicate({filename: tmpfile})
         .once('end', secondSyncfileWritten)
         .once('error', secondSyncfileWritten)
         .on('progress', function (progress) {
@@ -198,7 +269,7 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
 })
 
 tape('sync: desktop <-> desktop photos', function (t) {
-  t.plan(15)
+  t.plan(16)
 
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
@@ -230,7 +301,7 @@ tape('sync: desktop <-> desktop photos', function (t) {
 
     function sync (peer) {
       t.equals(peer.name, 'device_2')
-      var syncer = api1.sync.start(peer)
+      var syncer = api1.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
         close()
@@ -250,9 +321,8 @@ tape('sync: desktop <-> desktop photos', function (t) {
 
         var peers1 = api1.sync.peers()
         var peers2 = api2.sync.peers()
-        t.ok(peers1[0].progress, 'api1 peers have progress')
-        // TODO: show sync progress on the other peer, too
-        // t.ok(peers2[0].progress, 'api2 peers have progress')
+        t.ok(peers1[0].state, 'api1 peers have progress')
+        t.ok(peers2[0].state, 'api2 peers have progress')
         var pending = 2
         var expected = mockExpectedMedia(total)
           .concat([
@@ -309,7 +379,7 @@ tape('sync: mobile <-> desktop photos', function (t) {
     }
 
     function sync (peer) {
-      var syncer = mobile.sync.start(peer)
+      var syncer = mobile.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
         close()
@@ -376,7 +446,7 @@ tape('sync: mobile <-> mobile photos', function (t) {
     }
 
     function sync (peer) {
-      var syncer = api1.sync.start(peer)
+      var syncer = api1.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
         close()
@@ -413,7 +483,7 @@ tape('sync: mobile <-> mobile photos', function (t) {
 })
 
 tape('sync: 200 photos', function (t) {
-  t.plan(13)
+  t.plan(14)
 
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
@@ -441,40 +511,43 @@ tape('sync: 200 photos', function (t) {
     }
 
     function sync (peer) {
-      var syncer = api1.sync.start(peer)
+      var syncer = api1.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
         close()
         t.fail()
       })
 
+      var totalProgressEvents = 0
       var lastProgress
       syncer.on('progress', function (progress) {
         lastProgress = progress
+        totalProgressEvents += 1
       })
 
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
-        t.deepEquals(lastProgress, {
-          db: { sofar: 200, total: 200 },
-          media: { sofar: 603, total: 603 }
-        }, 'progress state ok')
-
         var pending = 2
-        var expected = mockExpectedMedia(total)
+        var expectedMedia = mockExpectedMedia(total)
           .concat([
             'original/goodbye_world.png',
             'preview/goodbye_world.png',
             'thumbnail/goodbye_world.png'
           ])
+        t.deepEquals(lastProgress, {
+          db: { sofar: total, total: total },
+          media: { sofar: expectedMedia.length, total: expectedMedia.length }
+        }, 'progress state ok')
+        t.ok(totalProgressEvents >= expectedMedia.length, 'all progress events fire')
+
         api1.media.list(function (err, files) {
           t.error(err)
-          t.deepEquals(files.sort(), expected.sort(), 'api1 has the files')
+          t.deepEquals(files.sort(), expectedMedia.sort(), 'api1 has the files')
           if (!--pending) close(() => t.ok(true))
         })
         api2.media.list(function (err, files) {
           t.error(err)
-          t.deepEquals(files.sort(), expected.sort(), 'api2 has the files')
+          t.deepEquals(files.sort(), expectedMedia.sort(), 'api2 has the files')
           if (!--pending) close(() => t.ok(true))
         })
       })
