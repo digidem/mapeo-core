@@ -39,6 +39,8 @@ class Sync extends events.EventEmitter {
     if (!opts.id) opts.id = randombytes(32)
     this.opts = Object.assign({}, opts)
 
+    this._activeSyncs = 0
+
     // track discovered wifi peers
     this._peers = {}
   }
@@ -234,6 +236,11 @@ class Sync extends events.EventEmitter {
           deviceName: self.name || os.hostname() || 'unnamed device',
           handshake: onHandshake
         })
+        stream.once('sync-start', function () {
+          if (++self._activeSyncs === 1) {
+            self.osm.core.pause()
+          }
+        })
         stream.on('progress', function (progress) {
           if (peer.sync) {
             peer.status = 'replication-progress'
@@ -242,16 +249,20 @@ class Sync extends events.EventEmitter {
           }
         })
         pump(stream, connection, stream, function (err) {
+          if (--self._activeSyncs === 0) {
+            self.osm.core.resume()
+          }
           if (peer.sync) {
             if (stream.goodFinish) {
               peer.status = 'replication-complete'
               peer.message = undefined
-              return peer.sync.emit('end')
+              peer.sync.emit('end')
+            } else {
+              if (!err) err = new Error('sync stream terminated on remote side')
+              peer.status = 'replication-error'
+              peer.error = err
+              peer.sync.emit('error', err)
             }
-            if (!err) err = new Error('sync stream terminated on remote side')
-            peer.status = 'replication-error'
-            peer.error = err
-            peer.sync.emit('error', err)
           }
           onClose()
         })
