@@ -148,7 +148,6 @@ test('observationDelete', function (t) {
           t.error(err)
           var deleted = list.filter((o) => o.id === node.id)
           t.same(deleted.length, 0, 'deleted not returned in list')
-          console.log(deleted)
           t.end()
         })
       })
