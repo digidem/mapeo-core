@@ -244,7 +244,7 @@ tape('sync: desktop <-> desktop photos', function (t) {
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
         t.deepEquals(lastProgress, {
-          db: { sofar: 0, total: 0 },
+          db: { sofar: 5, total: 5 },
           media: { sofar: 18, total: 18 }
         }, 'progress state ok')
 
@@ -456,7 +456,7 @@ tape('sync: 200 photos', function (t) {
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
         t.deepEquals(lastProgress, {
-          db: { sofar: 0, total: 0 },
+          db: { sofar: 200, total: 200 },
           media: { sofar: 603, total: 603 }
         }, 'progress state ok')
 
