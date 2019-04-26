@@ -22,7 +22,8 @@ const DEFAULT_OPTS = {
   dns: {
     interval: 3000
   },
-  dht: false
+  dht: false,
+  utp: false
 }
 
 class Sync extends events.EventEmitter {
