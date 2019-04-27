@@ -127,25 +127,31 @@ A peer can have the following properties:
 
 Emitted when a new wifi peer connection is discovered.
 
-### var ev = sync.start(peer)
+### var ev = sync.replicate(target)
 
-`peer` is an object with properties `host`, `port`, and `name`.
+`peer` is an object with properties `host`, `port`, and `name` **or** an object
+with the `filename` property, for local file replication. Calls
+`replicateFromFile` or `replicateNetwork` below.
 
-An EventEmitter `ev` is returned. It can emit
+`filename` is a string specifying where the find the file to sync with. If it
+doesn't exist, it will be created, and use the format specified in the
+constructor's `opts.writeFormat`.
 
-- `"error" (err)`: gives an Error object signalling an error in syncing.
-- `"progress" (progress)`: gives information about how many objects have been synced and how many to be synced in total, e.g. `{ db: { sofar: 5, total: 10 }, media: { sofar: 18, total: 100 } }`
-- `"end"`: successful completion of OSM and media sync.
-
-### var ev = sync.replicateFromFile(filepath)
-
-`filepath` is a string specifying where the find the file to sync with. If it doesn't exist, it will be created, and use the format specified in the constructor's `opts.writeFormat`.
-
-An EventEmitter `ev` is returned. It can emit
+Both `replicate` and `replicateNetwork` return an EventEmitter `ev`. It can emit
 
 - `"error" (err)`: gives an Error object signalling an error in syncing.
 - `"progress" (progress)`: gives information about how many objects have been synced and how many to be synced in total, e.g. `{ db: { sofar: 5, total: 10 }, media: { sofar: 18, total: 100 } }`
 - `"end"`: successful completion of OSM and media sync.
+
+### var ev = sync.replicateNetwork(peer)
+
+`peer` should be an already-discoverable peer object, emitted from the `peer`
+event or returned on the `peers()` method.
+
+If you want to replicate with a peer that is not discovered yet, but you have
+the host and port, we haven't made this easy at the moment. The code is written
+internally but not exposed via a public API. PRs welcome.
+
 
 ## License
 
