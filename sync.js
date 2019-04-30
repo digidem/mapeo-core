@@ -300,7 +300,7 @@ class Sync extends events.EventEmitter {
         peer.deviceType = deviceType
         stream = MapeoSync(self.osm, self.media, {
           deviceType: deviceType,
-          deviceName: self.name || os.hostname()
+          deviceName: self.name || os.hostname(),
           handshake: onHandshake
         })
         stream.once('sync-start', function () {
