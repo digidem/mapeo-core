@@ -122,6 +122,7 @@ A peer can have the following properties:
   * `host`: the ip
   * `port`: the port
   * `type`: 'wifi' or 'file'
+  * `deviceType`: either `mobile` or `desktop`, if `type == 'wifi'`
   
 ### sync.on('peer', peer)
 
