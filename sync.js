@@ -42,6 +42,7 @@ class SyncState {
     this._completed = {}
     this._state = {}
   }
+
   add (peer) {
     peer.sync = new events.EventEmitter()
     var onprogress = (progress) => this.onprogress(peer, progress)
@@ -56,7 +57,7 @@ class SyncState {
     peer.sync.on('error', onerror)
     peer.sync.on('end', onend)
 
-    this._state[peer.name] = peer
+    this._state[peer.id] = peer
   }
 
   get (host, port) {
@@ -93,13 +94,13 @@ class SyncState {
 
   onend (peer) {
     peer.state = PeerState(states.COMPLETE, Date.now())
-    this._completed[peer.name] = peer.state
-    delete this._state[peer.name]
+    this._completed[peer.id] = peer.state
+    delete this._state[peer.id]
   }
 
   asJson () {
     return Object.values(Object.assign({}, this._state)).map((peer) => {
-      var completed = this._completed[peer.name]
+      var completed = this._completed[peer.id]
       if (completed) peer.state.lastCompletedDate = completed.message
       return peer
     })
@@ -149,9 +150,9 @@ class Sync extends events.EventEmitter {
       this.replicateNetwork(peer, opts)
     } else if (filename) {
       peer = {
+        id: filename,
         name: filename,
-        filename,
-        sync: new events.EventEmitter()
+        filename
       }
       this.state.add(peer)
       this._replicateFromFile(peer, opts)
