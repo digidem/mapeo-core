@@ -471,7 +471,7 @@ tape('sync: mobile <-> mobile photos', function (t) {
   })
 })
 
-tape.only('sync: destroy during sync is reflected in peer state', function (t) {
+tape('sync: destroy during sync is reflected in peer state', function (t) {
   t.plan(11)
 
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
