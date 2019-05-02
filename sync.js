@@ -99,7 +99,6 @@ class SyncState {
     peer.state = PeerState(states.COMPLETE, Date.now())
     this._completed[peer.id] = Object.assign({}, peer.state)
     delete this._state[peer.id]
-    console.log(this.peers())
   }
 
   peers () {
@@ -306,7 +305,6 @@ class Sync extends events.EventEmitter {
 
     swarm.on('connection', (connection, info) => {
       const peer = WifiPeer(connection, info)
-
       this.state.onwifi(peer)
       debug('connection', peer)
 
@@ -318,10 +316,11 @@ class Sync extends events.EventEmitter {
       setTimeout(doSync, 500)
 
       function onClose (err) {
+        if (!open) return
+        open = false
         if (err) peer.sync.emit('error', err)
         else peer.sync.emit('end')
         if (stream) stream.destroy()
-        open = false
         self.emit('down', peer)
         debug('down', peer)
       }
