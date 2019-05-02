@@ -475,7 +475,7 @@ tape('sync: mobile <-> mobile photos', function (t) {
 })
 
 tape('sync: destroy during sync is reflected in peer state', function (t) {
-  t.plan(11)
+  t.plan(10)
 
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
@@ -528,7 +528,6 @@ tape('sync: destroy during sync is reflected in peer state', function (t) {
 
 tape('sync: 200 photos', function (t) {
   t.plan(14)
-
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
