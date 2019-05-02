@@ -48,6 +48,7 @@ class SyncState {
     var onprogress = (progress) => this.onprogress(peer, progress)
     var onerror = (error) => this.onerror(peer, error)
     var onend = () => {
+      this.onend(peer)
       peer.sync.removeListener('end', onend)
       peer.sync.removeListener('error', onerror)
       peer.sync.removeListener('progress', onprogress)
@@ -78,10 +79,12 @@ class SyncState {
 
   onwifi (peer) {
     peer.state = PeerState(states.WIFI_READY)
+    this.add(peer)
   }
 
-  onstart (peer) {
+  onfile (peer) {
     peer.state = PeerState(states.STARTED)
+    this.add(peer)
   }
 
   onprogress (peer, progress) {
@@ -94,13 +97,15 @@ class SyncState {
 
   onend (peer) {
     peer.state = PeerState(states.COMPLETE, Date.now())
-    this._completed[peer.id] = peer.state
+    this._completed[peer.id] = Object.assign({}, peer.state)
     delete this._state[peer.id]
+    console.log(this.peers())
   }
 
-  asJson () {
+  peers () {
+    var self = this
     return Object.values(Object.assign({}, this._state)).map((peer) => {
-      var completed = this._completed[peer.id]
+      var completed = self._completed[peer.id]
       if (completed) peer.state.lastCompletedDate = completed.message
       return peer
     })
@@ -130,7 +135,7 @@ class Sync extends events.EventEmitter {
   }
 
   peers () {
-    return this.state.asJson()
+    return this.state.peers()
   }
 
   replicate ({host, port, filename}, opts) {
@@ -154,11 +159,10 @@ class Sync extends events.EventEmitter {
         name: filename,
         filename
       }
-      this.state.add(peer)
-      this._replicateFromFile(peer, opts)
+      this.state.onfile(peer)
+      this.replicateFromFile(peer, opts)
     } else throw new Error('Requires filename or host and port')
 
-    this.state.onstart(peer)
     return peer.sync
   }
 
@@ -216,7 +220,7 @@ class Sync extends events.EventEmitter {
    * @param  {String}   peer    A peer.
    * @return {EventEmitter}     Listen to 'error', 'end' and 'progress' events
    */
-  _replicateFromFile (peer) {
+  replicateFromFile (peer) {
     var self = this
     var emitter = peer.sync
     var filename = peer.filename
@@ -303,7 +307,6 @@ class Sync extends events.EventEmitter {
     swarm.on('connection', (connection, info) => {
       const peer = WifiPeer(connection, info)
 
-      this.state.add(peer)
       this.state.onwifi(peer)
       debug('connection', peer)
 
@@ -316,9 +319,9 @@ class Sync extends events.EventEmitter {
 
       function onClose (err) {
         if (err) peer.sync.emit('error', err)
+        else peer.sync.emit('end')
         if (stream) stream.destroy()
         open = false
-        peer.sync.emit('end')
         self.emit('down', peer)
         debug('down', peer)
       }
@@ -346,10 +349,8 @@ class Sync extends events.EventEmitter {
           if (--self._activeSyncs === 0) {
             self.osm.core.resume()
           }
-          if (stream.goodFinish) peer.sync.emit('end')
-          else if (!err) err = new Error('sync stream terminated on remote side')
-          if (err) peer.sync.emit('error', err)
-          onClose()
+          if (!stream.goodFinish && !err) err = new Error('sync stream terminated on remote side')
+          onClose(err)
         })
       }
 
