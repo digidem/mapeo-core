@@ -17,22 +17,108 @@ const SYNCFILE_FORMATS = {
   'osm-p2p-syncfile'   : 2
 }
 
-const WIFI_READY = 'replication-wifi-ready'
-const REPLICATION_PROGRESS = 'replication-progress'
-const REPLICATION_COMPLETE = 'replication-complete'
-const REPLICATION_ERROR = 'replication-error'
-const REPLICATION_STARTED = 'replication-started'
-
-function PeerState (topic, message) {
-  return { topic, message }
-}
-
 const DEFAULT_OPTS = {
   dns: {
     interval: 3000
   },
   dht: false,
   utp: false
+}
+
+const states = {
+  WIFI_READY: 'replication-wifi-ready',
+  PROGRESS: 'replication-progress',
+  COMPLETE: 'replication-complete',
+  ERROR: 'replication-error',
+  STARTED: 'replication-started'
+}
+
+function PeerState (topic, message) {
+  return { topic, message }
+}
+
+class SyncState {
+  constructor () {
+    this._completed = {}
+    this._state = {}
+  }
+
+  add (peer) {
+    peer.sync = new events.EventEmitter()
+    var onprogress = (progress) => this.onprogress(peer, progress)
+    var onerror = (error) => this.onerror(peer, error)
+    var onend = () => {
+      this.onend(peer)
+      peer.sync.removeListener('end', onend)
+      peer.sync.removeListener('error', onerror)
+      peer.sync.removeListener('progress', onprogress)
+    }
+
+    peer.sync.on('progress', onprogress)
+    peer.sync.on('error', onerror)
+    peer.sync.on('end', onend)
+
+    this._state[peer.id] = peer
+  }
+
+  get (host, port) {
+    var res = Object.values(this._state)
+      .filter(function (peer) {
+        return peer.port === port && peer.host === host
+      })
+    if (res.length) {
+      return res[0]
+    } else {
+      return null
+    }
+  }
+
+  clear () {
+    this._state = {}
+  }
+
+  _isclosed (peer) {
+    return peer.state.topic === states.COMPLETE
+  }
+
+  onwifi (peer) {
+    peer.state = PeerState(states.WIFI_READY)
+    this.add(peer)
+  }
+
+  onfile (peer) {
+    peer.state = PeerState(states.STARTED)
+    this.add(peer)
+  }
+
+  onprogress (peer, progress) {
+    if (this._isclosed(peer)) return
+    peer.state = PeerState(states.PROGRESS, progress)
+  }
+
+  onerror (peer, error) {
+    peer.state = PeerState(states.ERROR, error.message)
+  }
+
+  onend (peer) {
+    peer.state = PeerState(states.COMPLETE, Date.now())
+    this._completed[peer.name] = Object.assign({}, peer)
+    delete this._state[peer.id]
+  }
+
+  peers () {
+    var self = this
+    var peers = []
+    Object.values(this._completed).forEach((peer) => {
+      if (!this._state[peer.id]) peers.push(peer)
+    })
+    Object.values(this._state).map((peer) => {
+      var completed = self._completed[peer.name]
+      if (completed) peer.state.lastCompletedDate = completed.message
+      peers.push(peer)
+    })
+    return peers
+  }
 }
 
 class Sync extends events.EventEmitter {
@@ -50,34 +136,15 @@ class Sync extends events.EventEmitter {
 
     this._activeSyncs = 0
     // track all peer states
-    this._completed = {}
-    this._state = {}
+    this.state = new SyncState()
   }
 
   clearState () {
-    this._state = {}
+    this.state.clear()
   }
 
   peers () {
-    var state = Object.values(Object.assign({}, this._state))
-    return state.map((peer) => {
-      var completed = this._completed[peer.name]
-      if (completed) peer.state.lastCompletedDate = completed.message
-      return peer
-    })
-  }
-
-  _getPeerFromHostPort (host, port) {
-    var res = Object.values(this._state)
-      .filter(function (peer) {
-        // this needs not triple equals, for some reason it fails
-        return peer.port == port && peer.host == host
-      })
-    if (res.length) {
-      return res[0]
-    } else {
-      return null
-    }
+    return this.state.peers()
   }
 
   replicate ({host, port, filename}, opts) {
@@ -85,44 +152,27 @@ class Sync extends events.EventEmitter {
     var peer
 
     if (host && port) {
-      var emitter = new events.EventEmitter()
-      peer = this._getPeerFromHostPort(host, port)
+      port = parseInt(port)
+      peer = this.state.get(host, port)
       if (!peer) {
-        process.nextTick(function () {
+        var emitter = new events.EventEmitter()
+        process.nextTick(() => {
           emitter.emit('error', new Error('trying to sync to unknown peer'))
         })
         return emitter
       }
-      peer.sync = emitter
-      this._addPeerStateListeners(peer)
       this.replicateNetwork(peer, opts)
     } else if (filename) {
       peer = {
+        id: filename,
         name: filename,
-        filename,
-        sync: new events.EventEmitter()
+        filename
       }
-      this._addPeerStateListeners(peer)
-      this._replicateFromFile(peer, opts)
+      this.state.onfile(peer)
+      this.replicateFromFile(peer, opts)
     } else throw new Error('Requires filename or host and port')
 
-    peer.state = PeerState(REPLICATION_STARTED)
     return peer.sync
-  }
-
-  _addPeerStateListeners (peer) {
-    peer.sync.on('progress', (progress) => {
-      peer.state = PeerState(REPLICATION_PROGRESS, progress)
-    })
-
-    peer.sync.on('error', (error) => {
-      peer.state = PeerState(REPLICATION_ERROR, error.message)
-    })
-
-    peer.sync.on('end', () => {
-      peer.state = PeerState(REPLICATION_COMPLETE, Date.now())
-    })
-    this._state[peer.name] = peer
   }
 
   replicateNetwork (peer, opts) {
@@ -179,7 +229,7 @@ class Sync extends events.EventEmitter {
    * @param  {String}   peer    A peer.
    * @return {EventEmitter}     Listen to 'error', 'end' and 'progress' events
    */
-  _replicateFromFile (peer) {
+  replicateFromFile (peer) {
     var self = this
     var emitter = peer.sync
     var filename = peer.filename
@@ -275,21 +325,15 @@ class Sync extends events.EventEmitter {
       setTimeout(doSync, 500)
 
       function onClose (err) {
-        if (err) {
-          if (peer.sync) {
-            peer.state = PeerState(REPLICATION_ERROR, err.message)
-            peer.sync.emit('error', err)
-          }
-        }
+        if (!open) return
         open = false
-        var peerState = self._state[peer.name]
-        if (peerState && peerState.state) {
-          var topic = peerState.state.topic
-          if (topic === REPLICATION_COMPLETE) self._completed[peer.name] = peerState.state
-          if (topic === WIFI_READY) delete self._state[peer.name]
+        if (peer.sync) {
+          if (err) peer.sync.emit('error', err)
+          else peer.sync.emit('end')
+          self.emit('down', peer)
+          debug('down', peer)
         }
-        self.emit('down', peer)
-        debug('down', peer)
+        if (stream) stream.destroy()
       }
 
       function doSync () {
@@ -308,27 +352,15 @@ class Sync extends events.EventEmitter {
             self.osm.core.pause()
           }
         })
-        stream.on('progress', function (progress) {
-          if (peer.sync) {
-            peer.state = PeerState(REPLICATION_PROGRESS, progress)
-            peer.sync.emit('progress', progress)
-          }
+        stream.on('progress', (progress) => {
+          if (peer.sync) peer.sync.emit('progress', progress)
         })
         pump(stream, connection, stream, function (err) {
           if (--self._activeSyncs === 0) {
             self.osm.core.resume()
           }
-          if (peer.sync) {
-            if (stream.goodFinish) {
-              peer.state = PeerState(REPLICATION_COMPLETE, Date.now())
-              peer.sync.emit('end')
-            } else {
-              if (!err) err = new Error('sync stream terminated on remote side')
-              peer.state = PeerState(REPLICATION_ERROR, err.message)
-              peer.sync.emit('error', err)
-            }
-          }
-          onClose()
+          if (!stream.goodFinish && !err) err = new Error('sync stream terminated on remote side')
+          onClose(err)
         })
       }
 
@@ -342,8 +374,9 @@ class Sync extends events.EventEmitter {
           accept()
         })
 
+        self.state.onwifi(peer)
+        peer.deviceType = req.deviceType
         peer.name = req.deviceName
-        self._state[peer.name] = peer
         self.emit('peer', peer)
       }
     })
@@ -375,7 +408,6 @@ function WifiPeer (connection, info) {
   // XXX: this is so that each connection has a unique id, even if it's from the same peer.
   info.id = (!info.id || info.id.length !== 12) ? randombytes(6).toString('hex') : info.id
   info.connection = connection
-  info.state = { topic: WIFI_READY }
   return info
 }
 
