@@ -1,7 +1,6 @@
 var path = require('path')
 var os = require('os')
 var tape = require('tape')
-var tmp = require('tmp')
 var rimraf = require('rimraf')
 
 var helpers = require('./helpers')
@@ -110,8 +109,10 @@ tape('sync: remote peer error/destroyed is reflected in peer state', function (t
         }
         api1.sync.on('peer', check(api2))
         api2.sync.on('peer', check(api1))
-        api1.sync.on('down', function (peer) {
-          t.same(api1.sync.peers().length, 0)
+        api1.sync.on('down', function () {
+          var peers = api1.sync.peers()
+          t.same(peers.length, 1)
+          t.same(peers[0].state.topic, 'replication-complete')
         })
         api1.sync.join()
         api2.sync.join()
@@ -258,7 +259,7 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
 })
 
 tape('sync: desktop <-> desktop photos', function (t) {
-  t.plan(16)
+  t.plan(14)
 
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
@@ -270,20 +271,20 @@ tape('sync: desktop <-> desktop photos', function (t) {
 
     api1.sync.listen()
     api1.sync.join()
-    api1.sync.on('peer', written.bind(null, null))
+    api1.sync.once('peer', written.bind(null, null))
     api2.sync.listen()
     api2.sync.join()
-    api2.sync.on('peer', written.bind(null, null))
+    api2.sync.once('peer', written.bind(null, null))
     helpers.writeBigData(api1, total, written)
     writeBlob(api2, 'goodbye_world.png', written)
 
     function written (err) {
       t.error(err)
       if (--pending === 0) {
-        t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
-        t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
-        if (api1.sync.peers().length >= 1) {
-          sync(api1.sync.peers()[0])
+        var peers1 = api1.sync.peers()
+        var peers2 = api2.sync.peers()
+        if (peers1.length >= 1 && peers2.length >= 1) {
+          sync(peers1[0])
         }
       }
     }
@@ -310,8 +311,10 @@ tape('sync: desktop <-> desktop photos', function (t) {
 
         var peers1 = api1.sync.peers()
         var peers2 = api2.sync.peers()
-        t.ok(peers1[0].state, 'api1 peers have progress')
-        t.ok(peers2[0].state, 'api2 peers have progress')
+        t.same(peers1[0].state.topic, 'replication-complete')
+        setTimeout(function () {
+          t.same(peers2[0].state.topic, 'replication-complete')
+        }, 2000)
         var pending = 2
         var expected = mockExpectedMedia(total)
           .concat([
@@ -487,6 +490,9 @@ tape('sync: destroy during sync is reflected in peer state', function (t) {
     api2.sync.on('peer', written.bind(null, null))
     helpers.writeBigData(api1, total, written)
     writeBlob(api2, 'goodbye_world.png', written)
+
+    api1.on('error', console.error)
+    api2.on('error', console.error)
 
     function written (err) {
       t.error(err)

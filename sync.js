@@ -77,6 +77,10 @@ class SyncState {
     this._state = {}
   }
 
+  _isclosed (peer) {
+    return peer.state.topic === states.COMPLETE
+  }
+
   onwifi (peer) {
     peer.state = PeerState(states.WIFI_READY)
     this.add(peer)
@@ -88,6 +92,7 @@ class SyncState {
   }
 
   onprogress (peer, progress) {
+    if (this._isclosed(peer)) return
     peer.state = PeerState(states.PROGRESS, progress)
   }
 
@@ -97,17 +102,22 @@ class SyncState {
 
   onend (peer) {
     peer.state = PeerState(states.COMPLETE, Date.now())
-    this._completed[peer.id] = Object.assign({}, peer.state)
+    this._completed[peer.name] = Object.assign({}, peer)
     delete this._state[peer.id]
   }
 
   peers () {
     var self = this
-    return Object.values(Object.assign({}, this._state)).map((peer) => {
-      var completed = self._completed[peer.id]
-      if (completed) peer.state.lastCompletedDate = completed.message
-      return peer
+    var peers = []
+    Object.values(this._completed).forEach((peer) => {
+      if (!this._state[peer.id]) peers.push(peer)
     })
+    Object.values(this._state).map((peer) => {
+      var completed = self._completed[peer.name]
+      if (completed) peer.state.lastCompletedDate = completed.message
+      peers.push(peer)
+    })
+    return peers
   }
 }
 
@@ -305,7 +315,6 @@ class Sync extends events.EventEmitter {
 
     swarm.on('connection', (connection, info) => {
       const peer = WifiPeer(connection, info)
-      this.state.onwifi(peer)
       debug('connection', peer)
 
       connection.once('close', onClose)
@@ -318,11 +327,13 @@ class Sync extends events.EventEmitter {
       function onClose (err) {
         if (!open) return
         open = false
-        if (err) peer.sync.emit('error', err)
-        else peer.sync.emit('end')
+        if (peer.sync) {
+          if (err) peer.sync.emit('error', err)
+          else peer.sync.emit('end')
+          self.emit('down', peer)
+          debug('down', peer)
+        }
         if (stream) stream.destroy()
-        self.emit('down', peer)
-        debug('down', peer)
       }
 
       function doSync () {
@@ -363,6 +374,7 @@ class Sync extends events.EventEmitter {
           accept()
         })
 
+        self.state.onwifi(peer)
         peer.deviceType = req.deviceType
         peer.name = req.deviceName
         self.emit('peer', peer)
