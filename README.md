@@ -110,6 +110,10 @@ open connections are kept until the swarm is destroyed (using `close` or
 
 Unannounces the sync service & cleans up the underlying UDP socket. `cb` is called once this is complete.
 
+### sync.clear(cb)
+
+Clear sync state (e.g., completed states)
+
 ### sync.peers()
 
 Fetch a list of the current sync peers that have been found thus far.
