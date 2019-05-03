@@ -76,11 +76,7 @@ class SyncState {
     }
   }
 
-  clear () {
-    this._state = {}
-  }
-
-  _isclosed (peer) {
+    _isclosed (peer) {
     return peer.state.topic === states.COMPLETE
   }
 
@@ -152,10 +148,6 @@ class Sync extends events.EventEmitter {
     this._activeSyncs = 0
     // track all peer states
     this.state = new SyncState()
-  }
-
-  clear () {
-    this.state.clear()
   }
 
   peers () {
