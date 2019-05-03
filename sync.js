@@ -109,13 +109,13 @@ class SyncState {
   peers () {
     var self = this
     var peers = []
-    Object.values(this._completed).forEach((peer) => {
-      if (!this._state[peer.id]) peers.push(peer)
-    })
     Object.values(this._state).map((peer) => {
       var completed = self._completed[peer.name]
-      if (completed) peer.state.lastCompletedDate = completed.message
+      if (completed) peer.state.lastCompletedDate = completed.state.message
       peers.push(peer)
+    })
+    Object.values(this._completed).map((peer) => {
+      if (!(peers.find((p) => p.name === peer.name))) peers.push(peer)
     })
     return peers
   }
