@@ -111,8 +111,7 @@ tape('sync: remote peer error/destroyed is reflected in peer state', function (t
         api2.sync.on('peer', check(api1))
         api1.sync.on('down', function () {
           var peers = api1.sync.peers()
-          t.same(peers.length, 1)
-          t.same(peers[0].state.topic, 'replication-complete')
+          t.same(peers.length, 0)
         })
         api1.sync.join()
         api2.sync.join()
@@ -512,7 +511,7 @@ tape('sync: destroy during sync is reflected in peer state', function (t) {
         var peers = api1.sync.peers()
         t.same(peers.length, 1, 'one peer on error')
         t.same(peers[0].state.topic, 'replication-error', 'replication error!')
-        t.same(peers[0].state.message, err.message, 'got message')
+        t.same(peers[0].state.message, err, 'got message')
         close()
       })
 
