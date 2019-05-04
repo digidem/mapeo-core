@@ -45,15 +45,18 @@ class SyncState {
 
   add (peer) {
     peer.sync = new events.EventEmitter()
+    var onstart = () => this.onstart(peer)
     var onprogress = (progress) => this.onprogress(peer, progress)
     var onerror = (error) => this.onerror(peer, error)
     var onend = () => {
       this.onend(peer)
+      peer.sync.removeListener('sync-start', onstart)
       peer.sync.removeListener('end', onend)
       peer.sync.removeListener('error', onerror)
       peer.sync.removeListener('progress', onprogress)
     }
 
+    peer.sync.on('sync-start', onstart)
     peer.sync.on('progress', onprogress)
     peer.sync.on('error', onerror)
     peer.sync.on('end', onend)
@@ -73,12 +76,8 @@ class SyncState {
     }
   }
 
-  clear () {
-    this._state = {}
-  }
-
   _isclosed (peer) {
-    return peer.state.topic === states.COMPLETE
+    return peer.state.topic === states.COMPLETE || peer.state.topic === states.ERROR
   }
 
   onwifi (peer) {
@@ -87,8 +86,13 @@ class SyncState {
   }
 
   onfile (peer) {
-    peer.state = PeerState(states.STARTED)
+    this.onstart(peer)
     this.add(peer)
+  }
+
+  onstart (peer) {
+    peer.started = true
+    peer.state = PeerState(states.STARTED)
   }
 
   onprogress (peer, progress) {
@@ -97,25 +101,29 @@ class SyncState {
   }
 
   onerror (peer, error) {
-    peer.state = PeerState(states.ERROR, error.message)
+    if (this._isclosed(peer)) return
+    peer.state = PeerState(states.ERROR, error)
   }
 
   onend (peer) {
-    peer.state = PeerState(states.COMPLETE, Date.now())
-    this._completed[peer.name] = Object.assign({}, peer)
+    if (this._isclosed(peer)) return
+    if (peer.started) {
+      peer.state = PeerState(states.COMPLETE, Date.now())
+      this._completed[peer.name] = Object.assign({}, peer)
+    }
     delete this._state[peer.id]
   }
 
   peers () {
     var self = this
     var peers = []
-    Object.values(this._completed).forEach((peer) => {
-      if (!this._state[peer.id]) peers.push(peer)
-    })
     Object.values(this._state).map((peer) => {
       var completed = self._completed[peer.name]
-      if (completed) peer.state.lastCompletedDate = completed.message
+      if (completed) peer.state.lastCompletedDate = completed.state.message
       peers.push(peer)
+    })
+    Object.values(this._completed).map((peer) => {
+      if (!(peers.find((p) => p.name === peer.name))) peers.push(peer)
     })
     return peers
   }
@@ -137,10 +145,6 @@ class Sync extends events.EventEmitter {
     this._activeSyncs = 0
     // track all peer states
     this.state = new SyncState()
-  }
-
-  clearState () {
-    this.state.clear()
   }
 
   peers () {
@@ -317,8 +321,8 @@ class Sync extends events.EventEmitter {
       const peer = WifiPeer(connection, info)
       debug('connection', peer)
 
-      connection.once('close', onClose)
-      connection.once('error', onClose)
+      connection.on('close', onClose)
+      connection.on('error', onClose)
 
       var open = true
       var stream
@@ -330,10 +334,9 @@ class Sync extends events.EventEmitter {
         if (peer.sync) {
           if (err) peer.sync.emit('error', err)
           else peer.sync.emit('end')
-          self.emit('down', peer)
-          debug('down', peer)
         }
-        if (stream) stream.destroy()
+        self.emit('down', peer)
+        debug('down', peer)
       }
 
       function doSync () {
@@ -350,6 +353,7 @@ class Sync extends events.EventEmitter {
         stream.once('sync-start', function () {
           if (++self._activeSyncs === 1) {
             self.osm.core.pause()
+            peer.sync.emit('sync-start')
           }
         })
         stream.on('progress', (progress) => {
@@ -359,7 +363,7 @@ class Sync extends events.EventEmitter {
           if (--self._activeSyncs === 0) {
             self.osm.core.resume()
           }
-          if (!stream.goodFinish && !err) err = new Error('sync stream terminated on remote side')
+          if (peer.started && !stream.goodFinish && !err) err = new Error('sync stream terminated on remote side')
           onClose(err)
         })
       }
