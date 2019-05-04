@@ -50,13 +50,13 @@ class SyncState {
     var onerror = (error) => this.onerror(peer, error)
     var onend = () => {
       this.onend(peer)
-      peer.sync.removeListener('start', onstart)
+      peer.sync.removeListener('sync-start', onstart)
       peer.sync.removeListener('end', onend)
       peer.sync.removeListener('error', onerror)
       peer.sync.removeListener('progress', onprogress)
     }
 
-    peer.sync.on('start', onstart)
+    peer.sync.on('sync-start', onstart)
     peer.sync.on('progress', onprogress)
     peer.sync.on('error', onerror)
     peer.sync.on('end', onend)
@@ -76,8 +76,8 @@ class SyncState {
     }
   }
 
-    _isclosed (peer) {
-    return peer.state.topic === states.COMPLETE
+  _isclosed (peer) {
+    return peer.state.topic === states.COMPLETE || peer.state.topic === states.ERROR
   }
 
   onwifi (peer) {
@@ -106,13 +106,10 @@ class SyncState {
   }
 
   onend (peer) {
+    if (this._isclosed(peer)) return
     if (peer.started) {
       peer.state = PeerState(states.COMPLETE, Date.now())
-      this._completed[peer.name] = {
-        id: peer.id,
-        name: peer.name,
-        state: peer.state
-      }
+      this._completed[peer.name] = Object.assign({}, peer)
     }
     delete this._state[peer.id]
   }
@@ -337,9 +334,9 @@ class Sync extends events.EventEmitter {
         if (peer.sync) {
           if (err) peer.sync.emit('error', err)
           else peer.sync.emit('end')
-          self.emit('down', peer)
-          debug('down', peer)
         }
+        self.emit('down', peer)
+        debug('down', peer)
       }
 
       function doSync () {
@@ -356,7 +353,7 @@ class Sync extends events.EventEmitter {
         stream.once('sync-start', function () {
           if (++self._activeSyncs === 1) {
             self.osm.core.pause()
-            peer.sync.emit('start')
+            peer.sync.emit('sync-start')
           }
         })
         stream.on('progress', (progress) => {
