@@ -66,13 +66,13 @@ test('sync progress: 6 entries', function (t) {
       var a = sync(db1, { live: false })
       var b = sync(db2, { live: false })
 
-      var eventsLeftA = 5
-      var eventsLeftB = 5
+      var lastProgressA = null
+      var lastProgressB = null
       a.on('progress', function (sofar, total) {
-        eventsLeftA--
+        lastProgressA = {sofar, total}
       })
       b.on('progress', function (sofar, total) {
-        eventsLeftB--
+        lastProgressB = {sofar, total}
       })
 
       pump(a, b, a, function (err) {
@@ -81,8 +81,8 @@ test('sync progress: 6 entries', function (t) {
         t.equals(feed1.feeds()[1].length, 3)
         t.equals(feed2.feeds()[0].length, 3)
         t.equals(feed2.feeds()[1].length, 3)
-        t.equals(eventsLeftA, 0)
-        t.equals(eventsLeftB, 0)
+        t.same(lastProgressB, {sofar: 3, total: 3})
+        t.same(lastProgressA, {sofar: 3, total: 3})
       })
     })
   })
@@ -103,6 +103,7 @@ test('sync progress: 200 entries', function (t) {
 
       var sofarA, totalA
       var sofarB, totalB
+
       a.on('progress', function (sofar, total) {
         sofarA = sofar
         totalA = total
