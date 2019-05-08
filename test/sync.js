@@ -473,6 +473,81 @@ tape('sync: mobile <-> mobile photos', function (t) {
   })
 })
 
+tape('sync: with two peers available, sync with one only triggers events for one sync', function (t) {
+  var opts = {api1:{name: 'boop', deviceType:'desktop'}, api2:{name: 'beep', deviceType:'desktop'}}
+  createApis(opts, function (api1, api2, close1) {
+    var opts = {api1:{name: 'bork', deviceType:'mobile'}, api2:{name: 'baz', deviceType:'mobile'}}
+    createApis(opts, function (api3, api4, close2) {
+      var pending = 6
+      var total = 20
+
+      function doListen (api, cb) {
+        api.sync.listen()
+        api.sync.join()
+        api.on('error', console.error)
+        api.sync.once('peer', cb.bind(null, null))
+      }
+
+      var target
+
+      helpers.writeBigData(api1, total, written)
+      writeBlob(api2, 'goodbye_world.png', written)
+
+      doListen(api1, written)
+      doListen(api2, written)
+      doListen(api3, written)
+      doListen(api4, written)
+
+      function written (err) {
+        t.error(err)
+        console.log('written')
+        if (--pending === 0) {
+          console.log('starting')
+          t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
+          t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
+          t.ok(api3.sync.peers().length > 0, 'api 3 has peers')
+          t.ok(api4.sync.peers().length > 0, 'api 4 has peers')
+          if (api1.sync.peers().length >= 1) {
+            target = api1.sync.peers()[0]
+            sync(target)
+          }
+        }
+      }
+
+      function sync (peer) {
+        var syncer = api1.sync.replicate(peer)
+        syncer.on('error', t.error)
+        syncer.on('end', function () {
+          setTimeout(function () {
+            var peers = api1.sync.peers()
+            peers.forEach((p) => {
+              t.same(p.state.topic, 'replication-wifi-ready')
+            })
+            console.log(peers)
+            close1()
+            close2()
+            t.end()
+          }, 2000)
+        })
+
+        var totalProgressEvents = 0
+        syncer.on('progress', function (progress) {
+          var peers = api1.sync.peers()
+          t.same(peers.length, 3, 'three peers')
+          if (totalProgressEvents > 1) {
+            peers.forEach((p) => {
+              if (p.name === target.name) t.same(p.state.topic, 'replication-progress', 'target has progress event')
+              else t.same(p.state.topic, 'replication-wifi-ready')
+            })
+          }
+          totalProgressEvents += 1
+        })
+      }
+    })
+  })
+})
+
+
 tape('sync: destroy during sync is reflected in peer state', function (t) {
   t.plan(10)
 
