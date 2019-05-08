@@ -352,8 +352,9 @@ class Sync extends events.EventEmitter {
         })
         stream.once('sync-start', function () {
           if (++self._activeSyncs === 1) {
-            self.osm.core.pause()
-            peer.sync.emit('sync-start')
+            self.osm.core.pause(function () {
+              peer.sync.emit('sync-start')
+            })
           }
         })
         stream.on('progress', (progress) => {
