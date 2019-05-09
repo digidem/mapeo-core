@@ -102,7 +102,7 @@ class SyncState {
 
   onerror (peer, error) {
     if (this._isclosed(peer)) return
-    peer.state = PeerState(states.ERROR, error)
+    peer.state = PeerState(states.ERROR, error ? error.toString() : 'Error')
   }
 
   onend (peer) {

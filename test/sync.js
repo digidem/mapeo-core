@@ -511,7 +511,7 @@ tape('sync: destroy during sync is reflected in peer state', function (t) {
         var peers = api1.sync.peers()
         t.same(peers.length, 1, 'one peer on error')
         t.same(peers[0].state.topic, 'replication-error', 'replication error!')
-        t.same(peers[0].state.message, err, 'got message')
+        t.same(peers[0].state.message, err.toString(), 'got message')
         close()
       })
 
