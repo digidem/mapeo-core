@@ -348,7 +348,9 @@ class Sync extends events.EventEmitter {
         // until one side initiates the sync operation.
         var deviceType = self.opts.deviceType
         peer.deviceType = deviceType
+        console.log(self.name, 'sending id', peer.id)
         stream = MapeoSync(self.osm, self.media, {
+          id: peer.id,
           deviceType: deviceType,
           deviceName: self.name || os.hostname(),
           handshake: onHandshake

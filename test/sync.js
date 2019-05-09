@@ -473,7 +473,7 @@ tape('sync: mobile <-> mobile photos', function (t) {
   })
 })
 
-tape('sync: with two peers available, sync with one only triggers events for one sync', function (t) {
+tape.only('sync: with two peers available, sync with one only triggers events for one sync', function (t) {
   var opts = {api1:{name: 'boop', deviceType:'desktop'}, api2:{name: 'beep', deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close1) {
     var opts = {api1:{name: 'bork', deviceType:'mobile'}, api2:{name: 'baz', deviceType:'mobile'}}
@@ -500,9 +500,7 @@ tape('sync: with two peers available, sync with one only triggers events for one
 
       function written (err) {
         t.error(err)
-        console.log('written')
         if (--pending === 0) {
-          console.log('starting')
           t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
           t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
           t.ok(api3.sync.peers().length > 0, 'api 3 has peers')
