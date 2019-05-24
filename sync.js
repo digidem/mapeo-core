@@ -329,9 +329,11 @@ class Sync extends events.EventEmitter {
       setTimeout(doSync, 500)
 
       function onClose (err) {
+        debug('onClose', peer.host, peer.port, err)
         if (!open) return
         open = false
         if (peer.sync) {
+          debug('emitting sync event', peer.host, peer.port, err)
           if (err) peer.sync.emit('error', err)
           else peer.sync.emit('end')
         }
@@ -341,6 +343,7 @@ class Sync extends events.EventEmitter {
 
       function doSync () {
         if (!open) return
+        debug('doSync', peer.host, peer.port)
         // Set up the sync stream immediately, but don't do anything with it
         // until one side initiates the sync operation.
         var deviceType = self.opts.deviceType
@@ -351,6 +354,7 @@ class Sync extends events.EventEmitter {
           handshake: onHandshake
         })
         stream.once('sync-start', function () {
+          debug('sync started', peer.host, peer.port)
           if (++self._activeSyncs === 1) {
             self.osm.core.pause(function () {
               peer.sync.emit('sync-start')
@@ -358,9 +362,11 @@ class Sync extends events.EventEmitter {
           }
         })
         stream.on('progress', (progress) => {
+          debug('sync progress', peer.host, peer.port, progress)
           if (peer.sync) peer.sync.emit('progress', progress)
         })
         pump(stream, connection, stream, function (err) {
+          debug('pump ended', peer.host, peer.port)
           if (--self._activeSyncs === 0) {
             self.osm.core.resume()
           }
@@ -370,6 +376,7 @@ class Sync extends events.EventEmitter {
       }
 
       function onHandshake (req, accept) {
+        debug('got handshake', peer.host, peer.port)
         peer.handshake = {
           accept: accept
         }
