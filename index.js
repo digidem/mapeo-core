@@ -2,6 +2,7 @@ const randombytes = require('randombytes')
 const events = require('events')
 const pumpify = require('pumpify')
 const through = require('through2')
+const parallel = require('run-parallel')
 
 const Sync = require('./sync')
 const errors = require('./errors')
@@ -128,10 +129,27 @@ class Mapeo extends events.EventEmitter {
   }
 
   observationDelete (id, cb) {
-    this.observationGet(id, (err, obs) => {
+    this.observationGet(id, (err, list) => {
       if (err) return cb(err)
-      if (!obs.length) return cb(new Error('Observation with id does not exist'))
-      this.osm.del(id, obs[0], cb)
+      if (!list.length) return cb(new Error('Observation with id does not exist'))
+      var obs = list[0]
+      this.osm.del(id, obs, (err) => {
+        if (err) return cb(err)
+        if (!obs.attachments) return cb()
+        var tasks = []
+        var attachmentIds = {}
+        obs.attachments.map((a) => {
+          // only delete files once
+          if (attachmentIds[a.id]) return
+          attachmentIds[a.id] = true
+          // okay delete now
+          tasks.push((done) => {
+            var filename = a.id
+            this.media.remove(filename, done)
+          })
+        })
+        parallel(tasks, cb)
+      })
     })
   }
 
