@@ -3,10 +3,7 @@ var path = require('path')
 var fs = require('fs')
 var pump = require('pump')
 var randombytes = require('randombytes')
-var osmdb = require('kappa-osm')
-var kappa = require('kappa-core')
-var raf = require('random-access-file')
-var level = require('level')
+var osmdb = require('osm-p2p')
 var blobstore = require('safe-fs-blob-store')
 var tmp = require('tmp')
 var mock = require('mock-data')
@@ -25,14 +22,7 @@ function createApi (_, opts) {
 
   mkdirp.sync(dir)
 
-  var osm = osmdb({
-    core: kappa(dir, {valueEncoding: 'json'}),
-    index: level(path.join(dir, 'index')),
-    storage: function (name, cb) {
-      process.nextTick(cb, null, raf(path.join(dir, 'storage', name)))
-    }
-  })
-
+  var osm = osmdb(dir)
   var media = blobstore(path.join(dir, 'media'))
 
   var mapeo = new Mapeo(osm, media, Object.assign({}, opts, {
