@@ -42,20 +42,20 @@ function writeBigData (mapeo, n, cb) {
   generateObservations(n, function (_, obs, i) {
     mapeo.observationCreate(obs, (_, node) => {
       var task = function (cb) {
-        var pending = 3
+        var pending = 6
         var error
 
         var ws = mapeo.media.createWriteStream(`preview/foo-${i}.jpg`, done)
         var rs = fs.createReadStream(path.join(__dirname, 'hi-res.jpg'))
-        pump(rs, ws)
+        pump(rs, ws, cb)
 
         var ws = mapeo.media.createWriteStream(`thumbnail/foo-${i}.jpg`, done)
         var rs = fs.createReadStream(path.join(__dirname, 'hi-res.jpg'))
-        pump(rs, ws)
+        pump(rs, ws, cb)
 
         var ws = mapeo.media.createWriteStream(`original/foo-${i}.jpg`, done)
         var rs = fs.createReadStream(path.join(__dirname, 'hi-res.jpg'))
-        pump(rs, ws)
+        pump(rs, ws, cb)
 
         function done (err) {
           if (error) return
