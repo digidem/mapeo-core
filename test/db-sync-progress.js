@@ -1,7 +1,4 @@
 var createDb = require('./helpers').createApi
-var multifeed = require('multifeed')
-var hypercore = require('hypercore')
-var ram = require('random-access-memory')
 var sync = require('../lib/db-sync-progress')
 var pump = require('pump')
 var test = require('tape')
