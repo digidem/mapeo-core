@@ -3,7 +3,13 @@ const events = require('events')
 const pumpify = require('pumpify')
 const through = require('through2')
 const parallel = require('run-parallel')
+const pump = require('pump')
+const path = require('path')
+const fs = require('fs')
 
+const exportGeoJson = require('./lib/export-geojson')
+const exportShapefile = require('./lib/export-shapefile')
+const Importer = require('./lib/importer')
 const Sync = require('./sync')
 const errors = require('./errors')
 
@@ -19,6 +25,7 @@ class Mapeo extends events.EventEmitter {
     })
     this.osm = osm
     this.media = media
+    this.importer = Importer(osm)
   }
 
   observationCreate (obs, cb) {
@@ -177,6 +184,20 @@ class Mapeo extends events.EventEmitter {
       else next(null, row)
     })
     return pumpify.obj(this.osm.byType('observation', opts), removeDeleted)
+  }
+
+  exportData (filename, opts, cb) {
+    // TODO: this could be refactored
+    if (!cb && typeof opts === 'function') {
+      cb = opts
+      opts = {}
+    }
+    var ext = path.extname(filename)
+    switch (ext) {
+      case '.geojson': return pump(exportGeoJson(this.osm, opts), fs.createWriteStream(filename), cb)
+      case '.shp': return exportShapefile(this.osm, filename, opts, cb)
+      default: return cb(new Error('Extension not supported'))
+    }
   }
 
   close (cb) {

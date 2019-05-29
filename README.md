@@ -67,6 +67,11 @@ Returns an array of observations to the given `callback`. Any errors are
 propagated as the first argument to the callback. Same options accepted as
 `mapeo.observationStream`.
 
+### `mapeo.exportData(filename, opts, cb)`
+
+Exports data from the osm database to the given filename. Supported extensions
+are `.geojson` and `.shp`.
+
 ### `mapeo.observationConvert(obs, cb)`
 
 Convert an observation to an OSM type `node`.
@@ -153,6 +158,31 @@ If you want to replicate with a peer that is not discovered yet, but you have
 the host and port, we haven't made this easy at the moment. The code is written
 internally but not exposed via a public API. PRs welcome.
 
+## Importer API (expertimental) 
+
+The Importer allows you to import data to the osm database from other formats.
+
+### ``mapeo.importer``
+
+This object reports on import progress with the `progress`,
+`complete`, and `error` events.
+
+For example,
+```
+var mapeo = new Mapeo(osm, media)
+mapeo.importer.on('progress', console.log)
+mapeo.importer.on('error', console.error)
+mapeo.importer.on('complete', () => { process.exit() })
+mapeo.importFeatureCollection(myGeoJsonFile)
+```
+
+### ``mapeo.importer.importFeatureCollection(geojson, [cb])```
+
+Import data from a geojson string. This is simply a wrapper around `osm-p2p-geojson`.
+
+### ``mapeo.importer.importFromFile(filename, [cb])```
+
+Import data from a `.geojson` file or a `.shp` file.
 
 ## License
 
