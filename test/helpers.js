@@ -70,7 +70,15 @@ function writeBigData (mapeo, n, cb) {
       tasks.push(task)
 
       if (tasks.length === n) {
-        run(tasks, 10, cb)
+        run(tasks, 10, function (err) {
+          mapeo.media.list(function (_, files) {
+            if (files.length !== n * 3) {
+              console.log('ERROR: not enough images were created! have:')
+              files.forEach(f => console.log(f))
+            }
+            cb(err)
+          })
+        })
       }
     })
   })
