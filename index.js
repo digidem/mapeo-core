@@ -4,11 +4,11 @@ const pumpify = require('pumpify')
 const through = require('through2')
 const parallel = require('run-parallel')
 const pump = require('pump')
-const path = require('path')
 const fs = require('fs')
+const shapefile = require('shp-write')
+const concat = require('concat-stream')
 
 const exportGeoJson = require('./lib/export-geojson')
-const exportShapefile = require('./lib/export-shapefile')
 const Importer = require('./lib/importer')
 const Sync = require('./sync')
 const errors = require('./errors')
@@ -187,15 +187,21 @@ class Mapeo extends events.EventEmitter {
   }
 
   exportData (filename, opts, cb) {
-    // TODO: this could be refactored
     if (!cb && typeof opts === 'function') {
       cb = opts
       opts = {}
     }
-    var ext = path.extname(filename)
-    switch (ext) {
-      case '.geojson': return pump(exportGeoJson(this.osm, opts), fs.createWriteStream(filename), cb)
-      case '.shp': return exportShapefile(this.osm, filename, opts, cb)
+    if (!opts.format) opts.format = 'geojson'
+    var GeoJSONStream = exportGeoJson(this.osm, opts)
+    switch (opts.format) {
+      case 'geojson': return pump(GeoJSONStream, fs.createWriteStream(filename), cb)
+      case 'shapefile':
+        GeoJSONStream.pipe(concat((geojson) => {
+          var zipStream = shapefile.zip(JSON.parse(geojson))
+            .generateNodeStream({type: 'nodebuffer', streamFiles: true})
+          pump(zipStream, fs.createWriteStream(filename), cb)
+        }))
+        return
       default: return cb(new Error('Extension not supported'))
     }
   }
