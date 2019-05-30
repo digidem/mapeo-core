@@ -336,6 +336,106 @@ tape('sync: desktop <-> desktop photos', function (t) {
   })
 })
 
+tape('sync: deletes are not synced back', function (t) {
+  t.plan(17)
+
+  var deleted
+
+  var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
+  createApis(opts, function (api1, api2, close) {
+    var pending = 4
+    var total = 5
+    var lastProgress
+
+    api2.sync.setName('device_2')
+
+    api1.sync.listen()
+    api1.sync.join()
+    api1.sync.once('peer', written.bind(null, null))
+    api2.sync.listen()
+    api2.sync.join()
+    api2.sync.once('peer', written.bind(null, null))
+    helpers.writeBigData(api1, total, written)
+    writeBlob(api2, 'goodbye_world.png', written)
+
+    function written (err) {
+      t.error(err)
+      if (--pending === 0) {
+        var peers1 = api1.sync.peers()
+        var peers2 = api2.sync.peers()
+        if (peers1.length >= 1 && peers2.length >= 1) {
+          sync(peers1[0])
+        }
+      }
+    }
+
+    function deleteObs () {
+      api1.sync.once('peer', (peer) => {
+        api2.observationList(function (err, results2) {
+          t.error(err)
+          api1.observationList(function (err, results) {
+            t.error(err)
+            t.same(results2, results)
+            deleted = results[0]
+            api1.observationDelete(deleted.id, (err) => {
+              t.error(err)
+              var syncer = api1.sync.replicate(peer)
+              syncer.on('error', (err) => t.error(err))
+              syncer.on('end', () => {
+                api2.observationList(function (err, after) {
+                  t.error(err)
+                  t.same(results.length - 1, after.length, 'one less item in list')
+                  close(() => t.end())
+                })
+              })
+            })
+          })
+        })
+      })
+    }
+
+    function sync (peer) {
+      t.equals(peer.name, 'device_2')
+      var syncer = api1.sync.replicate(peer)
+      syncer.on('error', function (err) {
+        t.error(err)
+        close()
+        t.fail()
+      })
+
+      syncer.once('progress', function (progress) {
+        lastProgress = progress
+      })
+
+      syncer.on('end', function () {
+        t.ok(true, 'replication complete')
+        t.deepEquals(lastProgress, {
+          db: { sofar: 5, total: 5 },
+          media: { sofar: 18, total: 18 }
+        }, 'progress state ok')
+
+        var pending = 2
+        var expected = mockExpectedMedia(total)
+          .concat([
+            'original/goodbye_world.png',
+            'preview/goodbye_world.png',
+            'thumbnail/goodbye_world.png'
+          ])
+        api1.media.list(function (err, files) {
+          t.error(err)
+          t.deepEquals(files.sort(), expected.sort(), 'api1 has the files')
+          if (!--pending) deleteObs()
+        })
+        api2.media.list(function (err, files) {
+          t.error(err)
+          t.deepEquals(files.sort(), expected.sort(), 'api2 has the files')
+          if (!--pending) deleteObs()
+        })
+      })
+    }
+  })
+})
+
 tape('sync: mobile <-> desktop photos', function (t) {
   t.plan(12)
 
