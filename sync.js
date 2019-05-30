@@ -45,6 +45,10 @@ class SyncState {
 
   add (peer) {
     peer.sync = new events.EventEmitter()
+    this._state[peer.id] = peer
+  }
+
+  addEventListeners (peer) {
     var onstart = () => this.onstart(peer)
     var onprogress = (progress) => this.onprogress(peer, progress)
     var onerror = (error) => this.onerror(peer, error)
@@ -60,8 +64,6 @@ class SyncState {
     peer.sync.on('progress', onprogress)
     peer.sync.on('error', onerror)
     peer.sync.on('end', onend)
-
-    this._state[peer.id] = peer
   }
 
   get (host, port) {
@@ -88,6 +90,7 @@ class SyncState {
   onfile (peer) {
     this.onstart(peer)
     this.add(peer)
+    this.addEventListeners(peer)
   }
 
   onstart (peer) {
@@ -349,6 +352,7 @@ class Sync extends events.EventEmitter {
         var deviceType = self.opts.deviceType
         peer.deviceType = deviceType
         stream = MapeoSync(self.osm, self.media, {
+          id: peer.id,
           deviceType: deviceType,
           deviceName: self.name || os.hostname(),
           handshake: onHandshake
@@ -383,6 +387,7 @@ class Sync extends events.EventEmitter {
         // as soon as any data is received, accept! Because this means that
         // the other side just have accepted & wants to start.
         stream.once('accepted', function () {
+          self.state.addEventListeners(peer)
           accept()
         })
 
