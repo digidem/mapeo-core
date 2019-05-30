@@ -23,15 +23,15 @@ var obs2 = {
 }
 
 test('observationCreate', function (t) {
-  var m = helpers.createApi(helpers.tmpdir1)
-  m.observationCreate(obs, (err, node) => {
+  var mapeo = helpers.createApi(helpers.tmpdir1)
+  mapeo.observationCreate(obs, (err, node) => {
     t.error(err)
     t.ok(node.id)
     t.ok(node.version)
     t.same(node.lat, obs.lat)
     t.same(node.lon, obs.lon)
     t.same(obs.tags, node.tags)
-    m.observationGet(node.id, (err, _node) => {
+    mapeo.observationGet(node.id, (err, _node) => {
       t.error(err)
       delete node.timestamp
       delete _node[0].timestamp
@@ -42,13 +42,13 @@ test('observationCreate', function (t) {
 })
 
 test('observationUpdate', function (t) {
-  var m = helpers.createApi(helpers.tmpdir1)
-  m.observationCreate(obs, (err, node) => {
+  var mapeo = helpers.createApi(helpers.tmpdir1)
+  mapeo.observationCreate(obs, (err, node) => {
     t.error(err)
     var newObs = Object.assign(obs2, {})
     newObs.version = node.version
     newObs.id = node.id
-    m.observationUpdate(newObs, (err, updated) => {
+    mapeo.observationUpdate(newObs, (err, updated) => {
       t.error(err)
       t.same(newObs.lat, updated.lat, 'updates lat and lon')
       t.same(newObs.lon, updated.lon, 'updates lat and lon')
@@ -60,17 +60,17 @@ test('observationUpdate', function (t) {
 })
 
 test('update many and then list', function (t) {
-  var m = helpers.createApi(helpers.tmpdir1)
+  var mapeo = helpers.createApi(helpers.tmpdir1)
   var i = 200
 
   createAndUpdate(i, done)
 
   function createAndUpdate (total, cb) {
     helpers.generateObservations(i, function (_, obs) {
-      m.observationCreate(obs, (_, node) => {
+      mapeo.observationCreate(obs, (_, node) => {
         var newObs = Object.assign(node, {})
         newObs.tags.notes = 'im a new tag'
-        m.observationUpdate(newObs, (_, updated) => {
+        mapeo.observationUpdate(newObs, (_, updated) => {
           total--
           if (total === 0) return cb()
         })
@@ -79,7 +79,7 @@ test('update many and then list', function (t) {
   }
 
   function done () {
-    m.observationList((err, list) => {
+    mapeo.observationList((err, list) => {
       t.error(err)
       t.same(list.length, i)
       t.end()
@@ -88,16 +88,16 @@ test('update many and then list', function (t) {
 })
 
 test('observationList', function (t) {
-  var m = helpers.createApi(helpers.tmpdir1)
-  m.observationCreate(obs, (err, node1) => {
+  var mapeo = helpers.createApi(helpers.tmpdir1)
+  mapeo.observationCreate(obs, (err, node1) => {
     t.error(err)
-    m.observationList((err, list) => {
+    mapeo.observationList((err, list) => {
       t.error(err)
       var newObs = Object.assign(obs2, {})
       t.equal(list.length, 1, 'contains 1 item')
-      m.observationCreate(newObs, (err, node2) => {
+      mapeo.observationCreate(newObs, (err, node2) => {
         t.error(err)
-        m.observationList((err, list) => {
+        mapeo.observationList((err, list) => {
           t.error(err)
           t.equal(list.length, 2, 'contains 2 items')
           var match1 = list.find((n) => n.id === node1.id)
@@ -112,16 +112,16 @@ test('observationList', function (t) {
 })
 
 test('observationList with limit=1', function (t) {
-  var m = helpers.createApi(helpers.tmpdir1)
-  m.observationCreate(obs, (err, node1) => {
+  var mapeo = helpers.createApi(helpers.tmpdir1)
+  mapeo.observationCreate(obs, (err, node1) => {
     t.error(err)
-    m.observationList((err, list) => {
+    mapeo.observationList((err, list) => {
       t.error(err)
       var newObs = Object.assign(obs2, {})
       t.equal(list.length, 1, 'contains 1 item')
-      m.observationCreate(newObs, (err, node2) => {
+      mapeo.observationCreate(newObs, (err, node2) => {
         t.error(err)
-        m.observationList({limit: 1}, (err, list) => {
+        mapeo.observationList({limit: 1}, (err, list) => {
           t.error(err)
           t.equal(list.length, 1, 'contains 1 item with limit=1')
           t.end()
@@ -132,19 +132,19 @@ test('observationList with limit=1', function (t) {
 })
 
 test('observationDelete', function (t) {
-  var m = helpers.createApi(helpers.tmpdir1)
-  m.observationCreate(obs, (err, node) => {
+  var mapeo = helpers.createApi(helpers.tmpdir1)
+  mapeo.observationCreate(obs, (err, node) => {
     t.error(err)
-    m.observationDelete(node.id, (err) => {
+    mapeo.observationDelete(node.id, (err) => {
       t.error(err)
-      m.observationGet(node.id, (err, ret) => {
+      mapeo.observationGet(node.id, (err, ret) => {
         t.error(err)
         t.same(ret.length, 1, 'returns a list')
         var node2 = ret[0]
         t.same(node2.id, node.id, 'id the same')
         t.notEqual(node2.version, node.version, 'updated version')
         t.same(node2.deleted, true, 'marked deleted')
-        m.observationList((err, list) => {
+        mapeo.observationList((err, list) => {
           t.error(err)
           var deleted = list.filter((o) => o.id === node.id)
           t.same(deleted.length, 0, 'deleted not returned in list')
@@ -155,16 +155,53 @@ test('observationDelete', function (t) {
   })
 })
 
+
+test('observationDelete with media', function (t) {
+  var mapeo = helpers.createApi(helpers.tmpdir1)
+  var ws = mapeo.media.createWriteStream('original/hello.txt')
+  ws.end('world')
+  ws.on('end', (err) => {
+    t.error(err)
+    var mediaObs = Object.assign({}, obs)
+    mediaObs.attachments.push({
+      id: 'original/hello.txt'
+    })
+    mapeo.observationCreate(mediaObs, (err, node) => {
+      t.error(err)
+      mapeo.observationDelete(node.id, (err) => {
+        t.error(err)
+        var rs = mapeo.media.createReadStream(node.attachments[0].id)
+        rs.on('data', (data) => t.fail(data))
+        rs.on('error', (err) => t.ok(err))
+        mapeo.observationGet(node.id, (err, ret) => {
+          t.error(err)
+          t.same(ret.length, 1, 'returns a list')
+          var node2 = ret[0]
+          t.same(node2.id, node.id, 'id the same')
+          t.notEqual(node2.version, node.version, 'updated version')
+          t.same(node2.deleted, true, 'marked deleted')
+          mapeo.observationList((err, list) => {
+            t.error(err)
+            var deleted = list.filter((o) => o.id === node.id)
+            t.same(deleted.length, 0, 'deleted not returned in list')
+            t.end()
+          })
+        })
+      })
+    })
+  })
+})
+
 test('observationStream', function (t) {
   t.plan(4)
-  var m = helpers.createApi(helpers.tmpdir1)
-  m.observationCreate(obs, (err, node1) => {
+  var mapeo = helpers.createApi(helpers.tmpdir1)
+  mapeo.observationCreate(obs, (err, node1) => {
     t.error(err)
     var newObs = Object.assign(obs2, {})
-    m.observationCreate(newObs, (err, node2) => {
+    mapeo.observationCreate(newObs, (err, node2) => {
       t.error(err)
       var pending = 2
-      m.observationStream().on('data', function (obs) {
+      mapeo.observationStream().on('data', function (obs) {
         pending--
         delete obs.timestamp
         delete node1.timestamp
@@ -178,13 +215,13 @@ test('observationStream', function (t) {
 
 test('observationStream with options', function (t) {
   t.plan(4)
-  var m = helpers.createApi(helpers.tmpdir1)
-  m.observationCreate(obs, (err, node1) => {
+  var mapeo = helpers.createApi(helpers.tmpdir1)
+  mapeo.observationCreate(obs, (err, node1) => {
     t.error(err)
     var newObs = Object.assign(obs2, {})
-    m.observationCreate(newObs, (err, node2) => {
+    mapeo.observationCreate(newObs, (err, node2) => {
       t.error(err)
-      collect(m.observationStream({limit: 1}), (err, data) => {
+      collect(mapeo.observationStream({limit: 1}), (err, data) => {
         t.error(err)
         t.ok(data.length, 1)
       })
