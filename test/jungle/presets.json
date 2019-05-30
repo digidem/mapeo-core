@@ -1,0 +1,621 @@
+{
+    "categories": {},
+    "fields": {
+        "building-type": {
+            "key": "building-type",
+            "type": "text",
+            "label": "",
+            "universal": true,
+            "placeholder": "School/hospital/etc"
+        },
+        "animal-type": {
+            "key": "animal-type",
+            "type": "text",
+            "label": "",
+            "universal": true,
+            "placeholder": "What kind of animal"
+        },
+        "name": {
+            "key": "name",
+            "type": "localized",
+            "label": "Nombre",
+            "placeholder": "Name (if exists)"
+        },
+        "note": {
+            "key": "note",
+            "type": "textarea",
+            "universal": true,
+            "icon": "note",
+            "label": "Note",
+            "placeholder": "Stories or notes about this place"
+        },
+        "items-gathered": {
+            "key": "animal-type",
+            "type": "text",
+            "label": "",
+            "universal": true,
+            "placeholder": "What is collected here"
+        },
+        "palm-species": {
+            "key": "palm-species",
+            "type": "text",
+            "label": "",
+            "universal": true,
+            "placeholder": "What kind of palm"
+        },
+        "owner": {
+            "key": "owner",
+            "type": "text",
+            "label": "Owner",
+            "placeholder": "Owner or user of the place"
+        },
+        "plant-species": {
+            "key": "plant-species",
+            "type": "text",
+            "label": "",
+            "universal": true,
+            "placeholder": "What kind of plant"
+        },
+        "source": {
+            "key": "source",
+            "type": "text",
+            "label": "",
+            "universal": true,
+            "placeholder": "Source of the data"
+        },
+        "tree-species": {
+            "key": "tree-species",
+            "type": "text",
+            "label": "",
+            "universal": true,
+            "placeholder": "What kind of tree"
+        },
+        "type": {
+            "key": "type",
+            "type": "text",
+            "label": "",
+            "universal": true,
+            "placeholder": "What kind of path"
+        }
+    },
+    "presets": {
+        "airstrip": {
+            "icon": "airstrip",
+            "fields": [
+                "source"
+            ],
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "aeroway",
+                "aeroway": "airstrip"
+            },
+            "terms": [
+                "airfield",
+                "airport",
+                "landing"
+            ],
+            "name": "Airstrip"
+        },
+        "animal": {
+            "icon": "animal",
+            "fields": [
+                "source",
+                "animal-type"
+            ],
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "animal"
+            },
+            "terms": [],
+            "name": "Animal"
+        },
+        "area": {
+            "icon": "estrella",
+            "name": "New area",
+            "tags": {
+                "area": "yes",
+                "nuevo": "yes"
+            },
+            "geometry": [
+                "area",
+                "line"
+            ],
+            "matchScore": 0.1
+        },
+        "boundary-line": {
+            "icon": "boundary",
+            "fields": [
+                "source",
+                "note"
+            ],
+            "geometry": [
+                "point",
+                "line"
+            ],
+            "tags": {
+                "type": "boundary",
+                "boudnary": "indigenous"
+            },
+            "terms": [
+                "border",
+                "frontier"
+            ],
+            "name": "boundary"
+        },
+        "building": {
+            "icon": "building",
+            "fields": [
+                "source",
+                "building-type"
+            ],
+            "geometry": [
+                "point"
+            ],
+            "tags": {
+                "type": "building"
+            },
+            "terms": [
+                "medical",
+                "school"
+            ],
+            "name": "Building"
+        },
+        "camp": {
+            "icon": "camp",
+            "fields": [
+                "source",
+                "owner"
+            ],
+            "geometry": [
+                "point"
+            ],
+            "tags": {
+                "type": "camp"
+            },
+            "terms": [
+                "campsite",
+                "camping",
+                "hunting"
+            ],
+            "name": "Camp"
+        },
+        "cave": {
+            "icon": "cave",
+            "fields": [
+                "source",
+                "note"
+            ],
+            "geometry": [
+                "point"
+            ],
+            "tags": {
+                "type": "natural",
+                "natural": "cave_entrance"
+            },
+            "terms": [],
+            "name": "Cave"
+        },
+        "clay": {
+            "icon": "clay",
+            "fields": [
+                "source"
+            ],
+            "geometry": [
+                "point"
+            ],
+            "tags": {
+                "type": "craft",
+                "craft": "clay"
+            },
+            "terms": [],
+            "name": "Clay"
+        },
+        "community": {
+            "icon": "community",
+            "fields": [
+                "source",
+                "note"
+            ],
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "place": "village"
+            },
+            "terms": [
+                "village"
+            ],
+            "name": "Community"
+        },
+        "fishing-site": {
+            "icon": "fishing",
+            "fields": [
+                "source",
+                "note"
+            ],
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "activity",
+                "activity": "fishing"
+            },
+            "terms": [
+                "fish"
+            ],
+            "name": "Fishing Site"
+        },
+        "gathering-site": {
+            "icon": "gathering",
+            "fields": [
+                "source",
+                "items-gathered"
+            ],
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "activity",
+                "activity": "gathering"
+            },
+            "terms": [
+                "collection"
+            ],
+            "name": "Gathering Site"
+        },
+        "hills": {
+            "icon": "hills",
+            "fields": [
+                "source"
+            ],
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "natural",
+                "natural": "peak"
+            },
+            "terms": [
+                "mountains"
+            ],
+            "name": "Hills"
+        },
+        "house": {
+            "icon": "house",
+            "fields": [
+                "source",
+                "owner"
+            ],
+            "geometry": [
+                "point"
+            ],
+            "tags": {
+                "building": "residential"
+            },
+            "terms": [
+                "house",
+                "home"
+            ],
+            "name": "House"
+        },
+        "hunting-site": {
+            "icon": "hunting",
+            "fields": [
+                "source",
+                "note"
+            ],
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "activity",
+                "activity": "hunting"
+            },
+            "terms": [],
+            "name": "Hunting Site"
+        },
+        "lake": {
+            "icon": "lake",
+            "fields": [
+                "source"
+            ],
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "natural",
+                "natural": "water",
+                "water": "lake"
+            },
+            "terms": [],
+            "name": "Lake"
+        },
+        "line": {
+            "icon": "estrella",
+            "name": "New line",
+            "tags": {
+                "nuevo": "yes"
+            },
+            "geometry": [
+                "line"
+            ]
+        },
+        "palm": {
+            "icon": "palm",
+            "fields": [
+                "source",
+                "palm-species"
+            ],
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "natural",
+                "natural": "tree",
+                "tree": "palm"
+            },
+            "terms": [],
+            "name": "Palm"
+        },
+        "path": {
+            "icon": "path",
+            "fields": [
+                "source",
+                "type"
+            ],
+            "geometry": [
+                "point",
+                "line"
+            ],
+            "tags": {
+                "type": "highway",
+                "highway": "footway"
+            },
+            "terms": [
+                ""
+            ],
+            "name": "Path"
+        },
+        "plant": {
+            "icon": "plant",
+            "fields": [
+                "source",
+                "plant-species"
+            ],
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "natural",
+                "natural": "plant"
+            },
+            "terms": [],
+            "name": "Plant"
+        },
+        "point": {
+            "icon": "estrella",
+            "name": "Nuevo punto",
+            "tags": {
+                "nuevo": "yes"
+            },
+            "geometry": [
+                "point"
+            ]
+        },
+        "river": {
+            "icon": "river",
+            "fields": [
+                "source"
+            ],
+            "geometry": [
+                "point",
+                "line"
+            ],
+            "tags": {
+                "waterway": "river",
+                "type": "waterway"
+            },
+            "terms": [],
+            "name": "River"
+        },
+        "salt-lick": {
+            "icon": "salt-lick",
+            "fields": [
+                "source"
+            ],
+            "geometry": [
+                "point"
+            ],
+            "tags": {
+                "type": "natural",
+                "natural": "salt-lick"
+            },
+            "terms": [],
+            "name": "Salt lick"
+        },
+        "special-site": {
+            "icon": "special-site",
+            "fields": [
+                "source",
+                "note"
+            ],
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "cultural",
+                "cultural": "cultural-site"
+            },
+            "terms": [
+                "story",
+                "sacred",
+                "historical",
+                "history"
+            ],
+            "name": "Special site"
+        },
+        "stream": {
+            "icon": "stream",
+            "fields": [
+                "source"
+            ],
+            "geometry": [
+                "point",
+                "line"
+            ],
+            "tags": {
+                "type": "waterway",
+                "waterway": "stream"
+            },
+            "terms": [],
+            "name": "Stream"
+        },
+        "swidden": {
+            "icon": "swidden",
+            "fields": [
+                "source",
+                "owner"
+            ],
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "landuse",
+                "landuse": "farmland"
+            },
+            "terms": [
+                "farm",
+                "garden",
+                "plot",
+                "allotment",
+                "paddy",
+                "cultivation"
+            ],
+            "name": "Farmland"
+        },
+        "threat": {
+            "icon": "threat",
+            "fields": [
+                "source",
+                "note"
+            ],
+            "geometry": [
+                "point",
+                "area",
+                "line"
+            ],
+            "tags": {
+                "type": "impact",
+                "impact": "threat"
+            },
+            "terms": [
+                "danger",
+                "illegal",
+                "monitoring"
+            ],
+            "name": "Threat"
+        },
+        "tree": {
+            "icon": "tree",
+            "fields": [
+                "source",
+                "tree-species"
+            ],
+            "geometry": [
+                "point",
+                "area"
+            ],
+            "tags": {
+                "type": "natural",
+                "natural": "tree"
+            },
+            "terms": [],
+            "name": "Tree"
+        },
+        "waterfall": {
+            "icon": "waterfall",
+            "fields": [
+                "source"
+            ],
+            "geometry": [
+                "point"
+            ],
+            "tags": {
+                "type": "waterway",
+                "waterway": "waterfall"
+            },
+            "terms": [
+                "cascade"
+            ],
+            "name": "Waterfall"
+        }
+    },
+    "defaults": {
+        "area": [
+            "area",
+            "airstrip",
+            "animal",
+            "community",
+            "fishing-site",
+            "gathering-site",
+            "hills",
+            "hunting-site",
+            "lake",
+            "palm",
+            "special-site",
+            "swidden",
+            "threat",
+            "tree",
+            "plant"
+        ],
+        "line": [
+            "line",
+            "boundary-line",
+            "river",
+            "path",
+            "stream",
+            "threat"
+        ],
+        "point": [
+            "point",
+            "airstrip",
+            "animal",
+            "boundary-line",
+            "building",
+            "camp",
+            "clay",
+            "community",
+            "fishing-site",
+            "gathering-site",
+            "house",
+            "hunting-site",
+            "palm",
+            "cave",
+            "plant",
+            "salt-lick",
+            "waterfall",
+            "special-site",
+            "swidden",
+            "threat",
+            "tree"
+        ],
+        "vertex": [],
+        "relation": []
+    }
+}
