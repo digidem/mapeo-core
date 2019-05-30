@@ -47,15 +47,15 @@ function writeBigData (mapeo, n, cb) {
 
         var ws = mapeo.media.createWriteStream(`preview/foo-${i}.jpg`, done)
         var rs = fs.createReadStream(path.join(__dirname, 'hi-res.jpg'))
-        pump(rs, ws, cb)
+        pump(rs, ws, done)
 
         var ws = mapeo.media.createWriteStream(`thumbnail/foo-${i}.jpg`, done)
         var rs = fs.createReadStream(path.join(__dirname, 'hi-res.jpg'))
-        pump(rs, ws, cb)
+        pump(rs, ws, done)
 
         var ws = mapeo.media.createWriteStream(`original/foo-${i}.jpg`, done)
         var rs = fs.createReadStream(path.join(__dirname, 'hi-res.jpg'))
-        pump(rs, ws, cb)
+        pump(rs, ws, done)
 
         function done (err) {
           if (error) return
