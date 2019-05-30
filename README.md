@@ -53,7 +53,7 @@ reference the observation you are updating.
 
 ### `mapeo.observationDelete(id, cb)`
 
-Delete the observation with the given id.
+Delete the observation with the given id. Also deletes attached media.
 
 ### `mapeo.observationStream(opts)`
 
