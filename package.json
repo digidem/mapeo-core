@@ -1,6 +1,6 @@
 {
   "name": "@mapeo/core",
-  "version": "6.1.0",
+  "version": "6.1.1",
   "description": "Offline p2p mapping library",
   "main": "index.js",
   "scripts": {
