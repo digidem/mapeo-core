@@ -521,7 +521,6 @@ tape.only('sync: with two peers available, sync with one only triggers events fo
             peers.forEach((p) => {
               t.same(p.state.topic, 'replication-wifi-ready')
             })
-            console.log(peers)
             close1()
             close2()
             t.end()
