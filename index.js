@@ -197,8 +197,7 @@ class Mapeo extends events.EventEmitter {
       case 'geojson': return pump(GeoJSONStream, fs.createWriteStream(filename), cb)
       case 'shapefile':
         GeoJSONStream.pipe(concat((geojson) => {
-          var zipStream = shapefile.zip(JSON.parse(geojson))
-            .generateNodeStream({type: 'nodebuffer', streamFiles: true})
+          var zipStream = shapefile.zipStream(JSON.parse(geojson))
           pump(zipStream, fs.createWriteStream(filename), cb)
         }))
         return
