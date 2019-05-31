@@ -45,25 +45,25 @@ class SyncState {
 
   add (peer) {
     peer.sync = new events.EventEmitter()
-    this._state[peer.id] = peer
-  }
-
-  addEventListeners (peer) {
     var onstart = () => this.onstart(peer)
-    var onprogress = (progress) => this.onprogress(peer, progress)
     var onerror = (error) => this.onerror(peer, error)
     var onend = () => {
       this.onend(peer)
       peer.sync.removeListener('sync-start', onstart)
       peer.sync.removeListener('end', onend)
       peer.sync.removeListener('error', onerror)
-      peer.sync.removeListener('progress', onprogress)
+      if (peer.sync.onprogress) peer.sync.removeListener('progress', peer.sync.onprogress)
     }
 
     peer.sync.on('sync-start', onstart)
-    peer.sync.on('progress', onprogress)
     peer.sync.on('error', onerror)
     peer.sync.on('end', onend)
+    this._state[peer.id] = peer
+  }
+
+  addProgressEventListeners (peer) {
+    peer.sync.onprogress = (progress) => this.onprogress(peer, progress)
+    peer.sync.on('progress', peer.sync.onprogress)
   }
 
   get (host, port) {
@@ -90,7 +90,7 @@ class SyncState {
   onfile (peer) {
     this.onstart(peer)
     this.add(peer)
-    this.addEventListeners(peer)
+    this.addProgressEventListeners(peer)
   }
 
   onstart (peer) {
@@ -387,7 +387,7 @@ class Sync extends events.EventEmitter {
         // as soon as any data is received, accept! Because this means that
         // the other side just have accepted & wants to start.
         stream.once('accepted', function () {
-          self.state.addEventListeners(peer)
+          self.state.addProgressEventListeners(peer)
           accept()
         })
 

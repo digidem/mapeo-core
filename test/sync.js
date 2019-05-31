@@ -696,7 +696,6 @@ tape('sync: destroy during sync is reflected in peer state', function (t) {
   })
 })
 
-
 tape('sync: 200 photos', function (t) {
   t.plan(14)
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
