@@ -69,8 +69,12 @@ propagated as the first argument to the callback. Same options accepted as
 
 ### `mapeo.exportData(filename, opts, cb)`
 
-Exports data from the osm database to the given filename. Supported extensions
-are `.geojson` and `.shp`.
+Exports data from the osm database to the given filename. 
+
+Options:
+
+  * `format`: "geojson" or a "shapefile". Shapefiles export into zip format.
+  * `presets`: an object that represents the contents of a `presets.json` file
 
 ### `mapeo.observationConvert(obs, cb)`
 
