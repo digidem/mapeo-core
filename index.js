@@ -136,31 +136,34 @@ class Mapeo extends events.EventEmitter {
   }
 
   observationDelete (id, cb) {
-    this.observationGet(id, (err, list) => {
+    this.observationGet(id, (err, obses) => {
       if (err) return cb(err)
-      if (!list.length) return cb(new Error('Observation with id does not exist'))
-      var obs = list[0]
-      this.osm.del(id, obs, (err) => {
+      if (!obses.length) return cb(new Error('Observation with id does not exist'))
+      this.osm.del(id, {type:'observation'}, (err) => {
         if (err) return cb(err)
-        if (!obs.attachments) return cb()
         var tasks = []
+
         var attachmentIds = {}
-        obs.attachments.map((a) => {
-          // only delete files once
-          if (attachmentIds[a.id]) return
-          attachmentIds[a.id] = true
-          // okay delete now
-          tasks.push((done) => {
-            var filename = 'original/' + a.id
-            this.media.remove(filename, done)
-          })
-          tasks.push((done) => {
-            var filename = 'preview/' + a.id
-            this.media.remove(filename, done)
-          })
-          tasks.push((done) => {
-            var filename = 'thumbnail/' + a.id
-            this.media.remove(filename, done)
+        obses.forEach(obs => {
+          if (!obs.attachments) return
+          obs.attachments.map((a) => {
+            console.log('gonna del', a)
+            // only delete files once
+            if (attachmentIds[a.id]) return
+            attachmentIds[a.id] = true
+            // okay delete now
+            tasks.push((done) => {
+              var filename = 'original/' + a.id
+              this.media.remove(filename, done)
+            })
+            tasks.push((done) => {
+              var filename = 'preview/' + a.id
+              this.media.remove(filename, done)
+            })
+            tasks.push((done) => {
+              var filename = 'thumbnail/' + a.id
+              this.media.remove(filename, done)
+            })
           })
         })
         parallel(tasks, cb)

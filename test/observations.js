@@ -155,7 +155,6 @@ test('observationDelete', function (t) {
   })
 })
 
-
 test('observationDelete with media', function (t) {
   var mapeo = helpers.createApi(helpers.tmpdir1)
   var ws = mapeo.media.createWriteStream('original/hello.txt')
@@ -185,6 +184,50 @@ test('observationDelete with media', function (t) {
               var deleted = list.filter((o) => o.id === node.id)
               t.same(deleted.length, 0, 'deleted not returned in list')
               t.end()
+            })
+          })
+        })
+      })
+    })
+  })
+})
+
+test('observationDelete with forked obsevations + media', function (t) {
+  var mapeo = helpers.createApi(helpers.tmpdir1)
+  var ws = mapeo.media.createWriteStream('original/hello.txt')
+  ws.end('world')
+  ws.on('end', (err) => {
+    t.error(err)
+    var mediaObs = Object.assign({}, obs)
+    mediaObs.attachments.push({
+      id: 'hello.txt'
+    })
+    mapeo.observationCreate(mediaObs, (err, node) => {
+      t.error(err)
+      var obs3 = Object.assign({}, obs2, {
+        attachments: [ { id: 'goodbye.txt' } ]
+      })
+      mapeo.osm.put(node.id, obs3, {links:[]}, (err, node2) => {
+        t.error(err)
+        mapeo.observationDelete(node.id, (err) => {
+          t.error(err)
+          mapeo.media.list((err, files) => {
+            t.error(err)
+            t.deepEquals(files, [], 'all media deleted')
+            mapeo.observationGet(node.id, (err, ret) => {
+              t.error(err)
+              t.same(ret.length, 1, 'returns a list')
+              var node2 = ret[0]
+              t.same(node2.id, node.id, 'id the same')
+              t.notEqual(node2.version, node.version, 'updated version')
+              t.same(node2.deleted, true, 'marked deleted')
+              mapeo.observationList((err, list) => {
+                console.log(list)
+                t.error(err)
+                var deleted = list.filter((o) => o.id === node.id)
+                t.same(deleted.length, 0, 'deleted not returned in list')
+                t.end()
+              })
             })
           })
         })
