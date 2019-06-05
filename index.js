@@ -151,7 +151,15 @@ class Mapeo extends events.EventEmitter {
           attachmentIds[a.id] = true
           // okay delete now
           tasks.push((done) => {
-            var filename = a.id
+            var filename = 'original/' + a.id
+            this.media.remove(filename, done)
+          })
+          tasks.push((done) => {
+            var filename = 'preview/' + a.id
+            this.media.remove(filename, done)
+          })
+          tasks.push((done) => {
+            var filename = 'thumbnail/' + a.id
             this.media.remove(filename, done)
           })
         })
