@@ -164,27 +164,28 @@ test('observationDelete with media', function (t) {
     t.error(err)
     var mediaObs = Object.assign({}, obs)
     mediaObs.attachments.push({
-      id: 'original/hello.txt'
+      id: 'hello.txt'
     })
     mapeo.observationCreate(mediaObs, (err, node) => {
       t.error(err)
       mapeo.observationDelete(node.id, (err) => {
         t.error(err)
-        var rs = mapeo.media.createReadStream(node.attachments[0].id)
-        rs.on('data', (data) => t.fail(data))
-        rs.on('error', (err) => t.ok(err))
-        mapeo.observationGet(node.id, (err, ret) => {
+        mapeo.media.list((err, files) => {
           t.error(err)
-          t.same(ret.length, 1, 'returns a list')
-          var node2 = ret[0]
-          t.same(node2.id, node.id, 'id the same')
-          t.notEqual(node2.version, node.version, 'updated version')
-          t.same(node2.deleted, true, 'marked deleted')
-          mapeo.observationList((err, list) => {
+          t.deepEquals(files, [], 'all media deleted')
+          mapeo.observationGet(node.id, (err, ret) => {
             t.error(err)
-            var deleted = list.filter((o) => o.id === node.id)
-            t.same(deleted.length, 0, 'deleted not returned in list')
-            t.end()
+            t.same(ret.length, 1, 'returns a list')
+            var node2 = ret[0]
+            t.same(node2.id, node.id, 'id the same')
+            t.notEqual(node2.version, node.version, 'updated version')
+            t.same(node2.deleted, true, 'marked deleted')
+            mapeo.observationList((err, list) => {
+              t.error(err)
+              var deleted = list.filter((o) => o.id === node.id)
+              t.same(deleted.length, 0, 'deleted not returned in list')
+              t.end()
+            })
           })
         })
       })
