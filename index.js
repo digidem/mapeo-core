@@ -139,7 +139,7 @@ class Mapeo extends events.EventEmitter {
     this.observationGet(id, (err, obses) => {
       if (err) return cb(err)
       if (!obses.length) return cb(new Error('Observation with id does not exist'))
-      this.osm.del(id, {type:'observation'}, (err) => {
+      this.osm.del(id, {}, (err) => {
         if (err) return cb(err)
         var tasks = []
 
