@@ -67,6 +67,10 @@ Returns an array of observations to the given `callback`. Any errors are
 propagated as the first argument to the callback. Same options accepted as
 `mapeo.observationStream`.
 
+Valid `opts` include:
+
+- `opts.removeForks` - Whether to only return the observation with the newest timestamp, if multiple heads exist for an observation ID. Defaults to `false`.
+
 ### `mapeo.exportData(filename, opts, cb)`
 
 Exports data from the osm database to the given filename. 

@@ -257,6 +257,34 @@ test('observationStream', function (t) {
   })
 })
 
+test.only('observationStream with forked obsevations', function (t) {
+  var mapeo = helpers.createApi(helpers.tmpdir1)
+  var ws = mapeo.media.createWriteStream('original/hello.txt')
+  ws.end('world')
+  ws.on('end', (err) => {
+    t.error(err)
+    var mediaObs = Object.assign({}, obs)
+    mediaObs.attachments.push({
+      id: 'hello.txt'
+    })
+    mapeo.observationCreate(mediaObs, (err, node) => {
+      t.error(err)
+      var obs3 = Object.assign({}, obs2, {
+        attachments: [ { id: 'goodbye.txt' } ]
+      })
+      mapeo.osm.put(node.id, obs3, {links:[]}, (err, node2) => {
+        t.error(err)
+        mapeo.observationList({removeForks:true}, (err, list) => {
+          t.error(err)
+          list = list.map(obs => obs.version.split('@')[1])
+          t.deepEquals(list.sort(), ['1'])
+          t.end()
+        })
+      })
+    })
+  })
+})
+
 test('observationStream with options', function (t) {
   t.plan(4)
   var mapeo = helpers.createApi(helpers.tmpdir1)

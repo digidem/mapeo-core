@@ -190,11 +190,28 @@ class Mapeo extends events.EventEmitter {
   }
 
   observationStream (opts) {
+    opts = opts || {}
+
+    var latest = {}
+    var removeForks = through.obj(function (row, enc, next) {
+      if (!latest[row.id]) latest[row.id] = row
+      else if (row.timestamp > latest[row.id].timestamp) latest[row.id] = row
+      next()
+    }, function (cb) {
+      Object.keys(latest).forEach(k => this.push(latest[k]))
+      cb()
+    })
+
     var removeDeleted = through.obj(function (row, enc, next) {
       if (row.deleted) next()
       else next(null, row)
     })
-    return pumpify.obj(this.osm.byType('observation', opts), removeDeleted)
+
+    if (opts.removeForks) {
+      return pumpify.obj(this.osm.byType('observation', opts), removeDeleted, removeForks)
+    } else {
+      return pumpify.obj(this.osm.byType('observation', opts), removeDeleted)
+    }
   }
 
   exportData (filename, opts, cb) {
