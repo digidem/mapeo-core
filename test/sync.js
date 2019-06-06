@@ -646,7 +646,7 @@ tape('sync: with two peers available, sync with one only triggers events for one
 
 
 tape('sync: destroy during sync is reflected in peer state', function (t) {
-  t.plan(10)
+  t.plan(11)
 
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
@@ -655,10 +655,10 @@ tape('sync: destroy during sync is reflected in peer state', function (t) {
 
     api1.sync.listen()
     api1.sync.join()
-    api1.sync.on('peer', written.bind(null, null))
+    api1.sync.once('peer', written.bind(null, null))
     api2.sync.listen()
     api2.sync.join()
-    api2.sync.on('peer', written.bind(null, null))
+    api2.sync.once('peer', written.bind(null, null))
     helpers.writeBigData(api1, total, written)
     writeBlob(api2, 'goodbye_world.png', written)
 
@@ -684,7 +684,9 @@ tape('sync: destroy during sync is reflected in peer state', function (t) {
         t.same(peers.length, 1, 'one peer on error')
         t.same(peers[0].state.topic, 'replication-error', 'replication error!')
         t.same(peers[0].state.message, err.toString(), 'got message')
-        close()
+        close(function () {
+          t.ok(true)
+        })
       })
 
       var totalProgressEvents = 0
