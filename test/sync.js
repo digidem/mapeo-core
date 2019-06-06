@@ -718,13 +718,13 @@ tape('sync: 200 photos', function (t) {
         t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
         t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
         if (api1.sync.peers().length >= 1) {
-          sync(api1.sync.peers()[0])
+          sync(api2.sync.peers()[0])
         }
       }
     }
 
     function sync (peer) {
-      var syncer = api1.sync.replicate(peer)
+      var syncer = api2.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
         close()
@@ -754,12 +754,12 @@ tape('sync: 200 photos', function (t) {
         t.ok(totalProgressEvents >= expectedMedia.length, 'all progress events fire')
 
         api1.media.list(function (err, files) {
-          t.error(err)
+          t.error(err, 'listed media1 ok')
           t.deepEquals(files.sort(), expectedMedia.sort(), 'api1 has the files')
           if (!--pending) close(() => t.ok(true))
         })
         api2.media.list(function (err, files) {
-          t.error(err)
+          t.error(err, 'listed media2 ok')
           t.deepEquals(files.sort(), expectedMedia.sort(), 'api2 has the files')
           if (!--pending) close(() => t.ok(true))
         })
