@@ -190,11 +190,33 @@ class Mapeo extends events.EventEmitter {
   }
 
   observationStream (opts) {
+    opts = opts || {}
+
+    var latest = {}
+    var removeForks = through.obj(function (row, enc, next) {
+      if (!latest[row.id]) latest[row.id] = row
+      else if (row.timestamp > latest[row.id].timestamp) latest[row.id] = row
+      // If the timestamps are equal (can happen!) then return by latest version
+      // to ensure that the results are deterministic. Equal timestamps is only
+      // likely to occur on the same hypercore anyway, so this will return the
+      // latest sequence number if timestamps are equal.
+      else if (row.timestamp === latest[row.id].timestamp && row.version > latest[row.id].version) latest[row.id] = row
+      next()
+    }, function (cb) {
+      Object.keys(latest).forEach(k => this.push(latest[k]))
+      cb()
+    })
+
     var removeDeleted = through.obj(function (row, enc, next) {
       if (row.deleted) next()
       else next(null, row)
     })
-    return pumpify.obj(this.osm.byType('observation', opts), removeDeleted)
+
+    if (opts.forks) {
+      return pumpify.obj(this.osm.byType('observation', opts), removeDeleted)
+    } else {
+      return pumpify.obj(this.osm.byType('observation', opts), removeDeleted, removeForks)
+    }
   }
 
   exportData (filename, opts, cb) {

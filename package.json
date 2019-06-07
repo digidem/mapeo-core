@@ -38,6 +38,7 @@
     "through2": "^3.0.0"
   },
   "devDependencies": {
+    "clone-deep": "^4.0.1",
     "collect-stream": "^1.2.1",
     "dependency-check": "^3.2.1",
     "mkdirp": "^0.5.1",

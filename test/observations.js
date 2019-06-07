@@ -1,5 +1,6 @@
 var test = require('tape')
 var collect = require('collect-stream')
+var cloneDeep = require('clone-deep')
 
 var helpers = require('./helpers')
 
@@ -8,18 +9,18 @@ var obs = {
   type: 'observation',
   lat: 0.1,
   lon: 0.2,
-  tags: [{
+  tags: {
     'foo': 'bar'
-  }]
+  }
 }
 
 var obs2 = {
   type: 'observation',
   lat: 0.15,
   lon: 0.25,
-  tags: [{
+  tags: {
     'foo': 'baz'
-  }]
+  }
 }
 
 test('observationCreate', function (t) {
@@ -45,7 +46,7 @@ test('observationUpdate', function (t) {
   var mapeo = helpers.createApi(helpers.tmpdir1)
   mapeo.observationCreate(obs, (err, node) => {
     t.error(err)
-    var newObs = Object.assign(obs2, {})
+    var newObs = cloneDeep(obs2)
     newObs.version = node.version
     newObs.id = node.id
     mapeo.observationUpdate(newObs, (err, updated) => {
@@ -68,7 +69,7 @@ test('update many and then list', function (t) {
   function createAndUpdate (total, cb) {
     helpers.generateObservations(i, function (_, obs) {
       mapeo.observationCreate(obs, (_, node) => {
-        var newObs = Object.assign(node, {})
+        var newObs = cloneDeep(node)
         newObs.tags.notes = 'im a new tag'
         mapeo.observationUpdate(newObs, (_, updated) => {
           total--
@@ -93,7 +94,7 @@ test('observationList', function (t) {
     t.error(err)
     mapeo.observationList((err, list) => {
       t.error(err)
-      var newObs = Object.assign(obs2, {})
+      var newObs = cloneDeep(obs2)
       t.equal(list.length, 1, 'contains 1 item')
       mapeo.observationCreate(newObs, (err, node2) => {
         t.error(err)
@@ -117,7 +118,7 @@ test('observationList with limit=1', function (t) {
     t.error(err)
     mapeo.observationList((err, list) => {
       t.error(err)
-      var newObs = Object.assign(obs2, {})
+      var newObs = cloneDeep(obs2)
       t.equal(list.length, 1, 'contains 1 item')
       mapeo.observationCreate(newObs, (err, node2) => {
         t.error(err)
@@ -161,7 +162,7 @@ test('observationDelete with media', function (t) {
   ws.end('world')
   ws.on('end', (err) => {
     t.error(err)
-    var mediaObs = Object.assign({}, obs)
+    var mediaObs = cloneDeep(obs)
     mediaObs.attachments.push({
       id: 'hello.txt'
     })
@@ -198,13 +199,14 @@ test('observationDelete with forked obsevations + media', function (t) {
   ws.end('world')
   ws.on('end', (err) => {
     t.error(err)
-    var mediaObs = Object.assign({}, obs)
+    var mediaObs = cloneDeep(obs)
     mediaObs.attachments.push({
       id: 'hello.txt'
     })
     mapeo.observationCreate(mediaObs, (err, node) => {
       t.error(err)
-      var obs3 = Object.assign({}, obs2, {
+      var obs3 = cloneDeep(obs2)
+      Object.assign(obs3, {
         attachments: [ { id: 'goodbye.txt' } ]
       })
       mapeo.osm.put(node.id, obs3, {links:[]}, (err, node2) => {
@@ -241,7 +243,7 @@ test('observationStream', function (t) {
   var mapeo = helpers.createApi(helpers.tmpdir1)
   mapeo.observationCreate(obs, (err, node1) => {
     t.error(err)
-    var newObs = Object.assign(obs2, {})
+    var newObs = cloneDeep(obs2)
     mapeo.observationCreate(newObs, (err, node2) => {
       t.error(err)
       var pending = 2
@@ -257,12 +259,57 @@ test('observationStream', function (t) {
   })
 })
 
+test('observationStream with forked obsevations', function (t) {
+  var mapeo = helpers.createApi(helpers.tmpdir1)
+  var ws = mapeo.media.createWriteStream('original/hello.txt')
+  ws.end('world')
+  ws.on('end', (err) => {
+    t.error(err)
+    var obsA = cloneDeep(obs)
+    mapeo.observationCreate(obsA, (err, node1) => {
+      t.error(err)
+      // create two new observations based on the original -- creates fork
+      var obsB = cloneDeep(node1)
+      obsB.tags.foo = 'baz'
+      mapeo.osm.put(obsB.id, obsB, {links: [node1.version]}, (err, node2) => {
+        t.error(err)
+        var obsC = cloneDeep(node2)
+        obsC.tags.foo = 'qux'
+        mapeo.osm.put(obsC.id, obsC, {links: [node1.version]}, (err, node3) => {
+          t.error(err)
+          onForksCreated(node1, node2, node3)
+        })
+      })
+    })
+  })
+  function onForksCreated (original, fork1, fork2) {
+    // Just checking we set up the test correctly
+    t.equal(fork1.links[0], original.version, 'fork1 links to original')
+    t.equal(fork2.links[0], original.version, 'fork2 links to original')
+    mapeo.observationList({forks: true}, (err, list) => {
+      t.error(err)
+      t.equal(list.length, 2, 'list without forks=true returns all forks')
+      t.ok(list.some(n => n.version === fork1.version), 'list includes fork1')
+      t.ok(list.some(n => n.version === fork2.version), 'list includes fork2')
+      t.ok(!list.some(n => n.version === original.version), 'list does not include original')
+      mapeo.observationList((err, deforkedList) => {
+        t.error(err)
+        t.equal(deforkedList.length, 1, 'list without forks opt only returns 1 fork')
+        t.ok(deforkedList.some(n => n.version === fork2.version), 'list includes fork2')
+        t.ok(!deforkedList.some(n => n.version === fork1.version), 'list does not include fork1')
+        t.ok(!deforkedList.some(n => n.version === original.version), 'list does not include original')
+        t.end()
+      })
+    })
+  }
+})
+
 test('observationStream with options', function (t) {
   t.plan(4)
   var mapeo = helpers.createApi(helpers.tmpdir1)
   mapeo.observationCreate(obs, (err, node1) => {
     t.error(err)
-    var newObs = Object.assign(obs2, {})
+    var newObs = cloneDeep(obs2)
     mapeo.observationCreate(newObs, (err, node2) => {
       t.error(err)
       collect(mapeo.observationStream({limit: 1}), (err, data) => {
