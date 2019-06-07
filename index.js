@@ -212,10 +212,10 @@ class Mapeo extends events.EventEmitter {
       else next(null, row)
     })
 
-    if (opts.removeForks) {
-      return pumpify.obj(this.osm.byType('observation', opts), removeDeleted, removeForks)
-    } else {
+    if (opts.forks) {
       return pumpify.obj(this.osm.byType('observation', opts), removeDeleted)
+    } else {
+      return pumpify.obj(this.osm.byType('observation', opts), removeDeleted, removeForks)
     }
   }
 

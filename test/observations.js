@@ -286,15 +286,15 @@ test('observationStream with forked obsevations', function (t) {
     // Just checking we set up the test correctly
     t.equal(fork1.links[0], original.version, 'fork1 links to original')
     t.equal(fork2.links[0], original.version, 'fork2 links to original')
-    mapeo.observationList((err, list) => {
+    mapeo.observationList({forks: true}, (err, list) => {
       t.error(err)
-      t.equal(list.length, 2, 'list without removeForks returns all forks')
+      t.equal(list.length, 2, 'list without forks=true returns all forks')
       t.ok(list.some(n => n.version === fork1.version), 'list includes fork1')
       t.ok(list.some(n => n.version === fork2.version), 'list includes fork2')
       t.ok(!list.some(n => n.version === original.version), 'list does not include original')
-      mapeo.observationList({removeForks: true}, (err, deforkedList) => {
+      mapeo.observationList((err, deforkedList) => {
         t.error(err)
-        t.equal(deforkedList.length, 1, 'list with removeForks only returns 1 fork')
+        t.equal(deforkedList.length, 1, 'list without forks opt only returns 1 fork')
         t.ok(deforkedList.some(n => n.version === fork2.version), 'list includes fork2')
         t.ok(!deforkedList.some(n => n.version === fork1.version), 'list does not include fork1')
         t.ok(!deforkedList.some(n => n.version === original.version), 'list does not include original')
