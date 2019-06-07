@@ -23,24 +23,25 @@ var Mapeo = require('@mapeo/core')
 * `opts`: options
 
 Valid `opts` options include:
-- `opts.deviceType` (string): one of `{'desktop', 'mobile'}`. This affects how sync works. Mobile peers will not receive full-resolution media from other devices, but share them *to* desktop devices.
 
-## Observations API 
+* `opts.deviceType` (string): one of `{'desktop', 'mobile'}`. This affects how sync works. Mobile peers will not receive full-resolution media from other devices, but share them *to* desktop devices.
 
-A observation is a point on the map with particular metadata. 
+## Observations API
 
-See the [spec].. 
+A observation is a point on the map with particular metadata.
+
+See the [spec]..
 
 Validated fields:
 
-  * `type`: (required) must be the string literal `"observation"`
-  * `attachments`: (optional) array of attachments, each with an `id`.
-  * `lat`: (required) latitude
-  * `lon`: (required) longitude
+* `type`: (required) must be the string literal `"observation"`
+* `attachments`: (optional) array of attachments, each with an `id`.
+* `lat`: (required) latitude
+* `lon`: (required) longitude
 
 ### `mapeo.observationCreate(obs, cb)`
 
-Create an observation. 
+Create an observation.
 
 ### `mapeo.observationGet(id, cb)`
 
@@ -57,28 +58,36 @@ Delete the observation with the given id. Also deletes attached media.
 
 ### `mapeo.observationStream(opts)`
 
-Returns a stream of observations. Options for filtering the data can be passed
+Returns a stream of observations. By default only the most recent forks are
+returned (e.g. it will will return only one version of each observation id),
+sorted by timestamp. Options for filtering the data can be passed
 according to the [levelup createReadStream
 API](https://github.com/Level/levelup#createReadStream).
 
-### `mapeo.observationList(opts, cb)`
-
-Returns an array of observations to the given `callback`. Any errors are
-propagated as the first argument to the callback. Same options accepted as
-`mapeo.observationStream`.
-
 Valid `opts` include:
 
-- `opts.removeForks` - Whether to only return the observation with the newest timestamp, if multiple heads exist for an observation ID. Defaults to `false`.
+* `opts.forks` - Defaults to `false`. If `true` then if multiple heads/forks
+  exist for an observation ID (e.g. if two users have edited the same
+  observation and then synced) then all forks are returned. By default, when
+  `false`, only the most recent fork is returned.
+
+### `mapeo.observationList(opts, cb)`
+
+Returns an array of observations to the given `callback`. By default only the
+most recent forks are returned (e.g. it will will return only one version of
+each observation id), sorted by timestamp. Any errors are propagated as the
+first argument to the callback. Same options accepted as
+`mapeo.observationStream`.
 
 ### `mapeo.exportData(filename, opts, cb)`
 
-Exports data from the osm database to the given filename. 
+Exports data from the osm database to the given filename.
 
-Options:
+Valid `opts` include:
 
-  * `format`: "geojson" or a "shapefile". Shapefiles export into zip format.
-  * `presets`: an object that represents the contents of a `presets.json` file
+* `opts.format`: "geojson" or a "shapefile". Shapefiles export into zip
+  format.
+* `opts.presets`: an object that represents the contents of a `presets.json` file
 
 ### `mapeo.observationConvert(obs, cb)`
 
@@ -91,13 +100,11 @@ Convert an observation to an OSM type `node`.
 Mapeo core provides some key functionality for syncing between two devices over
 WiFi and filesystem (i.e., over USB sneakernets).
 
-`const sync = mapeo.sync`
-
 ```js
 var sync = mapeo.sync
 
 sync.listen(function () {
-  
+
 })
 ```
 
@@ -112,7 +119,8 @@ Broadcast and listen on the local network for peers. `cb` is called once the ser
 
 ### sync.join()
 
-Join the swarm and begin making introductory connections with other peers. 
+Join the swarm and begin making introductory connections with other peers.
+
 ### sync.leave()
 
 Leave the swarm and no longer be discoverable by other peers. Any currently
@@ -129,14 +137,14 @@ Fetch a list of the current sync peers that have been found thus far.
 
 A peer can have the following properties:
 
-  * `name`: a human-readable identifier for the peer (e.g., hostname)
-  * `connection`: The open connection to this peer. Can be closed manually to
-    stop any data transfer. 
-  * `host`: the ip
-  * `port`: the port
-  * `type`: 'wifi' or 'file'
-  * `deviceType`: either `mobile` or `desktop`, if `type == 'wifi'`
-  
+* `name`: a human-readable identifier for the peer (e.g., hostname)
+* `connection`: The open connection to this peer. Can be closed manually to
+  stop any data transfer.
+* `host`: the ip
+* `port`: the port
+* `type`: 'wifi' or 'file'
+* `deviceType`: either `mobile` or `desktop`, if `type == 'wifi'`
+
 ### sync.on('peer', peer)
 
 Emitted when a new wifi peer connection is discovered.
@@ -153,9 +161,9 @@ constructor's `opts.writeFormat`.
 
 Both `replicate` and `replicateNetwork` return an EventEmitter `ev`. It can emit
 
-- `"error" (err)`: gives an Error object signalling an error in syncing.
-- `"progress" (progress)`: gives information about how many objects have been synced and how many to be synced in total, e.g. `{ db: { sofar: 5, total: 10 }, media: { sofar: 18, total: 100 } }`
-- `"end"`: successful completion of OSM and media sync.
+* `"error" (err)`: gives an Error object signalling an error in syncing.
+* `"progress" (progress)`: gives information about how many objects have been synced and how many to be synced in total, e.g. `{ db: { sofar: 5, total: 10 }, media: { sofar: 18, total: 100 } }`
+* `"end"`: successful completion of OSM and media sync.
 
 ### var ev = sync.replicateNetwork(peer)
 
@@ -166,7 +174,7 @@ If you want to replicate with a peer that is not discovered yet, but you have
 the host and port, we haven't made this easy at the moment. The code is written
 internally but not exposed via a public API. PRs welcome.
 
-## Importer API (expertimental) 
+## Importer API (expertimental)
 
 The Importer allows you to import data to the osm database from other formats.
 
@@ -176,6 +184,7 @@ This object reports on import progress with the `progress`,
 `complete`, and `error` events.
 
 For example,
+
 ```
 var mapeo = new Mapeo(osm, media)
 mapeo.importer.on('progress', console.log)
@@ -184,11 +193,11 @@ mapeo.importer.on('complete', () => { process.exit() })
 mapeo.importFeatureCollection(myGeoJsonFile)
 ```
 
-### ``mapeo.importer.importFeatureCollection(geojson, [cb])```
+### `mapeo.importer.importFeatureCollection(geojson, [cb])`
 
 Import data from a geojson string. This is simply a wrapper around `osm-p2p-geojson`.
 
-### ``mapeo.importer.importFromFile(filename, [cb])```
+### `mapeo.importer.importFromFile(filename, [cb])`
 
 Import data from a `.geojson` file or a `.shp` file.
 
