@@ -1,5 +1,6 @@
 var test = require('tape')
 var collect = require('collect-stream')
+var cloneDeep = require('clone-deep')
 
 var helpers = require('./helpers')
 
@@ -45,7 +46,7 @@ test('observationUpdate', function (t) {
   var mapeo = helpers.createApi(helpers.tmpdir1)
   mapeo.observationCreate(obs, (err, node) => {
     t.error(err)
-    var newObs = Object.assign(obs2, {})
+    var newObs = cloneDeep(obs2)
     newObs.version = node.version
     newObs.id = node.id
     mapeo.observationUpdate(newObs, (err, updated) => {
@@ -68,7 +69,7 @@ test('update many and then list', function (t) {
   function createAndUpdate (total, cb) {
     helpers.generateObservations(i, function (_, obs) {
       mapeo.observationCreate(obs, (_, node) => {
-        var newObs = Object.assign(node, {})
+        var newObs = cloneDeep(node)
         newObs.tags.notes = 'im a new tag'
         mapeo.observationUpdate(newObs, (_, updated) => {
           total--
@@ -93,7 +94,7 @@ test('observationList', function (t) {
     t.error(err)
     mapeo.observationList((err, list) => {
       t.error(err)
-      var newObs = Object.assign(obs2, {})
+      var newObs = cloneDeep(obs2)
       t.equal(list.length, 1, 'contains 1 item')
       mapeo.observationCreate(newObs, (err, node2) => {
         t.error(err)
@@ -117,7 +118,7 @@ test('observationList with limit=1', function (t) {
     t.error(err)
     mapeo.observationList((err, list) => {
       t.error(err)
-      var newObs = Object.assign(obs2, {})
+      var newObs = cloneDeep(obs2)
       t.equal(list.length, 1, 'contains 1 item')
       mapeo.observationCreate(newObs, (err, node2) => {
         t.error(err)
@@ -161,7 +162,7 @@ test('observationDelete with media', function (t) {
   ws.end('world')
   ws.on('end', (err) => {
     t.error(err)
-    var mediaObs = Object.assign({}, obs)
+    var mediaObs = cloneDeep(obs)
     mediaObs.attachments.push({
       id: 'hello.txt'
     })
@@ -198,13 +199,14 @@ test('observationDelete with forked obsevations + media', function (t) {
   ws.end('world')
   ws.on('end', (err) => {
     t.error(err)
-    var mediaObs = Object.assign({}, obs)
+    var mediaObs = cloneDeep(obs)
     mediaObs.attachments.push({
       id: 'hello.txt'
     })
     mapeo.observationCreate(mediaObs, (err, node) => {
       t.error(err)
-      var obs3 = Object.assign({}, obs2, {
+      var obs3 = cloneDeep(obs2)
+      Object.assign(obs3, {
         attachments: [ { id: 'goodbye.txt' } ]
       })
       mapeo.osm.put(node.id, obs3, {links:[]}, (err, node2) => {
@@ -241,7 +243,7 @@ test('observationStream', function (t) {
   var mapeo = helpers.createApi(helpers.tmpdir1)
   mapeo.observationCreate(obs, (err, node1) => {
     t.error(err)
-    var newObs = Object.assign(obs2, {})
+    var newObs = cloneDeep(obs2)
     mapeo.observationCreate(newObs, (err, node2) => {
       t.error(err)
       var pending = 2
@@ -257,19 +259,20 @@ test('observationStream', function (t) {
   })
 })
 
-test.only('observationStream with forked obsevations', function (t) {
+test('observationStream with forked obsevations', function (t) {
   var mapeo = helpers.createApi(helpers.tmpdir1)
   var ws = mapeo.media.createWriteStream('original/hello.txt')
   ws.end('world')
   ws.on('end', (err) => {
     t.error(err)
-    var mediaObs = Object.assign({}, obs)
+    var mediaObs = cloneDeep(obs)
     mediaObs.attachments.push({
       id: 'hello.txt'
     })
     mapeo.observationCreate(mediaObs, (err, node) => {
       t.error(err)
-      var obs3 = Object.assign({}, obs2, {
+      var obs3 = cloneDeep(obs2)
+      Object.assign(obs2, {
         attachments: [ { id: 'goodbye.txt' } ]
       })
       mapeo.osm.put(node.id, obs3, {links:[]}, (err, node2) => {
@@ -290,7 +293,7 @@ test('observationStream with options', function (t) {
   var mapeo = helpers.createApi(helpers.tmpdir1)
   mapeo.observationCreate(obs, (err, node1) => {
     t.error(err)
-    var newObs = Object.assign(obs2, {})
+    var newObs = cloneDeep(obs2)
     mapeo.observationCreate(newObs, (err, node2) => {
       t.error(err)
       collect(mapeo.observationStream({limit: 1}), (err, data) => {
