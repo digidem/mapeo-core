@@ -9,18 +9,18 @@ var obs = {
   type: 'observation',
   lat: 0.1,
   lon: 0.2,
-  tags: [{
+  tags: {
     'foo': 'bar'
-  }]
+  }
 }
 
 var obs2 = {
   type: 'observation',
   lat: 0.15,
   lon: 0.25,
-  tags: [{
+  tags: {
     'foo': 'baz'
-  }]
+  }
 }
 
 test('observationCreate', function (t) {
