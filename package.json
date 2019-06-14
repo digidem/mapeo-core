@@ -11,7 +11,7 @@
     "type": "git",
     "url": "git+https://github.com/digidem/mapeo-core.git"
   },
-  "author": "Karissa McKelvey",
+  "authors": ["Karissa McKelvey", "Gregor MacLennan", "noffle"],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/digidem/mapeo-core/issues"
