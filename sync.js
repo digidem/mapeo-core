@@ -258,6 +258,17 @@ class Sync extends events.EventEmitter {
       const syncfile = new Syncfile(filename, os.tmpdir())
       syncfile.ready(function (err) {
         if (err) return onerror(err)
+        syncfile.userdata(function (err, data) {
+          if (err) return onerror(err)
+          console.log('data', data)
+          if (data && data['p2p-db'] !== 'kappa-osm') {
+            return onerror(new Error('trying to sync this kappa-osm database with a ' + data['p2p-db'] + ' database!'))
+          }
+          start()
+        })
+      })
+
+      function start() {
         const r1 = syncfile.replicateData({live: false})
         const r2 = progressSync(self, {live: false})
         const m1 = syncfile.replicateMedia()
@@ -293,7 +304,7 @@ class Sync extends events.EventEmitter {
           progress.media.total = total
           emitter.emit('progress', progress)
         })
-      })
+      }
     }
 
     function onerror (err) {
