@@ -2,6 +2,7 @@ var path = require('path')
 var os = require('os')
 var tape = require('tape')
 var rimraf = require('rimraf')
+var itar = require('indexed-tarball')
 
 var helpers = require('./helpers')
 
@@ -188,6 +189,30 @@ tape('sync: replication of a simple observation with media', function (t) {
       })
     }
   })
+})
+
+tape.only('bad sync: syncfile replication: osm-p2p-syncfile', function (t) {
+  t.plan(2)
+
+  var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
+  var syncfile = new itar(tmpfile)
+  syncfile.userdata({syncfile: { 'p2p-db': 'hyperlog' } }, start)
+
+  function start () {
+    createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
+      api1.sync.replicate({filename: tmpfile})
+        .once('end', function () {
+          t.fail()
+        })
+        .once('error', function (err) {
+          t.ok(err)
+          t.same(err.message, new Error('trying to sync this kappa-osm database with a hyperlog database!'))
+        })
+        .on('progress', function (progress) {
+          t.fail()
+        })
+    })
+  }
 })
 
 tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
