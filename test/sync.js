@@ -191,7 +191,7 @@ tape('sync: replication of a simple observation with media', function (t) {
   })
 })
 
-tape.only('bad sync: syncfile replication: osm-p2p-syncfile', function (t) {
+tape('bad sync: syncfile replication: osm-p2p-syncfile', function (t) {
   t.plan(2)
 
   var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
