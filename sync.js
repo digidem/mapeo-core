@@ -260,7 +260,6 @@ class Sync extends events.EventEmitter {
         if (err) return onerror(err)
         syncfile.userdata(function (err, data) {
           if (err) return onerror(err)
-          console.log('data', data)
           if (data && data['p2p-db'] !== 'kappa-osm') {
             return onerror(new Error('trying to sync this kappa-osm database with a ' + data['p2p-db'] + ' database!'))
           }
