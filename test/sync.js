@@ -206,7 +206,7 @@ tape.only('bad sync: syncfile replication: osm-p2p-syncfile', function (t) {
         })
         .once('error', function (err) {
           t.ok(err)
-          t.same(err.message, new Error('trying to sync this kappa-osm database with a hyperlog database!'))
+          t.same(err.message, 'trying to sync this kappa-osm database with a hyperlog database!')
         })
         .on('progress', function (progress) {
           t.fail()
