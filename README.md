@@ -201,6 +201,15 @@ Import data from a geojson string. This is simply a wrapper around `osm-p2p-geoj
 
 Import data from a `.geojson` file or a `.shp` file.
 
+## Community
+
+Connect with the Mapeo community for support & to contribute!
+
+- [**Mailing List**](https://lists.riseup.net/www/info/mapeo-en) (English)
+- [**Mailing List**](https://lists.riseup.net/www/info/mapeo-es) (Spanish)
+- [**IRC**](https://kiwiirc.com/nextclient/irc.freenode.net/) (channel #ddem)
+- [**Slack**](http://slack.digital-democracy.org)
+
 ## License
 
 MIT
