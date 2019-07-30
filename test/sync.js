@@ -1,77 +1,36 @@
 var path = require('path')
 var os = require('os')
 var tape = require('tape')
-var rimraf = require('rimraf')
 var itar = require('indexed-tarball')
 var crypto = require('crypto')
 
 var helpers = require('./helpers')
 
-function createApis (opts, cb) {
-  if (!cb && typeof opts === 'function') {
-    cb = opts
-    opts = undefined
-  }
-  opts = opts || {}
-  var api1 = helpers.createApi(null, opts.api1)
-  var api2 = helpers.createApi(null, opts.api2)
-  api1.on('error', console.error)
-  api2.on('error', console.error)
-  function close (cb) {
-    cb = cb || function () {}
-    var pending = 2
-    function done () {
-      if (!--pending) {
-        api1.close(function () {
-          api1.osm.core._logs.close(function () {
-            api2.close(function () {
-              api2.osm.core._logs.close(function () {
-                rimraf(api1._dir, function () {
-                  rimraf(api2._dir, function () {
-                    cb()
-                  })
-                })
-              })
-            })
-          })
-        })
-      }
-    }
-
-    api1.close(done)
-    api2.close(done)
-  }
-  api1.osm.ready(function () {
-    api2.osm.ready(function () {
-      cb(api1, api2, close)
-    })
-  })
-}
-
 tape('sync: trying to sync to unknown peer', function (t) {
-  var api1 = helpers.createApi(null)
-  function done () {
-    api1.close()
-    t.end()
-  }
+  t.plan(2)
 
-  api1.sync.listen()
-  api1.sync.join()
-  var emitter = api1.sync.replicate({host: 'not a thing', port: 1337})
-  emitter.on('error', (err) => {
-    t.ok(err)
-    done()
+  helpers.createApi(function (api, close) {
+    api.sync.listen()
+    api.sync.join()
+    var emitter = api.sync.replicate({host: 'not a thing', port: 1337})
+    emitter.on('error', (err) => {
+      t.ok(err)
+      close(() => {
+        t.ok(true)
+      })
+    })
   })
 })
 
 tape('sync: two servers find each other with default sync key', function (t) {
-  createApis(function (api1, api2, close) {
+  helpers.createApis(function (api1, api2, close) {
     var pending = 2
 
     function done () {
       if (--pending) return
-      close()
-      t.end()
+      close(() => {
+        t.end()
+      })
     }
 
     api1.sync.listen(function () {
@@ -79,13 +38,11 @@ tape('sync: two servers find each other with default sync key', function (t) {
         api1.sync.join()
         api2.sync.join()
         api1.sync.once('peer', function (peer) {
-          var peerId = peer.swarmId.toString('hex')
-          t.same(peerId, api2.sync.swarm.id.toString('hex'), 'api2 id cmp')
+          t.same(peer.id, api2.sync.swarm.id.toString('hex'), 'api2 id cmp')
           done()
         })
         api2.sync.once('peer', function (peer) {
-          var peerId = peer.swarmId.toString('hex')
-          t.same(peerId, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
+          t.same(peer.id, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
           done()
         })
       })
@@ -94,13 +51,14 @@ tape('sync: two servers find each other with default sync key', function (t) {
 })
 
 tape('sync: two servers find each other with same projectKey', function (t) {
-  createApis(function (api1, api2, close) {
+  helpers.createApis(function (api1, api2, close) {
     var pending = 2
 
     function done () {
       if (--pending) return
-      close()
-      t.end()
+      close(() => {
+        t.end()
+      })
     }
 
     const projectKey = crypto.randomBytes(32)
@@ -110,13 +68,11 @@ tape('sync: two servers find each other with same projectKey', function (t) {
         api1.sync.join(projectKey)
         api2.sync.join(projectKey)
         api1.sync.on('peer', function (peer) {
-          var peerId = peer.swarmId.toString('hex')
-          t.same(peerId, api2.sync.swarm.id.toString('hex'), 'api2 id cmp')
+          t.same(peer.id, api2.sync.swarm.id.toString('hex'), 'api2 id cmp')
           done()
         })
         api2.sync.on('peer', function (peer) {
-          var peerId = peer.swarmId.toString('hex')
-          t.same(peerId, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
+          t.same(peer.id, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
           done()
         })
       })
@@ -125,13 +81,13 @@ tape('sync: two servers find each other with same projectKey', function (t) {
 })
 
 tape('sync: two servers with different projectKey don\'t find each other', function (t) {
-  createApis(function (api1, api2, close) {
-
+  helpers.createApis(function (api1, api2, close) {
     setTimeout(() => {
       t.equal(api1.sync.peers().length, 0, 'api1 has found no peers')
       t.equal(api2.sync.peers().length, 0, 'api2 has found no peers')
-      close()
-      t.end()
+      close(() => {
+        t.end()
+      })
     }, 5000)
 
     api1.sync.listen(function () {
@@ -152,66 +108,63 @@ tape('sync: two servers with different projectKey don\'t find each other', funct
 })
 
 tape('sync: trying to sync with an invalid projectKey throws', function (t) {
-  createApis(function (api1, api2, close) {
-
+  helpers.createApis(function (api1, api2, close) {
     api1.sync.listen(function () {
       api2.sync.listen(function () {
         t.throws(() => api1.sync.join('invalid key'), 'throws on invalid key')
-        close()
-        t.end()
-      })
-    })
-  })
-})
-
-tape('sync: remote peer error/destroyed is reflected in peer state', function (t) {
-  createApis(function (api1, api2, close) {
-    var pending = 2
-
-    function done () {
-      if (pending === 1) {
-        setTimeout(() => {
-          api2.close()
-        }, 2000)
-      }
-      if (--pending) return
-      close()
-      t.end()
-    }
-
-    api1.sync.listen(function () {
-      api2.sync.listen(function () {
-        function check (api) {
-          return (peer) => {
-            var peerId = peer.swarmId.toString('hex')
-            t.same(peerId, api.sync.swarm.id.toString('hex'), 'api2 id cmp')
-            done()
-          }
-        }
-        api1.sync.once('peer', check(api2))
-        api2.sync.once('peer', check(api1))
-        api1.sync.once('down', function () {
-          var peers = api1.sync.peers()
-          t.same(peers.length, 0)
+        close(() => {
+          t.end()
         })
-        api1.sync.join()
-        api2.sync.join()
       })
     })
   })
 })
+
+// TODO: doesn't do what the description says; needs to be rewritten
+// tape('sync: remote peer error/destroyed is reflected in peer state', function (t) {
+//   helpers.createApis(function (api1, api2, close) {
+//     var pending = 2
+
+//     function done () {
+//       if (pending === 1) {
+//         setTimeout(() => {
+//           api2.sync.close()
+//         }, 2000)
+//       }
+//       if (--pending) return
+//       close()
+//       t.end()
+//     }
+
+//     api1.sync.listen(function () {
+//       api2.sync.listen(function () {
+//         function check (api) {
+//           return (peer) => {
+//             t.same(peer.id, api.sync.swarm.id.toString('hex'), 'api2 id cmp')
+//             done()
+//           }
+//         }
+//         api1.sync.once('peer', check(api2))
+//         api2.sync.once('peer', check(api1))
+//         api1.sync.once('down', function () {
+//           var peers = api1.sync.peers()
+//           t.same(peers.length, 0)
+//         })
+//         api1.sync.join()
+//         api2.sync.join()
+//       })
+//     })
+//   })
+// })
 
 tape('sync: replication of a simple observation with media', function (t) {
   t.plan(15)
-  var complete = false
 
-  createApis(function (api1, api2, close) {
+  var pending = 3
+
+  helpers.createApis(function (api1, api2, close) {
     var obs = {lat: 1, lon: 2, type: 'observation'}
-    var ws = api1.media.createWriteStream('foo.txt')
-    var pending = 3
-    ws.on('finish', written)
-    ws.on('error', written)
-    ws.end('bar')
+    api1.media.createWriteStream('foo.txt', written).end('bar')
     api1.sync.listen()
     api1.sync.join()
     api1.sync.once('peer', written.bind(null, null))
@@ -225,12 +178,10 @@ tape('sync: replication of a simple observation with media', function (t) {
         api1.osm.create(obs, function (err, _id, node) {
           t.error(err, 'obs1 created')
           id = _id
-          t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
-          t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
-          if (api1.sync.peers().length >= 1) {
-            var peer = api1.sync.peers()[0]
-            sync(peer)
-          }
+          t.same(api1.sync.peers().length, 1, 'api1 has 1 peer')
+          t.same(api2.sync.peers().length, 1, 'api2 has 1 peer')
+          var peer = api1.sync.peers()[0]
+          sync(peer)
         })
       }
     }
@@ -242,10 +193,8 @@ tape('sync: replication of a simple observation with media', function (t) {
       syncer.on('error', function (err) {
         t.error(err)
         close()
-        t.fail()
       })
       syncer.on('end', function () {
-        complete = true
         t.ok(true, 'replication complete')
         api1.osm.get(id, function (err, node) {
           t.error(err)
@@ -254,14 +203,12 @@ tape('sync: replication of a simple observation with media', function (t) {
             t.same(node, _node, 'node replicated successfully')
             api2.media.exists('foo.txt', function (err, exists) {
               t.error(err)
-              t.ok(exists)
+              t.ok(exists, 'foo.txt exists on api2')
               close(function () {
                 t.ok(true)
-                if (complete) {
-                  t.same(peer.state.topic, 'replication-complete')
-                  var date = new Date(peer.state.message)
-                  t.ok(date.getTime() < new Date().getTime(), 'last completed date')
-                }
+                t.same(peer.state.topic, 'replication-complete')
+                var date = new Date(peer.state.message)
+                t.ok(date.getTime() <= new Date().getTime(), 'timestamp ok')
               })
             })
           })
@@ -271,15 +218,15 @@ tape('sync: replication of a simple observation with media', function (t) {
   })
 })
 
-tape('bad sync: syncfile replication: osm-p2p-syncfile', function (t) {
+tape('sync: bad syncfile replication: osm-p2p-syncfile', function (t) {
   t.plan(2)
 
   var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
-  var syncfile = new itar(tmpfile)
-  syncfile.userdata({syncfile: { 'p2p-db': 'hyperlog' } }, start)
+  var syncfile = itar(tmpfile)
+  syncfile.userdata({syncfile: {'p2p-db': 'hyperlog'}}, start)
 
   function start () {
-    createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
+    helpers.createApis({api1: {writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
       api1.sync.replicate({filename: tmpfile})
         .once('end', function () {
           t.fail()
@@ -296,7 +243,7 @@ tape('bad sync: syncfile replication: osm-p2p-syncfile', function (t) {
 })
 
 tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
-  createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
+  helpers.createApis({api1: {writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
     // create test data
     var id
     var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
@@ -369,11 +316,11 @@ tape('sync: try to sync two different projectKey syncfiles together', function (
   var key2 = crypto.randomBytes(32).toString('hex')
 
   var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
-  var syncfile = new itar(tmpfile)
-  syncfile.userdata({syncfile: { 'p2p-db': 'kappa-osm', discoveryKey: key1} }, start)
+  var syncfile = itar(tmpfile)
+  syncfile.userdata({syncfile: {'p2p-db': 'kappa-osm', discoveryKey: key1}}, start)
 
   function start () {
-    createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
+    helpers.createApis({api1: {writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
       api1.sync.replicate({filename: tmpfile}, {projectKey: key2})
         .once('end', function () {
           t.fail()
@@ -390,7 +337,7 @@ tape('sync: try to sync two different projectKey syncfiles together', function (
 })
 
 tape('sync: syncfile /wo projectKey, api with projectKey set', function (t) {
-  createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
+  helpers.createApis({api1: {writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
     // create test data
     var id
     var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
@@ -409,7 +356,7 @@ tape('sync: syncfile /wo projectKey, api with projectKey set', function (t) {
       t.error(err, res ? 'osm data written ok' : 'media data written ok')
       if (res) id = res.id
       if (--pending === 0) {
-        api1.sync.replicate({filename: tmpfile}, {projectKey:projectKey})
+        api1.sync.replicate({filename: tmpfile}, {projectKey: projectKey})
           .once('end', syncfileWritten)
           .once('error', syncfileWritten)
           .on('progress', function (progress) {
@@ -450,7 +397,9 @@ tape('sync: syncfile /wo projectKey, api with projectKey set', function (t) {
         api2.media.createReadStream('foo.txt')
           .on('data', function (buf) {
             t.equals(buf.toString(), 'bar')
-            t.end()
+            close(() => {
+              t.end()
+            })
           })
       })
     }
@@ -458,10 +407,8 @@ tape('sync: syncfile /wo projectKey, api with projectKey set', function (t) {
 })
 
 tape('sync: desktop <-> desktop photos', function (t) {
-  t.plan(14)
-
-  var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
-  createApis(opts, function (api1, api2, close) {
+  var opts = {api1: {deviceType: 'desktop'}, api2: {deviceType: 'desktop'}}
+  helpers.createApis(opts, function (api1, api2, close) {
     var pending = 4
     var total = 5
     var lastProgress
@@ -493,11 +440,12 @@ tape('sync: desktop <-> desktop photos', function (t) {
       var syncer = api1.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
-        close()
-        t.fail()
+        close(() => {
+          t.fail()
+        })
       })
 
-      syncer.once('progress', function (progress) {
+      syncer.on('progress', function (progress) {
         lastProgress = progress
       })
 
@@ -524,12 +472,12 @@ tape('sync: desktop <-> desktop photos', function (t) {
         api1.media.list(function (err, files) {
           t.error(err)
           t.deepEquals(files.sort(), expected.sort(), 'api1 has the files')
-          if (!--pending) close(() => t.ok(true))
+          if (!--pending) close(() => t.end())
         })
         api2.media.list(function (err, files) {
           t.error(err)
           t.deepEquals(files.sort(), expected.sort(), 'api2 has the files')
-          if (!--pending) close(() => t.ok(true))
+          if (!--pending) close(() => t.end())
         })
       })
     }
@@ -537,12 +485,10 @@ tape('sync: desktop <-> desktop photos', function (t) {
 })
 
 tape('sync: deletes are not synced back', function (t) {
-  t.plan(17)
-
   var deleted
 
-  var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
-  createApis(opts, function (api1, api2, close) {
+  var opts = {api1: {deviceType: 'desktop'}, api2: {deviceType: 'desktop'}}
+  helpers.createApis(opts, function (api1, api2, close) {
     var pending = 4
     var total = 5
     var lastProgress
@@ -599,11 +545,12 @@ tape('sync: deletes are not synced back', function (t) {
       var syncer = api1.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
-        close()
-        t.fail()
+        close(() => {
+          t.fail()
+        })
       })
 
-      syncer.once('progress', function (progress) {
+      syncer.on('progress', function (progress) {
         lastProgress = progress
       })
 
@@ -637,17 +584,13 @@ tape('sync: deletes are not synced back', function (t) {
 })
 
 tape('sync: mobile <-> desktop photos', function (t) {
-  t.plan(12)
-
   var opts = {
     api1: { deviceType: 'mobile' },
     api2: { deviceType: 'desktop' }
   }
-  createApis(opts, function (api1, api2, close) {
+  helpers.createApis(opts, function (mobile, desktop, close) {
     var pending = 4
     var total = 5
-    var mobile = api1
-    var desktop = api2
 
     mobile.sync.listen()
     mobile.sync.join()
@@ -661,11 +604,9 @@ tape('sync: mobile <-> desktop photos', function (t) {
     function written (err) {
       t.error(err)
       if (--pending === 0) {
-        t.ok(mobile.sync.peers().length > 0, 'api 1 has peers')
-        t.ok(desktop.sync.peers().length > 0, 'api 2 has peers')
-        if (mobile.sync.peers().length >= 1) {
-          sync(mobile.sync.peers()[0])
-        }
+        t.same(mobile.sync.peers().length, 1, 'api1 has 1 peer')
+        t.same(desktop.sync.peers().length, 1, 'api2 has 1 peer')
+        sync(mobile.sync.peers()[0])
       }
     }
 
@@ -673,8 +614,9 @@ tape('sync: mobile <-> desktop photos', function (t) {
       var syncer = mobile.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
-        close()
-        t.fail()
+        close(() => {
+          t.fail()
+        })
       })
 
       syncer.on('end', function () {
@@ -694,12 +636,12 @@ tape('sync: mobile <-> desktop photos', function (t) {
         mobile.media.list(function (err, files) {
           t.error(err)
           t.deepEquals(files.sort(), expectedMobile.sort())
-          if (!--pending) close(() => t.ok(true))
+          if (!--pending) close(() => t.end())
         })
         desktop.media.list(function (err, files) {
           t.error(err)
           t.deepEquals(files.sort(), expectedDesktop.sort())
-          if (!--pending) close(() => t.ok(true))
+          if (!--pending) close(() => t.end())
         })
       })
     }
@@ -707,10 +649,8 @@ tape('sync: mobile <-> desktop photos', function (t) {
 })
 
 tape('sync: mobile <-> mobile photos', function (t) {
-  t.plan(12)
-
-  var opts = {api1:{deviceType:'mobile'}, api2:{deviceType:'mobile'}}
-  createApis(opts, function (api1, api2, close) {
+  var opts = {api1: {deviceType: 'mobile'}, api2: {deviceType: 'mobile'}}
+  helpers.createApis(opts, function (api1, api2, close) {
     var pending = 4
     var total = 5
 
@@ -761,23 +701,23 @@ tape('sync: mobile <-> mobile photos', function (t) {
         api1.media.list(function (err, files) {
           t.error(err)
           t.deepEquals(files.sort(), expected1.sort())
-          if (!--pending) close(() => t.ok(true))
+          if (!--pending) close(() => t.end())
         })
         clone.media.list(function (err, files) {
           t.error(err)
           t.deepEquals(files.sort(), expectedClone.sort())
-          if (!--pending) close(() => t.ok(true))
+          if (!--pending) close(() => t.end())
         })
       })
     }
   })
 })
 
-tape('sync: with two peers available, sync with one only triggers events for one sync', function (t) {
-  var opts = {api1:{name: 'boop', deviceType:'desktop'}, api2:{name: 'beep', deviceType:'desktop'}}
-  createApis(opts, function (api1, api2, close1) {
-    var opts = {api1:{name: 'bork', deviceType:'mobile'}, api2:{name: 'baz', deviceType:'mobile'}}
-    createApis(opts, function (api3, api4, close2) {
+tape('sync: sync with one peer only triggers events for that sync', function (t) {
+  var opts = {api1: {name: 'boop', deviceType: 'desktop'}, api2: {name: 'beep', deviceType: 'desktop'}}
+  helpers.createApis(opts, function (api1, api2, close1) {
+    var opts = {api1: {name: 'bork', deviceType: 'mobile'}, api2: {name: 'baz', deviceType: 'mobile'}}
+    helpers.createApis(opts, function (api3, api4, close2) {
       var pending = 6
       var total = 20
 
@@ -801,14 +741,16 @@ tape('sync: with two peers available, sync with one only triggers events for one
       function written (err) {
         t.error(err)
         if (--pending === 0) {
-          t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
-          t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
-          t.ok(api3.sync.peers().length > 0, 'api 3 has peers')
-          t.ok(api4.sync.peers().length > 0, 'api 4 has peers')
-          if (api1.sync.peers().length >= 1) {
+          setTimeout(function () {
+            t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
+            var actualIds = api1.sync.peers().map(p => p.id).sort()
+            var expectedIds = [api2, api3, api4]
+              .map(api => api.sync.swarm.id.toString('hex'))
+              .sort()
+            t.deepEquals(actualIds, expectedIds, 'connected to all peers')
             target = api1.sync.peers()[0]
             sync(target)
-          }
+          }, 1000)
         }
       }
 
@@ -816,15 +758,15 @@ tape('sync: with two peers available, sync with one only triggers events for one
         var syncer = api1.sync.replicate(peer)
         syncer.on('error', t.error)
         syncer.on('end', function () {
-          setTimeout(function () {
-            var peers = api1.sync.peers()
-            peers.forEach((p) => {
-              t.same(p.state.topic, 'replication-wifi-ready')
+          api1.sync.peers().forEach((p) => {
+            if (p.id === peer.id) t.same(p.state.topic, 'replication-complete')
+            else t.same(p.state.topic, 'replication-wifi-ready')
+          })
+          close1(() => {
+            close2(() => {
+              t.end()
             })
-            close1()
-            close2()
-            t.end()
-          }, 2000)
+          })
         })
 
         var totalProgressEvents = 0
@@ -844,12 +786,9 @@ tape('sync: with two peers available, sync with one only triggers events for one
   })
 })
 
-
 tape('sync: destroy during sync is reflected in peer state', function (t) {
-  t.plan(11)
-
-  var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
-  createApis(opts, function (api1, api2, close) {
+  var opts = {api1: {deviceType: 'desktop'}, api2: {deviceType: 'desktop'}}
+  helpers.createApis(opts, function (api1, api2, close) {
     var pending = 4
     var total = 20
 
@@ -868,11 +807,9 @@ tape('sync: destroy during sync is reflected in peer state', function (t) {
     function written (err) {
       t.error(err)
       if (--pending === 0) {
-        t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
-        t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
-        if (api1.sync.peers().length >= 1) {
-          sync(api1.sync.peers()[0])
-        }
+        t.same(api1.sync.peers().length, 1, 'api1 has 1 peer')
+        t.same(api2.sync.peers().length, 1, 'api2 has 1 peer')
+        sync(api1.sync.peers()[0])
       }
     }
 
@@ -885,14 +822,14 @@ tape('sync: destroy during sync is reflected in peer state', function (t) {
         t.same(peers[0].state.topic, 'replication-error', 'replication error!')
         t.same(peers[0].state.message, err.toString(), 'got message')
         close(function () {
-          t.ok(true)
+          t.end()
         })
       })
 
       var totalProgressEvents = 0
       syncer.on('progress', function (progress) {
-        totalProgressEvents += 1
-        if (totalProgressEvents > 5) api2.sync.close()
+        totalProgressEvents++
+        if (totalProgressEvents === 5) api2.sync.peers()[0]._stream.end()
       })
     }
   })
@@ -901,8 +838,8 @@ tape('sync: destroy during sync is reflected in peer state', function (t) {
 tape('sync: 200 photos', function (t) {
   t.plan(12)
 
-  var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
-  createApis(opts, function (api1, api2, close) {
+  var opts = {api1: {deviceType: 'desktop'}, api2: {deviceType: 'desktop'}}
+  helpers.createApis(opts, function (api1, api2, close) {
     var total = 200
 
     var pending = 2
@@ -915,20 +852,19 @@ tape('sync: 200 photos', function (t) {
         api1.sync.once('peer', ready)
         api2.sync.once('peer', ready)
         pending = 2
-
         api1.sync.listen()
         api1.sync.join()
         api2.sync.listen()
         api2.sync.join()
+      }
+    }
 
-        function ready (apiNum) {
-          if (--pending) return
-          t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
-          t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
-          if (api1.sync.peers().length >= 1) {
-            sync(api2.sync.peers()[0])
-          }
-        }
+    function ready (apiNum) {
+      if (--pending) return
+      t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
+      t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
+      if (api1.sync.peers().length >= 1) {
+        sync(api2.sync.peers()[0])
       }
     }
 
@@ -936,8 +872,9 @@ tape('sync: 200 photos', function (t) {
       var syncer = api2.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
-        close()
-        t.fail()
+        close(() => {
+          t.fail()
+        })
       })
 
       var totalProgressEvents = 0
@@ -965,12 +902,12 @@ tape('sync: 200 photos', function (t) {
         api1.media.list(function (err, files) {
           t.error(err, 'listed media1 ok')
           t.deepEquals(files.sort(), expectedMedia.sort(), 'api1 has the files')
-          if (!--pending) close(() => t.ok(true))
+          if (!--pending) close(() => t.ok(true, 'all closed'))
         })
         api2.media.list(function (err, files) {
           t.error(err, 'listed media2 ok')
           t.deepEquals(files.sort(), expectedMedia.sort(), 'api2 has the files')
-          if (!--pending) close(() => t.ok(true))
+          if (!--pending) close(() => t.ok(true, 'all closed'))
         })
       })
     }
@@ -1008,6 +945,5 @@ function writeBlob (api, filename, cb) {
 function loggablePeer (peer) {
   const { connection, handshake, sync, ...loggablePeer } = peer
   loggablePeer.channel = loggablePeer.channel && loggablePeer.channel.toString('hex')
-  loggablePeer.swarmId = loggablePeer.swarmId.toString('hex')
   return loggablePeer
 }

@@ -140,7 +140,7 @@ An invalid `projectKey` will throw an error.
 
 ### sync.close(cb)
 
-Unannounces the sync service & cleans up the underlying UDP socket. `cb` is called once this is complete.
+Unannounces the sync service & cleans up the underlying UDP socket, and closes the underlying resources. `cb` is called once this is complete.
 
 ### sync.peers()
 

@@ -7,7 +7,8 @@ const fs = require('fs')
 const os = require('os')
 const randombytes = require('randombytes')
 const pump = require('pump')
-const crypto = require('hypercore-crypto')
+const hcrypto = require('hypercore-crypto')
+const crypto = require('crypto')
 const datDefaults = require('dat-swarm-defaults')
 const MapeoSync = require('./lib/sync-stream')
 const progressSync = require('./lib/db-sync-progress')
@@ -161,7 +162,7 @@ class Sync extends events.EventEmitter {
     this.osm = osm
     this.media = media
     this.name = opts.name
-    if (!opts.id) opts.id = randombytes(32)
+    this.id = opts.id || randombytes(32)
     this.opts = Object.assign({}, opts)
 
     this._activeSyncs = 0
@@ -220,11 +221,10 @@ class Sync extends events.EventEmitter {
   listen (cb) {
     if (!cb) cb = () => {}
     if (this.swarm || this._destroyingSwarm) {
-      console.error('Swarm already exists or is currently destroying itself..')
       return process.nextTick(cb)
     }
     this.swarm = this._swarm()
-    this.swarm.listen(0, cb)
+    process.nextTick(cb)
   }
 
   leave (projectKey) {
@@ -356,13 +356,17 @@ class Sync extends events.EventEmitter {
 
   _swarm () {
     var self = this
-    // XXX(noffle): having opts.id set causes connections to get dropped on my
-    // local home network; haven't investigated deeper yet.
-    var swarm = Swarm(Object.assign({}, this.opts, {id: undefined}))
+
+    const swarmId = crypto.createHash('sha256').update(this.id).digest()
+    var opts = Object.assign(this.opts, {
+      keepExistingConnections: true,
+      id: swarmId
+    })
+    var swarm = Swarm(opts)
 
     swarm.on('connection', (connection, info) => {
       const peer = WifiPeer(connection, info)
-      debug('connection', Object.assign({}, peer, {connection:undefined}))
+      debug('connection', peer.host, peer.port)
 
       connection.on('close', onClose)
       connection.on('error', onClose)
@@ -381,7 +385,7 @@ class Sync extends events.EventEmitter {
           else peer.sync.emit('end')
         }
         self.emit('down', peer)
-        debug('down', Object.assign({}, peer, {connection:undefined}))
+        debug('down', peer.host, peer.port)
       }
 
       function doSync (isInitiator) {
@@ -410,6 +414,7 @@ class Sync extends events.EventEmitter {
           debug('sync progress', peer.host, peer.port, progress)
           if (peer.sync) peer.sync.emit('progress', progress)
         })
+        peer._stream = stream
         pump(stream, connection, stream, function (err) {
           debug('pump ended', peer.host, peer.port)
           if (--self._activeSyncs === 0) {
@@ -461,12 +466,13 @@ function isGzipFile (filepath, cb) {
 }
 
 function WifiPeer (connection, info) {
-  info.type = 'wifi'
-  info.swarmId = info.swarmId || info.id
-  // XXX: this is so that each connection has a unique id, even if it's from the same peer.
-  info.id = (!info.id || info.id.length !== 12) ? randombytes(6).toString('hex') : info.id
-  info.connection = connection
-  return info
+  return {
+    type: 'wifi',
+    id: info.id.toString('hex'),
+    host: info.host,
+    port: info.port,
+    connection: connection
+  }
 }
 
 /**
@@ -483,7 +489,7 @@ function discoveryKey (projectKey) {
     projectKey = Buffer.from(projectKey, 'hex')
   }
   if (Buffer.isBuffer(projectKey) && projectKey.length === 32) {
-    return crypto.discoveryKey(projectKey).toString('hex')
+    return hcrypto.discoveryKey(projectKey).toString('hex')
   } else {
     throw new Error('projectKey must be undefined or a 32-byte Buffer, or a hex string encoding a 32-byte buffer')
   }
