@@ -238,6 +238,13 @@ class Mapeo extends events.EventEmitter {
     }
   }
 
+  getDeviceId (cb) {
+    cb = cb || noop
+    this.osm.ready(() => {
+      cb(null, this.osm.writer.key.toString('hex'))
+    })
+  }
+
   close (cb) {
     this.sync.close(cb)
   }
@@ -283,6 +290,8 @@ function whitelistProps (obs) {
   })
   return newObs
 }
+
+function noop () {}
 
 Mapeo.errors = errors
 Mapeo.CURRENT_SCHEMA = CURRENT_SCHEMA

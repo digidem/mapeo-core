@@ -93,7 +93,9 @@ Valid `opts` include:
 
 Convert an observation to an OSM type `node`.
 
-### `mapeo.close()
+### `mapeo.getDeviceId(cb)`
+
+Retrieves the current device's unique ID (string).
 
 ## Sync API
 
