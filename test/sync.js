@@ -282,6 +282,97 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
   })
 })
 
+tape('sync: try to sync two different projectId syncfiles together', function (t) {
+  t.plan(2)
+
+  var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
+  var syncfile = new itar(tmpfile)
+  syncfile.userdata({syncfile: { 'p2p-db': 'kappa-osm', projectId: 'bar' } }, start)
+
+  function start () {
+    createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
+      api1.sync.replicate({filename: tmpfile}, {projectId: 'foo'})
+        .once('end', function () {
+          t.fail()
+        })
+        .once('error', function (err) {
+          t.ok(err)
+          t.ok(/trying to sync two different projects/.test(err.message), 'expected error message')
+        })
+        .on('progress', function (progress) {
+          t.fail()
+        })
+    })
+  }
+})
+
+tape('sync: syncfile /wo projectId, api with projectId set', function (t) {
+  createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
+    // create test data
+    var id
+    var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
+    var pending = 2
+    var lastProgress
+    var obs = {lat: 1, lon: 2, type: 'observation'}
+
+    api1.osm.create(obs, written)
+    var ws = api1.media.createWriteStream('foo.txt')
+    ws.once('finish', written)
+    ws.once('error', written)
+    ws.end('bar')
+
+    function written (err, res) {
+      t.error(err, res ? 'osm data written ok' : 'media data written ok')
+      if (res) id = res.id
+      if (--pending === 0) {
+        api1.sync.replicate({filename: tmpfile}, {projectId:'quux'})
+          .once('end', syncfileWritten)
+          .once('error', syncfileWritten)
+          .on('progress', function (progress) {
+            lastProgress = progress
+          })
+      }
+    }
+
+    function syncfileWritten (err) {
+      t.error(err, 'first syncfile written ok')
+      t.deepEquals(lastProgress, {
+        db: { sofar: 1, total: 1 },
+        media: { sofar: 1, total: 1 }
+      }, 'first progress state ok')
+
+      api2.sync.replicate({filename: tmpfile})
+        .once('end', secondSyncfileWritten)
+        .once('error', secondSyncfileWritten)
+        .on('progress', function (progress) {
+          lastProgress = progress
+        })
+    }
+
+    function secondSyncfileWritten (err) {
+      t.error(err, 'second syncfile written ok')
+      t.deepEquals(lastProgress, {
+        db: { sofar: 1, total: 1 },
+        media: { sofar: 1, total: 1 }
+      }, 'second progress state ok')
+
+      api2.osm.get(id, function (err, heads) {
+        t.error(err)
+        t.equals(Object.keys(heads).length, 1, 'one osm head')
+        var res = heads[Object.keys(heads)[0]]
+        t.same(res.id, id)
+        t.same(res.lat, obs.lat)
+        t.same(res.lon, obs.lon)
+        api2.media.createReadStream('foo.txt')
+          .on('data', function (buf) {
+            t.equals(buf.toString(), 'bar')
+            t.end()
+          })
+      })
+    }
+  })
+})
+
 tape('sync: desktop <-> desktop photos', function (t) {
   t.plan(14)
 

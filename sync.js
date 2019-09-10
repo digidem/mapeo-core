@@ -236,10 +236,11 @@ class Sync extends events.EventEmitter {
    * @param  {String}   peer    A peer.
    * @return {EventEmitter}     Listen to 'error', 'end' and 'progress' events
    */
-  replicateFromFile (peer) {
+  replicateFromFile (peer, opts) {
     var self = this
     var emitter = peer.sync
     var filename = peer.filename
+    opts = opts || {}
 
     fs.access(filename, function (err) {
       if (err) { // file doesn't exist, write
@@ -263,6 +264,9 @@ class Sync extends events.EventEmitter {
           if (data && data['p2p-db'] && data['p2p-db'] !== 'kappa-osm') {
             return onerror(new Error('trying to sync this kappa-osm database with a ' + data['p2p-db'] + ' database!'))
           }
+          if (data && data.projectId && opts.projectId && data.projectId !== opts.projectId) {
+            return onerror(new Error(`trying to sync two different projects (us=${opts.projectId}) (syncfile=${data.projectId})`))
+          }
           start()
         })
       })
@@ -282,7 +286,11 @@ class Sync extends events.EventEmitter {
 
           if (err) error = err
           if (!--pending) {
-            syncfile.userdata({'p2p-db': 'kappa-osm'}, function () {
+            var userdata = {
+              'p2p-db': 'kappa-osm'
+            }
+            if (opts.projectId) userdata.projectId = opts.projectId
+            syncfile.userdata(userdata, function () {
               syncfile.close(onend.bind(null, error))
             })
           }

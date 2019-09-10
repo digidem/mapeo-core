@@ -151,7 +151,7 @@ A peer can have the following properties:
 
 Emitted when a new wifi peer connection is discovered.
 
-### var ev = sync.replicate(target)
+### var ev = sync.replicate(target[, opts])
 
 `peer` is an object with properties `host`, `port`, and `name` **or** an object
 with the `filename` property, for local file replication. Calls
@@ -166,6 +166,12 @@ Both `replicate` and `replicateNetwork` return an EventEmitter `ev`. It can emit
 * `"error" (err)`: gives an Error object signalling an error in syncing.
 * `"progress" (progress)`: gives information about how many objects have been synced and how many to be synced in total, e.g. `{ db: { sofar: 5, total: 10 }, media: { sofar: 18, total: 100 } }`
 * `"end"`: successful completion of OSM and media sync.
+
+Valid `opts` include:
+
+- `opts.projectId` (string): a unique identifier that prohibits sync with a
+  syncfile that declares a different project ID. If either side doesn't have a
+  project ID set, sync will be permitted.
 
 ### var ev = sync.replicateNetwork(peer)
 
