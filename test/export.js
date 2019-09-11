@@ -1,6 +1,6 @@
 const test = require('tape')
 const concat = require('concat-stream')
-const data = require('osm-p2p-geojson/test/data')
+const data = require('./data-fixture')
 
 const helpers = require('./helpers')
 const junglePresets = require('./jungle/presets.json')
@@ -57,7 +57,6 @@ test('exportData: geojson with polygon', (t) => {
 })
 
 var exportedGeojson = null
-var osmStr = null
 
 test('exportData: geojson with polygon and presets', (t) => {
   var mapeo = helpers.createApi()
@@ -70,12 +69,11 @@ test('exportData: geojson with polygon and presets', (t) => {
 
   mapeo.osm.ready(function () {
     var batch = data.polygon.batch
-    batch[0].value.tags = {'type':'animal','area':'yes','animal-type':'bluebird'}
+    batch[0].value.tags = {'type': 'animal', 'area': 'yes', 'animal-type': 'bluebird'}
     mapeo.osm.batch(batch, (err) => {
       t.error(err)
       getOsmStr(mapeo, (err, data) => {
         t.error(err)
-        osmStr = data
         var rs = exportGeoJson(mapeo.osm, {presets: junglePresets})
         rs.pipe(concat((data) => {
           exportedGeojson = JSON.parse(data)
@@ -105,7 +103,6 @@ test('import: re-import exported polygon with presets', (t) => {
       t.error(err)
       getOsmStr(mapeo, (err, data) => {
         t.error(err)
-        console.log(osmStr, data)
         done()
       })
     })
