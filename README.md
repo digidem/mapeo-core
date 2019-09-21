@@ -151,6 +151,13 @@ A peer can have the following properties:
 
 Emitted when a new wifi peer connection is discovered.
 
+## sync.on('peer-update', peer)
+
+**Experimental**: Emitted when a peer state is updated (e.g. from a progress
+event). Is not (yet) guaranteed to run on every peer update event equally on
+both sides of a sync stream but does provide a way to avoid polling
+`sync.peers()`.
+
 ### var ev = sync.replicate(target[, opts])
 
 `peer` is an object with properties `host`, `port`, and `name` **or** an object

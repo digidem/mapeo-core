@@ -406,6 +406,14 @@ class Sync extends events.EventEmitter {
         // the other side just have accepted & wants to start.
         stream.once('accepted', function () {
           self.state.addProgressEventListeners(peer)
+          // This is a hacky way to get the updates we need on the client. This
+          // event needs to run after the `onprogress` event handler that is
+          // attached in the line above, which updates the peer progress state.
+          // The client listens for peer events so it can update the UI, even
+          // when sync was initiated from the other side. TODO: This event
+          // emitter is not removed when the connection closes, but that should
+          // be ok for now.
+          peer.sync.on('progress', () => self.emit('peer-update', peer))
           accept()
         })
 

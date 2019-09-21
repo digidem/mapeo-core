@@ -374,7 +374,7 @@ tape('sync: syncfile /wo projectId, api with projectId set', function (t) {
 })
 
 tape('sync: desktop <-> desktop photos', function (t) {
-  t.plan(14)
+  t.plan(16)
 
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
@@ -406,6 +406,9 @@ tape('sync: desktop <-> desktop photos', function (t) {
 
     function sync (peer) {
       t.equals(peer.name, 'device_2')
+      let lastPeerUpdateApi1
+      let lastPeerUpdateApi2
+
       var syncer = api1.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
@@ -413,16 +416,30 @@ tape('sync: desktop <-> desktop photos', function (t) {
         t.fail()
       })
 
-      syncer.once('progress', function (progress) {
+      api1.sync.on('peer-update', peer => {
+        if (peer.state && peer.state.topic === 'replication-progress') {
+          lastPeerUpdateApi1 = peer.state.message
+        }
+      })
+      api2.sync.on('peer-update', peer => {
+        if (peer.state && peer.state.topic === 'replication-progress') {
+          lastPeerUpdateApi2 = peer.state.message
+        }
+      })
+
+      syncer.on('progress', function (progress) {
         lastProgress = progress
       })
 
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
-        t.deepEquals(lastProgress, {
+        const expectedProgress = {
           db: { sofar: 5, total: 5 },
           media: { sofar: 18, total: 18 }
-        }, 'progress state ok')
+        }
+        t.deepEquals(lastProgress, expectedProgress, 'progress state ok')
+        t.deepEquals(lastPeerUpdateApi1, expectedProgress, 'progress state ok')
+        t.deepEquals(lastPeerUpdateApi2, expectedProgress, 'progress state ok')
 
         var peers1 = api1.sync.peers()
         var peers2 = api2.sync.peers()
@@ -912,4 +929,3 @@ function writeBlob (api, filename, cb) {
     if (!--pending) cb()
   }
 }
-
