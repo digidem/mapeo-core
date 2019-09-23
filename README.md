@@ -119,15 +119,19 @@ Set the name of this peer / device, which will appear to others when they call
 
 Broadcast and listen on the local network for peers. `cb` is called once the service is up and broadcasting.
 
-### sync.join()
+### sync.join([projectId])
 
 Join the swarm and begin making introductory connections with other peers.
 
-### sync.leave()
+Optionally accepts a `projectId` string. This will swarm only with peers that have also passed in the same `projectId`.
+
+### sync.leave([projectId])
 
 Leave the swarm and no longer be discoverable by other peers. Any currently
 open connections are kept until the swarm is destroyed (using `close` or
 `destroy`).
+
+Optionally accepts a `projectId` string, to leave the same swarm you joined.
 
 ### sync.close(cb)
 
