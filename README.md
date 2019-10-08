@@ -119,19 +119,19 @@ Set the name of this peer / device, which will appear to others when they call
 
 Broadcast and listen on the local network for peers. `cb` is called once the service is up and broadcasting.
 
-### sync.join([projectId])
+### sync.join([projectKey])
 
 Join the swarm and begin making introductory connections with other peers.
 
-Optionally accepts a `projectId` string. This will swarm only with peers that have also passed in the same `projectId`.
+Optionally accepts a `projectKey` string. This will swarm only with peers that have also passed in the same `projectKey`.
 
-### sync.leave([projectId])
+### sync.leave([projectKey])
 
 Leave the swarm and no longer be discoverable by other peers. Any currently
 open connections are kept until the swarm is destroyed (using `close` or
 `destroy`).
 
-Optionally accepts a `projectId` string, to leave the same swarm you joined.
+Optionally accepts a `projectKey` string, to leave the same swarm you joined.
 
 ### sync.close(cb)
 
@@ -173,7 +173,7 @@ Both `replicate` and `replicateNetwork` return an EventEmitter `ev`. It can emit
 
 Valid `opts` include:
 
-- `opts.projectId` (string): a unique identifier that prohibits sync with a
+- `opts.projectKey` (string): a unique identifier that prohibits sync with a
   syncfile that declares a different project ID. If either side doesn't have a
   project ID set, sync will be permitted.
 

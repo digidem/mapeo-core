@@ -10,8 +10,9 @@ const randombytes = require('randombytes')
 const pump = require('pump')
 const MapeoSync = require('./lib/sync-stream')
 const progressSync = require('./lib/db-sync-progress')
+const crypto = require('hypercore-crypto')
 
-const SYNC_TYPE = 'mapeo-sync'
+const SYNC_DEFAULT_KEY = 'mapeo-sync'
 const SYNCFILE_FORMATS = {
   'hyperlog-sneakernet': 1,
   'osm-p2p-syncfile'   : 2
@@ -208,12 +209,12 @@ class Sync extends events.EventEmitter {
     this.swarm.listen(0, cb)
   }
 
-  leave (_type) {
-    this.swarm.leave(_type || SYNC_TYPE)
+  leave (projectKey) {
+    this.swarm.leave(projectKey ? crypto.discoveryKey(projectKey) : SYNC_DEFAULT_KEY)
   }
 
-  join (_type) {
-    this.swarm.join(_type || SYNC_TYPE)
+  join (projectKey) {
+    this.swarm.join(projectKey ? crypto.discoveryKey(projectKey) : SYNC_DEFAULT_KEY)
   }
 
   destroy (cb) {
