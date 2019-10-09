@@ -210,11 +210,13 @@ class Sync extends events.EventEmitter {
   }
 
   leave (projectKey) {
-    this.swarm.leave(projectKey ? crypto.discoveryKey(projectKey) : SYNC_DEFAULT_KEY)
+    var key = hash(projectKey) || SYNC_DEFAULT_KEY
+    this.swarm.leave(key)
   }
 
   join (projectKey) {
-    this.swarm.join(projectKey ? crypto.discoveryKey(projectKey) : SYNC_DEFAULT_KEY)
+    var key = hash(projectKey) || SYNC_DEFAULT_KEY
+    this.swarm.join(key)
   }
 
   destroy (cb) {
@@ -445,6 +447,18 @@ function WifiPeer (connection, info) {
   info.id = (!info.id || info.id.length !== 12) ? randombytes(6).toString('hex') : info.id
   info.connection = connection
   return info
+}
+
+// key is String or Buffer
+function hash (key) {
+  if (typeof key === 'string') {
+    key = Buffer.from(key, 'hex')
+  }
+  if (Buffer.isBuffer(key) && key.length === 32) {
+    return crypto.discoveryKey(key).toString('hex')
+  } else {
+    return null
+  }
 }
 
 module.exports = Sync
