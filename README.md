@@ -25,6 +25,7 @@ var Mapeo = require('@mapeo/core')
 Valid `opts` options include:
 
 * `opts.deviceType` (string): one of `{'desktop', 'mobile'}`. This affects how sync works. Mobile peers will not receive full-resolution media from other devices, but share them *to* desktop devices.
+* `opts.internetDiscovery` (boolean): set to `true` if you want to discover peers on the internet. Otherwise only local network peers will be sought after.
 
 ## Observations API
 

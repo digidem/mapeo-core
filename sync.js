@@ -8,9 +8,10 @@ const fs = require('fs')
 const os = require('os')
 const randombytes = require('randombytes')
 const pump = require('pump')
+const crypto = require('hypercore-crypto')
+const datDefaults = require('dat-swarm-defaults')
 const MapeoSync = require('./lib/sync-stream')
 const progressSync = require('./lib/db-sync-progress')
-const crypto = require('hypercore-crypto')
 
 const SYNC_DEFAULT_KEY = 'mapeo-sync'
 const SYNCFILE_FORMATS = {
@@ -18,13 +19,23 @@ const SYNCFILE_FORMATS = {
   'osm-p2p-syncfile'   : 2
 }
 
-const DEFAULT_OPTS = {
+const DEFAULT_LOCAL_DISCO = {
   dns: {
     interval: 3000
   },
   dht: false,
   utp: false
 }
+
+const DEFAULT_INTERNET_DISCO = Object.assign(
+  {},
+  datDefaults(),
+  {
+    dns: {
+      interval: 3000
+    }
+  }
+)
 
 const states = {
   WIFI_READY: 'replication-wifi-ready',
@@ -136,7 +147,7 @@ class SyncState {
 class Sync extends events.EventEmitter {
   constructor (osm, media, opts) {
     super()
-    opts = Object.assign(DEFAULT_OPTS, opts)
+    opts = Object.assign(opts.internetDiscovery ? DEFAULT_INTERNET_DISCO : DEFAULT_LOCAL_DISCO, opts)
     opts.writeFormat = opts.writeFormat || 'osm-p2p-syncfile'
     if (!SYNCFILE_FORMATS[opts.writeFormat]) throw new Error('unknown syncfile write format: ' + opts.writeFormat)
 
