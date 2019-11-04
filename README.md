@@ -214,6 +214,12 @@ Import data from a geojson string. This is simply a wrapper around `osm-p2p-geoj
 
 Import data from a `.geojson` file or a `.shp` file.
 
+## Security Notes
+
+### "Can a passive listener learn about Mapeo project data?"
+
+By default, peer discovery and sync happens over the local network only, and not the internet. If a malicious computer on the network is listening to packets, they will be able to learn of a project's "discovery key": a blake2b hash of the project's "project key". The discovery key is a mechanism to help peers in the same project find each other (on the local network or the internet), but on its own is insufficient to decrypt communications between peers. The project key *must* be known by a peer in order to decrypt any data exchanged. So, passive listeners will be able to ascertain a unique identifier for a project and learn which IPs are interested in it, but not any of the data exchanged by those peers.
+
 ## Community
 
 Connect with the Mapeo community for support & to contribute!
