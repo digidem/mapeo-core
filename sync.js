@@ -1,4 +1,3 @@
-const path = require('path')
 const createMediaReplicationStream = require('blob-store-replication-stream')
 const Syncfile = require('osm-p2p-syncfile')
 const debug = require('debug')('mapeo-sync')
@@ -221,12 +220,12 @@ class Sync extends events.EventEmitter {
   }
 
   leave (projectKey) {
-    var key = hash(projectKey) || SYNC_DEFAULT_KEY
+    var key = discoveryKey(projectKey)
     this.swarm.leave(key)
   }
 
   join (projectKey) {
-    var key = hash(projectKey) || SYNC_DEFAULT_KEY
+    var key = discoveryKey(projectKey)
     this.swarm.join(key)
   }
 
@@ -460,15 +459,23 @@ function WifiPeer (connection, info) {
   return info
 }
 
-// key is String or Buffer
-function hash (key) {
-  if (typeof key === 'string') {
-    key = Buffer.from(key, 'hex')
+/**
+ * Generate a discovery key for a given projectKey. If projectKey is undefined
+ * then it will use SYNC_DEFAULT_KEY as the discovery key (this is for backwards
+ * compatibility with clients that did not use projectKeys)
+ *
+ * @param {String|Buffer} projectKey A unique random key identifying the
+ * project. Must be 32-byte Buffer or a string hex encoding of a 32-Byte buffer
+ */
+function discoveryKey (projectKey) {
+  if (typeof projectKey === 'undefined') return SYNC_DEFAULT_KEY
+  if (typeof projectKey === 'string') {
+    projectKey = Buffer.from(projectKey, 'hex')
   }
-  if (Buffer.isBuffer(key) && key.length === 32) {
-    return crypto.discoveryKey(key).toString('hex')
+  if (Buffer.isBuffer(projectKey) && projectKey.length === 32) {
+    return crypto.discoveryKey(projectKey).toString('hex')
   } else {
-    return null
+    throw new Error('projectKey must be undefined or a 32-byte Buffer, or a hex string encoding a 32-byte buffer')
   }
 }
 
