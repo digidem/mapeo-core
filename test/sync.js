@@ -70,12 +70,12 @@ tape('sync: two servers find each other with default sync key', function (t) {
       api2.sync.listen(function () {
         api1.sync.join()
         api2.sync.join()
-        api1.sync.on('peer', function (peer) {
+        api1.sync.once('peer', function (peer) {
           var peerId = peer.swarmId.toString('hex')
           t.same(peerId, api2.sync.swarm.id.toString('hex'), 'api2 id cmp')
           done()
         })
-        api2.sync.on('peer', function (peer) {
+        api2.sync.once('peer', function (peer) {
           var peerId = peer.swarmId.toString('hex')
           t.same(peerId, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
           done()
@@ -180,9 +180,9 @@ tape('sync: remote peer error/destroyed is reflected in peer state', function (t
             done()
           }
         }
-        api1.sync.on('peer', check(api2))
-        api2.sync.on('peer', check(api1))
-        api1.sync.on('down', function () {
+        api1.sync.once('peer', check(api2))
+        api2.sync.once('peer', check(api1))
+        api1.sync.once('down', function () {
           var peers = api1.sync.peers()
           t.same(peers.length, 0)
         })
@@ -206,10 +206,10 @@ tape('sync: replication of a simple observation with media', function (t) {
     ws.end('bar')
     api1.sync.listen()
     api1.sync.join()
-    api1.sync.on('peer', written.bind(null, null))
+    api1.sync.once('peer', written.bind(null, null))
     api2.sync.listen()
     api2.sync.join()
-    api2.sync.on('peer', written.bind(null, null))
+    api2.sync.once('peer', written.bind(null, null))
 
     function written (err) {
       t.error(err)
@@ -643,10 +643,10 @@ tape('sync: mobile <-> desktop photos', function (t) {
 
     mobile.sync.listen()
     mobile.sync.join()
-    mobile.sync.on('peer', written.bind(null, null))
+    mobile.sync.once('peer', written.bind(null, null))
     desktop.sync.listen()
     desktop.sync.join()
-    desktop.sync.on('peer', written.bind(null, null))
+    desktop.sync.once('peer', written.bind(null, null))
     helpers.writeBigData(mobile, total, written)
     writeBlob(desktop, 'goodbye_world.png', written)
 
@@ -710,10 +710,10 @@ tape('sync: mobile <-> mobile photos', function (t) {
 
     api1.sync.listen()
     api1.sync.join()
-    api1.sync.on('peer', written.bind(null, null))
+    api1.sync.once('peer', written.bind(null, null))
     clone.sync.listen()
     clone.sync.join()
-    clone.sync.on('peer', written.bind(null, null))
+    clone.sync.once('peer', written.bind(null, null))
     helpers.writeBigData(api1, total, written)
     writeBlob(clone, 'goodbye_world.png', written)
 
@@ -891,28 +891,35 @@ tape('sync: destroy during sync is reflected in peer state', function (t) {
 })
 
 tape('sync: 200 photos', function (t) {
-  t.plan(14)
+  t.plan(12)
+
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
-    var pending = 4
     var total = 200
 
-    api1.sync.listen()
-    api1.sync.join()
-    api1.sync.on('peer', written.bind(null, null))
-    api2.sync.listen()
-    api2.sync.join()
-    api2.sync.on('peer', written.bind(null, null))
+    var pending = 2
     helpers.writeBigData(api1, total, written)
     writeBlob(api2, 'goodbye_world.png', written)
 
     function written (err) {
       t.error(err)
       if (--pending === 0) {
-        t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
-        t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
-        if (api1.sync.peers().length >= 1) {
-          sync(api2.sync.peers()[0])
+        api1.sync.once('peer', ready)
+        api2.sync.once('peer', ready)
+        pending = 2
+
+        api1.sync.listen()
+        api1.sync.join()
+        api2.sync.listen()
+        api2.sync.join()
+
+        function ready (apiNum) {
+          if (--pending) return
+          t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
+          t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
+          if (api1.sync.peers().length >= 1) {
+            sync(api2.sync.peers()[0])
+          }
         }
       }
     }
