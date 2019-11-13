@@ -282,16 +282,16 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
   })
 })
 
-tape('sync: try to sync two different projectId syncfiles together', function (t) {
+tape('sync: try to sync two different projectKey syncfiles together', function (t) {
   t.plan(2)
 
   var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
   var syncfile = new itar(tmpfile)
-  syncfile.userdata({syncfile: { 'p2p-db': 'kappa-osm', projectId: 'bar' } }, start)
+  syncfile.userdata({syncfile: { 'p2p-db': 'kappa-osm', projectKey: 'bar' } }, start)
 
   function start () {
     createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
-      api1.sync.replicate({filename: tmpfile}, {projectId: 'foo'})
+      api1.sync.replicate({filename: tmpfile}, {projectKey: 'foo'})
         .once('end', function () {
           t.fail()
         })
@@ -306,7 +306,7 @@ tape('sync: try to sync two different projectId syncfiles together', function (t
   }
 })
 
-tape('sync: syncfile /wo projectId, api with projectId set', function (t) {
+tape('sync: syncfile /wo projectKey, api with projectKey set', function (t) {
   createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
     // create test data
     var id
@@ -325,7 +325,7 @@ tape('sync: syncfile /wo projectId, api with projectId set', function (t) {
       t.error(err, res ? 'osm data written ok' : 'media data written ok')
       if (res) id = res.id
       if (--pending === 0) {
-        api1.sync.replicate({filename: tmpfile}, {projectId:'quux'})
+        api1.sync.replicate({filename: tmpfile}, {projectKey:'quux'})
           .once('end', syncfileWritten)
           .once('error', syncfileWritten)
           .on('progress', function (progress) {

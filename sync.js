@@ -278,8 +278,8 @@ class Sync extends events.EventEmitter {
           if (data && data['p2p-db'] && data['p2p-db'] !== 'kappa-osm') {
             return onerror(new Error('trying to sync this kappa-osm database with a ' + data['p2p-db'] + ' database!'))
           }
-          if (data && data.projectId && opts.projectId && data.projectId !== opts.projectId) {
-            return onerror(new Error(`trying to sync two different projects (us=${opts.projectId}) (syncfile=${data.projectId})`))
+          if (data && data.projectKey && opts.projectKey && data.projectKey !== opts.projectKey) {
+            return onerror(new Error(`trying to sync two different projects (us=${opts.projectKey}) (syncfile=${data.projectKey})`))
           }
           start()
         })
@@ -303,7 +303,7 @@ class Sync extends events.EventEmitter {
             var userdata = {
               'p2p-db': 'kappa-osm'
             }
-            if (opts.projectId) userdata.projectId = opts.projectId
+            if (opts.projectKey) userdata.projectKey = opts.projectKey
             syncfile.userdata(userdata, function () {
               syncfile.close(onend.bind(null, error))
             })
