@@ -149,6 +149,7 @@ tape('sync: trying to sync with an invalid projectKey throws', function (t) {
     api1.sync.listen(function () {
       api2.sync.listen(function () {
         t.throws(() => api1.sync.join('invalid key'), 'throws on invalid key')
+        close()
         t.end()
       })
     })
