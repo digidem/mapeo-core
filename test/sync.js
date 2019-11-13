@@ -3,6 +3,7 @@ var os = require('os')
 var tape = require('tape')
 var rimraf = require('rimraf')
 var itar = require('indexed-tarball')
+var crypto = require('crypto')
 
 var helpers = require('./helpers')
 
@@ -55,7 +56,7 @@ tape('sync: trying to sync to unknown peer', function (t) {
   })
 })
 
-tape('sync: two servers find eachother', function (t) {
+tape('sync: two servers find each other with default sync key', function (t) {
   createApis(function (api1, api2, close) {
     var pending = 2
 
@@ -79,6 +80,76 @@ tape('sync: two servers find eachother', function (t) {
           t.same(peerId, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
           done()
         })
+      })
+    })
+  })
+})
+
+tape('sync: two servers find each other with default same projectKey', function (t) {
+  createApis(function (api1, api2, close) {
+    var pending = 2
+
+    function done () {
+      if (--pending) return
+      close()
+      t.end()
+    }
+
+    const projectKey = crypto.randomBytes(32)
+
+    api1.sync.listen(function () {
+      api2.sync.listen(function () {
+        api1.sync.join(projectKey)
+        api2.sync.join(projectKey)
+        api1.sync.on('peer', function (peer) {
+          var peerId = peer.swarmId.toString('hex')
+          t.same(peerId, api2.sync.swarm.id.toString('hex'), 'api2 id cmp')
+          done()
+        })
+        api2.sync.on('peer', function (peer) {
+          var peerId = peer.swarmId.toString('hex')
+          t.same(peerId, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
+          done()
+        })
+      })
+    })
+  })
+})
+
+tape('sync: two servers with different projectKey don\'t find each other', function (t) {
+  createApis(function (api1, api2, close) {
+
+    setTimeout(() => {
+      t.equal(api1.sync.peers().length, 0, 'api1 has found no peers')
+      t.equal(api2.sync.peers().length, 0, 'api2 has found no peers')
+      close()
+      t.end()
+    }, 5000)
+
+    api1.sync.listen(function () {
+      api2.sync.listen(function () {
+        api1.sync.join(crypto.randomBytes(32))
+        api2.sync.join(crypto.randomBytes(32))
+        api1.sync.on('peer', function (peer) {
+          t.fail('Should not find peer')
+          console.log(loggablePeer(peer))
+        })
+        api2.sync.on('peer', function (peer) {
+          t.fail('Should not find peer')
+          console.log(loggablePeer(peer))
+        })
+      })
+    })
+  })
+})
+
+tape('sync: trying to sync with an invalid projectKey throws', function (t) {
+  createApis(function (api1, api2, close) {
+
+    api1.sync.listen(function () {
+      api2.sync.listen(function () {
+        t.throws(() => api1.sync.join('invalid key'), 'throws on invalid key')
+        t.end()
       })
     })
   })
@@ -913,3 +984,10 @@ function writeBlob (api, filename, cb) {
   }
 }
 
+// For debugging, return a peer object that can be logged to console
+function loggablePeer (peer) {
+  const { connection, handshake, sync, ...loggablePeer } = peer
+  loggablePeer.channel = loggablePeer.channel && loggablePeer.channel.toString('hex')
+  loggablePeer.swarmId = loggablePeer.swarmId.toString('hex')
+  return loggablePeer
+}
