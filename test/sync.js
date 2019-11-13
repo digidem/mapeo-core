@@ -85,7 +85,7 @@ tape('sync: two servers find each other with default sync key', function (t) {
   })
 })
 
-tape('sync: two servers find each other with default same projectKey', function (t) {
+tape('sync: two servers find each other with same projectKey', function (t) {
   createApis(function (api1, api2, close) {
     var pending = 2
 
