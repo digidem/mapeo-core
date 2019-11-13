@@ -37,8 +37,8 @@ test('sync progress: no entries', function (t) {
     setup(0, function (err, db2) {
       t.error(err)
 
-      var a = sync(db1, { live: false })
-      var b = sync(db2, { live: false })
+      var a = sync(true, db1, { live: false })
+      var b = sync(false, db2, { live: false })
 
       pump(a, b, a, function () {
         t.equals(db1.osm.core._logs.feeds().length, 2)
@@ -60,8 +60,8 @@ test('sync progress: 6 entries', function (t) {
       var feed1 = db1.osm.core._logs
       var feed2 = db2.osm.core._logs
 
-      var a = sync(db1, { live: false })
-      var b = sync(db2, { live: false })
+      var a = sync(true, db1, { live: false })
+      var b = sync(false, db2, { live: false })
 
       var eventsLeftA = 5
       var eventsLeftB = 5
@@ -95,8 +95,8 @@ test('sync progress: 200 entries', function (t) {
       var feed1 = db1.osm.core._logs
       var feed2 = db2.osm.core._logs
 
-      var a = sync(db1, { live: false })
-      var b = sync(db2, { live: false })
+      var a = sync(true, db1, { live: false })
+      var b = sync(false, db2, { live: false })
 
       var sofarA, totalA
       var sofarB, totalB
