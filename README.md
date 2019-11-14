@@ -124,7 +124,9 @@ Broadcast and listen on the local network for peers. `cb` is called once the ser
 
 Join the swarm and begin making introductory connections with other peers.
 
-Optionally accepts a `projectKey` string. This will swarm only with peers that have also passed in the same `projectKey`.
+Optionally accepts a `projectKey` which must be a 32-byte buffer or a string hex encoding of a 32-byte buffer. This will swarm only with peers that have also passed in the same `projectKey`.
+
+An invalid `projectKey` will throw an error.
 
 ### sync.leave([projectKey])
 
@@ -132,7 +134,9 @@ Leave the swarm and no longer be discoverable by other peers. Any currently
 open connections are kept until the swarm is destroyed (using `close` or
 `destroy`).
 
-Optionally accepts a `projectKey` string, to leave the same swarm you joined.
+Optionally accepts a `projectKey` which must be a 32-byte buffer or a string hex encoding of a 32-byte buffer, to leave the same swarm you joined.
+
+An invalid `projectKey` will throw an error.
 
 ### sync.close(cb)
 
