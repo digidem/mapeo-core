@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [8.1.0](https://github.com/digidem/mapeo-core/compare/v8.0.4...v8.1.0) (2019-11-17)
+
+
+### Features
+
+* add error metadata ([#63](https://github.com/digidem/mapeo-core/issues/63)) ([025a8b0](https://github.com/digidem/mapeo-core/commit/025a8b09fe29e12ade4162296012308e51b977ad))
+
 ### [8.0.4](https://github.com/digidem/mapeo-core/compare/v8.0.3...v8.0.4) (2019-11-14)
 
 ### ⚠ BREAKING CHANGES
