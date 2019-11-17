@@ -44,8 +44,10 @@ const states = {
   STARTED: 'replication-started'
 }
 
-function PeerState (topic, message) {
-  return { topic, message }
+const multifeedErrorProps = ['code', 'usVersion', 'themVersion', 'usClient', 'themClient']
+
+function PeerState (topic, message, other) {
+  return { topic, message, ...other }
 }
 
 class SyncState {
@@ -116,7 +118,11 @@ class SyncState {
 
   onerror (peer, error) {
     if (this._isclosed(peer)) return
-    peer.state = PeerState(states.ERROR, error ? error.toString() : 'Error')
+    const errorMetadata = {}
+    multifeedErrorProps.forEach(key => {
+      if (error[key]) errorMetadata[key] = error[key]
+    })
+    peer.state = PeerState(states.ERROR, error ? error.toString() : 'Error', errorMetadata)
   }
 
   onend (peer) {
