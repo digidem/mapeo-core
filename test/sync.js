@@ -22,9 +22,17 @@ function createApis (opts, cb) {
     var pending = 2
     function done () {
       if (!--pending) {
-        rimraf(api1._dir, function () {
-          rimraf(api2._dir, function () {
-            cb()
+        api1.close(function () {
+          api1.osm.core._logs.close(function () {
+            api2.close(function () {
+              api2.osm.core._logs.close(function () {
+                rimraf(api1._dir, function () {
+                  rimraf(api2._dir, function () {
+                    cb()
+                  })
+                })
+              })
+            })
           })
         })
       }
