@@ -12,6 +12,8 @@ const datDefaults = require('dat-swarm-defaults')
 const MapeoSync = require('./lib/sync-stream')
 const progressSync = require('./lib/db-sync-progress')
 
+const SYNC_VERSION = 2
+
 const SYNC_DEFAULT_KEY = 'mapeo-sync'
 const SYNCFILE_FORMATS = {
   'hyperlog-sneakernet': 1,
@@ -393,13 +395,14 @@ class Sync extends events.EventEmitter {
           id: peer.id,
           deviceType: deviceType,
           deviceName: self.name || os.hostname(),
+          protocolVersion: SYNC_VERSION,
           handshake: onHandshake
         })
         stream.once('sync-start', function () {
           debug('sync started', peer.host, peer.port)
           if (++self._activeSyncs === 1) {
             self.osm.core.pause(function () {
-              peer.sync.emit('sync-start')
+              if (peer.sync) peer.sync.emit('sync-start')
             })
           }
         })
@@ -418,7 +421,7 @@ class Sync extends events.EventEmitter {
       }
 
       function onHandshake (req, accept) {
-        debug('got handshake', peer.host, peer.port)
+        debug('got handshake', peer.host, peer.port, req)
         peer.handshake = {
           accept: accept
         }
