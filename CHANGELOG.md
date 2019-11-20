@@ -2,8 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-## [8.1.0](https://github.com/digidem/mapeo-core/compare/v8.0.4...v8.1.0) (2019-11-17)
+## [9.0.0](https://github.com/digidem/mapeo-core/compare/v8.1.0...v9.0.0) (2019-11-20)
 
+### ⚠ BREAKING CHANGES
+
+* [Upgrade stack to hypercore8 via `osm-p2p` and `osm-p2p-syncfile`](https://github.com/digidem/mapeo-core/commit/25ad69aa76cb4f55d4acd3cc63e6e4f4b00bc7b9)
+
+    Clients using mapeo-core@8 will not be able to sync with clients using mapeo-core@9, but both @8 and @9 clients will report a version mismatch error.
+
+    The new version of hypercore should improve sync reliability and also reliable detection of when sync has completed.
+
+### Bug Fixes
+
+* [Use 'pump' again for sync stream](https://github.com/digidem/mapeo-core/commit/922405c321984d678f4be18a5d169c417d1fa317)
+
+    This improves accurate detection of sync termination.
+
+
+## [8.1.0](https://github.com/digidem/mapeo-core/compare/v8.0.4...v8.1.0) (2019-11-17)
 
 ### Features
 
