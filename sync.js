@@ -292,8 +292,8 @@ class Sync extends events.EventEmitter {
       })
 
       function start() {
-        const r1 = syncfile.replicateData({live: false})
-        const r2 = progressSync(self, {live: false})
+        const r1 = syncfile.replicateData(true, {live: false})
+        const r2 = progressSync(false, self, {live: false})
         const m1 = syncfile.replicateMedia()
         const m2 = createMediaReplicationStream(self.media)
         var error
@@ -360,14 +360,14 @@ class Sync extends events.EventEmitter {
 
     swarm.on('connection', (connection, info) => {
       const peer = WifiPeer(connection, info)
-      debug('connection', peer)
+      debug('connection', Object.assign({}, peer, {connection:undefined}))
 
       connection.on('close', onClose)
       connection.on('error', onClose)
 
       var open = true
       var stream
-      setTimeout(doSync, 500)
+      setTimeout(doSync.bind(null, info.initiator), 500)
 
       function onClose (err) {
         debug('onClose', peer.host, peer.port, err)
@@ -379,17 +379,17 @@ class Sync extends events.EventEmitter {
           else peer.sync.emit('end')
         }
         self.emit('down', peer)
-        debug('down', peer)
+        debug('down', Object.assign({}, peer, {connection:undefined}))
       }
 
-      function doSync () {
+      function doSync (isInitiator) {
         if (!open) return
         debug('doSync', peer.host, peer.port)
         // Set up the sync stream immediately, but don't do anything with it
         // until one side initiates the sync operation.
         var deviceType = self.opts.deviceType
         peer.deviceType = deviceType
-        stream = MapeoSync(self.osm, self.media, {
+        stream = MapeoSync(isInitiator, self.osm, self.media, {
           id: peer.id,
           deviceType: deviceType,
           deviceName: self.name || os.hostname(),
