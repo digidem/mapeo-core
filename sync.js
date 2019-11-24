@@ -276,7 +276,7 @@ class Sync extends events.EventEmitter {
 
     function sync () {
       const discoKey = discoveryKey(opts.projectKey)
-      const syncfile = new Syncfile(filename, os.tmpdir())
+      const syncfile = new Syncfile(filename, os.tmpdir(), { encryptionKey: opts.projectKey })
       syncfile.ready(function (err) {
         if (err) return onerror(err)
         syncfile.userdata(function (err, data) {

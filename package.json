@@ -34,7 +34,7 @@
     "inherits": "^2.0.3",
     "multiplex": "^6.7.0",
     "osm-p2p-geojson": "^4.0.1",
-    "osm-p2p-syncfile": "^4.0.0",
+    "osm-p2p-syncfile": "^4.1.0",
     "pump": "^3.0.0",
     "pumpify": "^2.0.1",
     "randombytes": "^2.0.6",
