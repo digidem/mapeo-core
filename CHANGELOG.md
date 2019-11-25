@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [8.1.1](https://github.com/digidem/mapeo-core/compare/v8.1.0...v8.1.1) (2019-11-25)
+
+
+### Bug Fixes
+
+* Fix file sync error: pass projectKey to Syncfile as encryption key ([192b4e8](https://github.com/digidem/mapeo-core/commit/192b4e8c041a34b81e8981da6f5c99c4a12299d3))
+
 ## [8.1.0](https://github.com/digidem/mapeo-core/compare/v8.0.4...v8.1.0) (2019-11-17)
 
 
