@@ -16,10 +16,10 @@ npm install @mapeo/core
 var Mapeo = require('@mapeo/core')
 ```
 
-### `mapeo = new Mapeo(osm, media, opts)`
+### `mapeo = new Mapeo(datadir, mediadir, opts)`
 
-* `osm`: an [osm-p2p](http://github.com/digidem/kappa-osm) (or [kappa-osm](http://github.com/digidem/kappa-osm)) instance
-* `media`: a blob storage instance (e.g., [safe-fs-blob-store](http://npmjs.com/safe-fs-blob-store))
+* `datadir`: a string representing the absolute filesystem path for storing data; OR an instance of [osm-p2p](http://github.com/digidem/kappa-osm) (or [kappa-osm](http://github.com/digidem/kappa-osm))
+* `mediadir`: a string representing the absolute fileystem path for storing media; OR a blob storage instance (e.g., [safe-fs-blob-store](http://npmjs.com/safe-fs-blob-store))
 * `opts`: options
 
 Valid `opts` options include:

@@ -7,6 +7,8 @@ const pump = require('pump')
 const fs = require('fs')
 const shapefile = require('shp-write')
 const concat = require('concat-stream')
+const MediaStore = require('safe-fs-blob-store')
+const osmdb = require('osm-p2p')
 
 const exportGeoJson = require('./lib/export-geojson')
 const Importer = require('./lib/importer')
@@ -16,16 +18,17 @@ const errors = require('./errors')
 const CURRENT_SCHEMA = 3
 
 class Mapeo extends events.EventEmitter {
-  constructor (osm, media, opts) {
+  constructor (datadir, mediadir, opts) {
     super()
     if (!opts) opts = {}
-    this.sync = new Sync(osm, media, opts)
+
+    this.osm = typeof datadir === 'string' ? osmdb(datadir) : datadir
+    this.media = typeof mediadir === 'string' ? MediaStore(mediadir) : mediadir
+    this.importer = Importer(this.osm)
+    this.sync = new Sync(this.osm, this.media, opts)
     this.sync.on('error', (err) => {
       this.emit('error', err)
     })
-    this.osm = osm
-    this.media = media
-    this.importer = Importer(osm)
   }
 
   observationCreate (obs, cb) {
