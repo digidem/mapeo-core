@@ -572,18 +572,18 @@ tape('sync: deletes are not synced back', function (t) {
     function deleteObs () {
       api1.sync.once('peer', (peer) => {
         api2.observationList(function (err, results2) {
-          t.error(err)
+          t.error(err, 'api2 list ok')
           api1.observationList(function (err, results) {
-            t.error(err)
-            t.same(results2, results)
+            t.error(err, 'api1 list ok')
+            t.same(results2, results, 'observation lists match')
             deleted = results[0]
             api1.observationDelete(deleted.id, (err) => {
-              t.error(err)
+              t.error(err, 'delete ok')
               var syncer = api1.sync.replicate(peer)
               syncer.on('error', (err) => t.error(err))
               syncer.on('end', () => {
                 api2.observationList(function (err, after) {
-                  t.error(err)
+                  t.error(err, 'api2 list ok')
                   t.same(results.length - 1, after.length, 'one less item in list')
                   close(() => t.end())
                 })
