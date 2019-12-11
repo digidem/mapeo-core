@@ -212,7 +212,8 @@ class Sync extends events.EventEmitter {
     // return existing emitter
     if (peer.accepted) return peer.sync
 
-    peer.handshake.accept()
+    console.log('ACCEPT')
+    peer.handshake.accept(null, true)
     peer.accepted = true
     return peer.sync
   }
@@ -411,6 +412,7 @@ class Sync extends events.EventEmitter {
           if (peer.sync) peer.sync.emit('progress', progress)
         })
         pump(stream, connection, stream, function (err) {
+          console.log('pump end', err)
           debug('pump ended', peer.host, peer.port)
           if (--self._activeSyncs === 0) {
             self.osm.core.resume()
@@ -427,9 +429,11 @@ class Sync extends events.EventEmitter {
         }
         // as soon as any data is received, accept! Because this means that
         // the other side just have accepted & wants to start.
-        stream.once('accepted', function () {
-          self.state.addProgressEventListeners(peer)
-          accept()
+        stream.once('handshake-response', function (accepted) {
+          if (accepted) {
+            self.state.addProgressEventListeners(peer)
+            accept(null, true)
+          }
         })
 
         self.state.onwifi(peer)

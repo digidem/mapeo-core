@@ -209,17 +209,18 @@ tape('sync: replication of a simple observation with media', function (t) {
     var obs = {lat: 1, lon: 2, type: 'observation'}
     var ws = api1.media.createWriteStream('foo.txt')
     var pending = 3
-    ws.on('finish', written)
-    ws.on('error', written)
+    ws.once('finish', written.bind(null, null, 'wrote data'))
+    ws.once('error', written)
     ws.end('bar')
+    api1.sync.once('peer', written.bind(null, null, 'api 1 peer'))
+    api2.sync.once('peer', written.bind(null, null, 'api 2 peer'))
     api1.sync.listen()
     api1.sync.join()
-    api1.sync.once('peer', written.bind(null, null))
     api2.sync.listen()
     api2.sync.join()
-    api2.sync.once('peer', written.bind(null, null))
 
-    function written (err) {
+    function written (err, thing) {
+      console.log('written +', thing)
       t.error(err)
       if (--pending === 0) {
         api1.osm.create(obs, function (err, _id, node) {
