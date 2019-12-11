@@ -13,8 +13,8 @@ function createApis (opts, cb) {
     opts = undefined
   }
   opts = opts || {}
-  var api1 = helpers.createApi(null, opts.api1)
-  var api2 = helpers.createApi(null, opts.api2)
+  var api1 = helpers.createApi(opts.api1))
+  var api2 = helpers.createApi(opts.api2))
   api1.on('error', console.error)
   api2.on('error', console.error)
   function close (cb) {
@@ -49,7 +49,7 @@ function createApis (opts, cb) {
 }
 
 tape('sync: trying to sync to unknown peer', function (t) {
-  var api1 = helpers.createApi(null)
+  var api1 = helpers.createApi()
   function done () {
     api1.close()
     t.end()
