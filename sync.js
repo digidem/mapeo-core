@@ -8,6 +8,7 @@ const os = require('os')
 const randombytes = require('randombytes')
 const pump = require('pump')
 const crypto = require('hypercore-crypto')
+const chacha = require('chacha-stream')
 const datDefaults = require('dat-swarm-defaults')
 const MapeoSync = require('./lib/sync-stream')
 const progressSync = require('./lib/db-sync-progress')
@@ -163,6 +164,14 @@ class Sync extends events.EventEmitter {
     this.name = opts.name
     if (!opts.id) opts.id = randombytes(32)
     this.opts = Object.assign({}, opts)
+
+    if (typeof opts.projectKey === 'string' && /^[0-9a-f]{32}$/.test(opts.projectKey)) {
+      this.projectKey = Buffer.from(opts.projectKey, 'hex')
+    } else if (Buffer.isBuffer(opts.projectKey) && opts.projectKey.length === 32) {
+      this.projectKey = opts.projectKey
+    } else {
+      // throw new Error('opts.projectKey must be a 32-byte buffer or string')
+    }
 
     this._activeSyncs = 0
     // track all peer states
@@ -410,14 +419,24 @@ class Sync extends events.EventEmitter {
           debug('sync progress', peer.host, peer.port, progress)
           if (peer.sync) peer.sync.emit('progress', progress)
         })
-        pump(stream, connection, stream, function (err) {
+
+        // stream encryption layer
+        if (self.projectKey) {
+          var encode = chacha.encoder(self.projectKey)
+          var decode = chacha.decoder(self.projectKey)
+          pump(stream, encode, connection, decode, stream, onEnd)
+        } else {
+          pump(stream, connection, stream, onEnd)
+        }
+
+        function onEnd (err) {
           debug('pump ended', peer.host, peer.port)
           if (--self._activeSyncs === 0) {
             self.osm.core.resume()
           }
           if (peer.started && !stream.goodFinish && !err) err = new Error('sync stream terminated on remote side')
           onClose(err)
-        })
+        }
       }
 
       function onHandshake (req, accept) {

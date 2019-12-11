@@ -13,8 +13,9 @@ function createApis (opts, cb) {
     opts = undefined
   }
   opts = opts || {}
-  var api1 = helpers.createApi(opts.api1))
-  var api2 = helpers.createApi(opts.api2))
+  var projectKey = crypto.randomBytes(32)
+  var api1 = helpers.createApi(Object.assign({projectKey: projectKey}, opts.api1))
+  var api2 = helpers.createApi(Object.assign({projectKey: projectKey}, opts.api2))
   api1.on('error', console.error)
   api2.on('error', console.error)
   function close (cb) {
