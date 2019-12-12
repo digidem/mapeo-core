@@ -7,13 +7,16 @@ const fs = require('fs')
 const os = require('os')
 const randombytes = require('randombytes')
 const pump = require('pump')
-const crypto = require('hypercore-crypto')
+const hcrypto = require('hypercore-crypto')
+const crypto = require('crypto')
 const chacha = require('chacha-stream')
 const datDefaults = require('dat-swarm-defaults')
 const MapeoSync = require('./lib/sync-stream')
 const progressSync = require('./lib/db-sync-progress')
 
 const SYNC_VERSION = 2
+
+const DEFAULT_PROJECT_KEY = discoveryKey(crypto.createHash('sha256').update('MAPEO').digest())
 
 const SYNC_DEFAULT_KEY = 'mapeo-sync'
 const SYNCFILE_FORMATS = {
@@ -169,6 +172,9 @@ class Sync extends events.EventEmitter {
       this.projectKey = Buffer.from(opts.projectKey, 'hex')
     } else if (Buffer.isBuffer(opts.projectKey) && opts.projectKey.length === 32) {
       this.projectKey = opts.projectKey
+    } else if (!opts.projectKey) {
+      // Use a default project key.
+      this.projectKey = DEFAULT_PROJECT_KEY
     } else {
       throw new Error('opts.projectKey must be a 32-byte buffer or string')
     }
@@ -498,7 +504,7 @@ function discoveryKey (projectKey) {
     projectKey = Buffer.from(projectKey, 'hex')
   }
   if (Buffer.isBuffer(projectKey) && projectKey.length === 32) {
-    return crypto.discoveryKey(projectKey).toString('hex')
+    return hcrypto.discoveryKey(projectKey).toString('hex')
   } else {
     throw new Error('projectKey must be undefined or a 32-byte Buffer, or a hex string encoding a 32-byte buffer')
   }

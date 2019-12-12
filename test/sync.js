@@ -162,8 +162,16 @@ tape('sync: trying to use an invalid projectKey throws', function (t) {
     var opts = {
       projectKey: 'hello ken'
     }
-    createApi(opts)
+    helpers.createApi(opts)
   }, 'throws on invalid key')
+})
+
+tape('sync: trying to use no projectKey is ok', function (t) {
+  t.plan(1)
+
+  helpers.createApi({ projectKey: undefined })
+
+  t.ok(true, 'created instance ok')
 })
 
 tape('sync: remote peer error/destroyed is reflected in peer state', function (t) {
