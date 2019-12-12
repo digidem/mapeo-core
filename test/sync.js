@@ -14,8 +14,8 @@ function createApis (opts, cb) {
   }
   opts = opts || {}
   var projectKey = crypto.randomBytes(32)
-  var api1 = helpers.createApi(Object.assign({projectKey: projectKey}, opts.api1))
-  var api2 = helpers.createApi(Object.assign({projectKey: projectKey}, opts.api2))
+  var api1 = helpers.createApi(Object.assign({projectKey: opts.projectKey || projectKey}, opts.api1))
+  var api2 = helpers.createApi(Object.assign({projectKey: opts.projectKey || projectKey}, opts.api2))
   api1.on('error', console.error)
   api2.on('error', console.error)
   function close (cb) {
@@ -775,11 +775,20 @@ tape('sync: mobile <-> mobile photos', function (t) {
 })
 
 tape('sync: with two peers available, sync with one only triggers events for one sync', function (t) {
-  var opts = {api1:{name: 'boop', deviceType:'desktop'}, api2:{name: 'beep', deviceType:'desktop'}}
+  var projectKey = crypto.randomBytes(32)
+  var opts = {
+    projectKey,
+    api1:{name: 'boop', deviceType:'desktop'},
+    api2:{name: 'beep', deviceType:'desktop'}
+  }
   createApis(opts, function (api1, api2, close1) {
-    var opts = {api1:{name: 'bork', deviceType:'mobile'}, api2:{name: 'baz', deviceType:'mobile'}}
+    var opts = {
+      projectKey,
+      api1:{name: 'bork', deviceType:'mobile'},
+      api2:{name: 'baz', deviceType:'mobile'}
+    }
     createApis(opts, function (api3, api4, close2) {
-      var pending = 6
+      var pending = 2
       var total = 20
 
       function doListen (api, cb) {
@@ -794,13 +803,18 @@ tape('sync: with two peers available, sync with one only triggers events for one
       helpers.writeBigData(api1, total, written)
       writeBlob(api2, 'goodbye_world.png', written)
 
-      doListen(api1, written)
-      doListen(api2, written)
-      doListen(api3, written)
-      doListen(api4, written)
-
       function written (err) {
         t.error(err)
+        if (--pending === 0) {
+          pending = 4
+          doListen(api1, listening)
+          doListen(api2, listening)
+          doListen(api3, listening)
+          doListen(api4, listening)
+        }
+      }
+
+      function listening () {
         if (--pending === 0) {
           t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
           t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
