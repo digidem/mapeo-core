@@ -170,7 +170,7 @@ class Sync extends events.EventEmitter {
     } else if (Buffer.isBuffer(opts.projectKey) && opts.projectKey.length === 32) {
       this.projectKey = opts.projectKey
     } else {
-      // throw new Error('opts.projectKey must be a 32-byte buffer or string')
+      throw new Error('opts.projectKey must be a 32-byte buffer or string')
     }
 
     this._activeSyncs = 0
@@ -236,13 +236,13 @@ class Sync extends events.EventEmitter {
     this.swarm.listen(0, cb)
   }
 
-  leave (projectKey) {
-    var key = discoveryKey(projectKey)
+  leave () {
+    var key = discoveryKey(this.projectKey)
     this.swarm.leave(key)
   }
 
-  join (projectKey) {
-    var key = discoveryKey(projectKey)
+  join () {
+    var key = discoveryKey(this.projectKey)
     this.swarm.join(key)
   }
 
@@ -286,7 +286,7 @@ class Sync extends events.EventEmitter {
     })
 
     function sync () {
-      const discoKey = discoveryKey(opts.projectKey)
+      const discoKey = discoveryKey(self.projectKey)
       const syncfile = new Syncfile(filename, os.tmpdir())
       syncfile.ready(function (err) {
         if (err) return onerror(err)
@@ -295,7 +295,7 @@ class Sync extends events.EventEmitter {
           if (data && data['p2p-db'] && data['p2p-db'] !== 'kappa-osm') {
             return onerror(new Error('trying to sync this kappa-osm database with a ' + data['p2p-db'] + ' database!'))
           }
-          if (data && data.discoveryKey && opts.projectKey && data.discoveryKey !== discoKey) {
+          if (data && data.discoveryKey && data.discoveryKey !== discoKey) {
             return onerror(new Error(`trying to sync two different projects (us=${discoKey}) (syncfile=${data.discoveryKey})`))
           }
           start()
@@ -320,7 +320,7 @@ class Sync extends events.EventEmitter {
             var userdata = {
               'p2p-db': 'kappa-osm'
             }
-            if (opts.projectKey) userdata.discoveryKey = discoKey
+            userdata.discoveryKey = discoKey
             syncfile.userdata(userdata, function () {
               syncfile.close(onend.bind(null, error))
             })
@@ -421,13 +421,9 @@ class Sync extends events.EventEmitter {
         })
 
         // stream encryption layer
-        if (self.projectKey) {
-          var encode = chacha.encoder(self.projectKey)
-          var decode = chacha.decoder(self.projectKey)
-          pump(stream, encode, connection, decode, stream, onEnd)
-        } else {
-          pump(stream, connection, stream, onEnd)
-        }
+        var encode = chacha.encoder(self.projectKey)
+        var decode = chacha.decoder(self.projectKey)
+        pump(stream, encode, connection, decode, stream, onEnd)
 
         function onEnd (err) {
           debug('pump ended', peer.host, peer.port)

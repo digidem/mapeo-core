@@ -24,6 +24,7 @@ var Mapeo = require('@mapeo/core')
 
 Valid `opts` options include:
 
+* `opts.projectKey` (string or Buffer): **required**. A `projectKey` must be a 32-byte buffer or a string hex encoding of a 32-byte buffer. This controls sync encryption, and ensures that this peer will swarm only with peers that have also passed in the same `projectKey`.
 * `opts.deviceType` (string): one of `{'desktop', 'mobile'}`. This affects how sync works. Mobile peers will not receive full-resolution media from other devices, but share them *to* desktop devices.
 * `opts.internetDiscovery` (boolean): set to `true` if you want to discover peers on the internet. Otherwise only local network peers will be sought after.
 
@@ -120,23 +121,15 @@ Set the name of this peer / device, which will appear to others when they call
 
 Broadcast and listen on the local network for peers. `cb` is called once the service is up and broadcasting.
 
-### sync.join([projectKey])
+### sync.join()
 
 Join the swarm and begin making introductory connections with other peers.
 
-Optionally accepts a `projectKey` which must be a 32-byte buffer or a string hex encoding of a 32-byte buffer. This will swarm only with peers that have also passed in the same `projectKey`.
-
-An invalid `projectKey` will throw an error.
-
-### sync.leave([projectKey])
+### sync.leave()
 
 Leave the swarm and no longer be discoverable by other peers. Any currently
 open connections are kept until the swarm is destroyed (using `close` or
 `destroy`).
-
-Optionally accepts a `projectKey` which must be a 32-byte buffer or a string hex encoding of a 32-byte buffer, to leave the same swarm you joined.
-
-An invalid `projectKey` will throw an error.
 
 ### sync.close(cb)
 
@@ -175,12 +168,6 @@ Both `replicate` and `replicateNetwork` return an EventEmitter `ev`. It can emit
 * `"error" (err)`: gives an Error object signalling an error in syncing.
 * `"progress" (progress)`: gives information about how many objects have been synced and how many to be synced in total, e.g. `{ db: { sofar: 5, total: 10 }, media: { sofar: 18, total: 100 } }`
 * `"end"`: successful completion of OSM and media sync.
-
-Valid `opts` include:
-
-- `opts.projectKey` (string): a unique identifier that prohibits sync with a
-  syncfile that declares a different project ID. If either side doesn't have a
-  project ID set, sync will be permitted.
 
 ### var ev = sync.replicateNetwork(peer)
 

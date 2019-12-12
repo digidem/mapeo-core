@@ -50,7 +50,8 @@ function createApis (opts, cb) {
 }
 
 tape('sync: trying to sync to unknown peer', function (t) {
-  var api1 = helpers.createApi()
+  var projectKey = crypto.randomBytes(32)
+  var api1 = helpers.createApi({projectKey})
   function done () {
     api1.close()
     t.end()
@@ -126,19 +127,21 @@ tape('sync: two servers find each other with same projectKey', function (t) {
 })
 
 tape('sync: two servers with different projectKey don\'t find each other', function (t) {
-  createApis(function (api1, api2, close) {
-
+  var opts = {
+    api1: { projectKey: crypto.randomBytes(32) },
+    api2: { projectKey: crypto.randomBytes(32) }
+  }
+  createApis(opts, function (api1, api2, close) {
     setTimeout(() => {
       t.equal(api1.sync.peers().length, 0, 'api1 has found no peers')
       t.equal(api2.sync.peers().length, 0, 'api2 has found no peers')
       close()
       t.end()
     }, 5000)
-
     api1.sync.listen(function () {
       api2.sync.listen(function () {
-        api1.sync.join(crypto.randomBytes(32))
-        api2.sync.join(crypto.randomBytes(32))
+        api1.sync.join()
+        api2.sync.join()
         api1.sync.on('peer', function (peer) {
           t.fail('Should not find peer')
           console.log(loggablePeer(peer))
@@ -152,17 +155,15 @@ tape('sync: two servers with different projectKey don\'t find each other', funct
   })
 })
 
-tape('sync: trying to sync with an invalid projectKey throws', function (t) {
-  createApis(function (api1, api2, close) {
+tape('sync: trying to use an invalid projectKey throws', function (t) {
+  t.plan(1)
 
-    api1.sync.listen(function () {
-      api2.sync.listen(function () {
-        t.throws(() => api1.sync.join('invalid key'), 'throws on invalid key')
-        close()
-        t.end()
-      })
-    })
-  })
+  t.throws(() => {
+    var opts = {
+      projectKey: 'hello ken'
+    }
+    createApi(opts)
+  }, 'throws on invalid key')
 })
 
 tape('sync: remote peer error/destroyed is reflected in peer state', function (t) {
