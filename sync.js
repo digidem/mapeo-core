@@ -16,7 +16,7 @@ const progressSync = require('./lib/db-sync-progress')
 
 const SYNC_VERSION = 2
 
-const DEFAULT_PROJECT_KEY = discoveryKey(crypto.createHash('sha256').update('MAPEO').digest())
+const DEFAULT_PROJECT_KEY = discoveryKey(sha256('MAPEO'))
 
 const SYNC_DEFAULT_KEY = 'mapeo-sync'
 const SYNCFILE_FORMATS = {
@@ -508,6 +508,10 @@ function discoveryKey (projectKey) {
   } else {
     throw new Error('projectKey must be undefined or a 32-byte Buffer, or a hex string encoding a 32-byte buffer')
   }
+}
+
+function sha256 (data) {
+  return crypto.createHash('sha256').update(data).digest()
 }
 
 module.exports = Sync
