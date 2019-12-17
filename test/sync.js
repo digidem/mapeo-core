@@ -798,7 +798,7 @@ tape('sync: with two peers available, sync with one only triggers events for one
     }
     createApis(opts, function (api3, api4, close2) {
       var pending = 2
-      var total = 20
+      var total = 10
 
       function doListen (api, cb) {
         api.sync.listen()
