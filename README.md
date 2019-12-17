@@ -24,7 +24,7 @@ var Mapeo = require('@mapeo/core')
 
 Valid `opts` options include:
 
-* `opts.projectKey` (string or Buffer): **required**. A `projectKey` must be a 32-byte buffer or a string hex encoding of a 32-byte buffer. This controls sync encryption, and ensures that this peer will swarm only with peers that have also passed in the same `projectKey`.
+* `opts.projectKey` (string or Buffer): A `projectKey` must be a 32-byte buffer or a string hex encoding of a 32-byte buffer. This controls sync encryption, and ensures that this peer will swarm only with peers that have also passed in the same `projectKey`. If one is not provided, a default will be used that enables any other instance of mapeo-core also using the default key to find each other.
 * `opts.deviceType` (string): one of `{'desktop', 'mobile'}`. This affects how sync works. Mobile peers will not receive full-resolution media from other devices, but share them *to* desktop devices.
 * `opts.internetDiscovery` (boolean): set to `true` if you want to discover peers on the internet. Otherwise only local network peers will be sought after.
 
