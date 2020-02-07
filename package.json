@@ -26,7 +26,7 @@
     "concat-stream": "^2.0.0",
     "dat-swarm-defaults": "^1.0.2",
     "debug": "^4.1.1",
-    "discovery-swarm": "^6.0.0",
+    "discovery-swarm": "6.0.0",
     "end-of-stream": "^1.4.1",
     "gtran-shapefile": "^1.1.3",
     "handshake-stream": "^3.0.0",
