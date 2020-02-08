@@ -401,7 +401,7 @@ tape('sync: syncfile /wo projectKey, api with projectKey set', function (t) {
       t.error(err, res ? 'osm data written ok' : 'media data written ok')
       if (res) id = res.id
       if (--pending === 0) {
-        api1.sync.replicate({filename: tmpfile}, {projectKey:projectKey})
+        api1.sync.replicate({filename: tmpfile})
           .once('end', syncfileWritten)
           .once('error', syncfileWritten)
           .on('progress', function (progress) {
