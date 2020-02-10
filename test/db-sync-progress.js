@@ -1,35 +1,36 @@
-var createDb = require('./helpers').createApi
+var helpers = require('./helpers')
 var sync = require('../lib/db-sync-progress')
 var pump = require('pump')
 var test = require('tape')
 
 function setup (numEntries, cb) {
-  var db = createDb()
-  if (!numEntries) {
-    db.osm.ready(cb.bind(null, null, db))
-    return
-  }
-
-  var ops = new Array(numEntries).fill(0).map(function () {
-    return {
-      type: 'put',
-      value: {
-        type: 'node',
-        lat: String(Math.random()),
-        lon: String(Math.random()),
-        changeset: String(Math.random()).substring(2)
-      }
-    }
-  })
-  db.osm.batch(ops, function (err) {
-    if (err) cb(err)
-    else {
+  helpers.createApi(function (db, close) {
+    if (!numEntries) {
       db.osm.ready(cb.bind(null, null, db))
+      return
     }
+
+    var ops = new Array(numEntries).fill(0).map(function () {
+      return {
+        type: 'put',
+        value: {
+          type: 'node',
+          lat: String(Math.random()),
+          lon: String(Math.random()),
+          changeset: String(Math.random()).substring(2)
+        }
+      }
+    })
+    db.osm.batch(ops, function (err) {
+      if (err) cb(err)
+      else {
+        db.osm.ready(cb.bind(null, null, db))
+      }
+    })
   })
 }
 
-test('sync progress: no entries', function (t) {
+test('db-sync-progress: no entries', function (t) {
   t.plan(6)
 
   setup(0, function (err, db1) {
@@ -50,7 +51,7 @@ test('sync progress: no entries', function (t) {
   })
 })
 
-test('sync progress: 6 entries', function (t) {
+test('db-sync-progress: 6 entries', function (t) {
   t.plan(9)
 
   setup(3, function (err, db1) {
@@ -85,7 +86,7 @@ test('sync progress: 6 entries', function (t) {
   })
 })
 
-test('sync progress: 200 entries', function (t) {
+test('db-sync-progress: 200 entries', function (t) {
   t.plan(11)
 
   setup(100, function (err, db1) {
@@ -116,8 +117,8 @@ test('sync progress: 200 entries', function (t) {
         t.equals(feed2.feeds()[0].length, 100)
         t.equals(feed2.feeds()[1].length, 100)
         t.equals(sofarA, 200)
-        t.equals(sofarA, 200)
-        t.equals(totalB, 200)
+        t.equals(sofarB, 200)
+        t.equals(totalA, 200)
         t.equals(totalB, 200)
       })
     })
