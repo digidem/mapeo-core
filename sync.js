@@ -254,7 +254,7 @@ class Sync extends events.EventEmitter {
 
   /**
    * Replicate from a given file. Use `replicate` instead.
-   * @param  {String}   peer    A peer.
+   * @param  {{filename:string, sync?:EventEmitter}} peer    A peer.
    * @return {EventEmitter}     Listen to 'error', 'end' and 'progress' events
    */
   replicateFromFile (peer, opts) {
