@@ -26,7 +26,7 @@
     "handshake-stream": "^3.0.0",
     "inherits": "^2.0.3",
     "multiplex": "^6.7.0",
-    "osm-p2p": "^4.0.2",
+    "osm-p2p": "^5.0.0",
     "osm-p2p-geojson": "^4.0.1",
     "osm-p2p-syncfile": "^3.0.0",
     "safe-fs-blob-store": "^1.0.6",
