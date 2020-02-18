@@ -12,6 +12,7 @@ const crypto = require('crypto')
 const datDefaults = require('dat-swarm-defaults')
 const MapeoSync = require('./lib/sync-stream')
 const progressSync = require('./lib/db-sync-progress')
+const util = require('./lib/util')
 
 const SYNC_VERSION = 2
 
@@ -254,7 +255,7 @@ class Sync extends events.EventEmitter {
 
   /**
    * Replicate from a given file. Use `replicate` instead.
-   * @param  {String}   peer    A peer.
+   * @param  {{filename:string, sync?:EventEmitter}} peer    A peer.
    * @return {EventEmitter}     Listen to 'error', 'end' and 'progress' events
    */
   replicateFromFile (peer, opts) {
@@ -294,8 +295,14 @@ class Sync extends events.EventEmitter {
       })
 
       function start() {
+        const remoteState = util.mfState(syncfile._mfeed)
+        const localState = util.dbState(self.osm)
+        const expectedDown = util.getExpectedDownloadEvents(localState, remoteState)
+        const expectedUp = util.getExpectedUploadEvents(localState, remoteState)
+
         const r1 = syncfile.replicateData(true, {live: false})
         const r2 = progressSync(false, self, {live: false})
+        r2.setTotals(expectedDown, expectedUp)
         const m1 = syncfile.replicateMedia()
         const m2 = createMediaReplicationStream(self.media)
         var error

@@ -63,9 +63,11 @@ test('db-sync-progress: 6 entries', function (t) {
 
       var a = sync(true, db1, { live: false })
       var b = sync(false, db2, { live: false })
+      a.setTotals(3, 3)
+      b.setTotals(3, 3)
 
-      var eventsLeftA = 5
-      var eventsLeftB = 5
+      var eventsLeftA = 6
+      var eventsLeftB = 6
       a.on('progress', function (sofar, total) {
         eventsLeftA--
       })
@@ -98,6 +100,8 @@ test('db-sync-progress: 200 entries', function (t) {
 
       var a = sync(true, db1, { live: false })
       var b = sync(false, db2, { live: false })
+      a.setTotals(100, 100)
+      b.setTotals(100, 100)
 
       var sofarA, totalA
       var sofarB, totalB

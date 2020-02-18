@@ -149,7 +149,7 @@ tape('sync-progress: database progress total is stable', function (t) {
   })
 })
 
-tape.skip('sync-progress: database sync progress restarts at 0/N per sync', function (t) {
+tape('sync-progress: database sync progress restarts at 0/N per sync', function (t) {
   t.plan(5)
 
   var setup = {
@@ -174,7 +174,7 @@ tape.skip('sync-progress: database sync progress restarts at 0/N per sync', func
       t.error(err)
 
       syncer.once('progress', function (p) {
-        t.same(p.db.sofar, 0, 'progress: 0 elements sofar')
+        t.same(p.db.sofar, 1, 'progress: 1 element sofar')
         t.same(p.db.total, 10, 'progress: 10 elements total')
       })
       syncer.once('error', function (err) {
@@ -189,7 +189,7 @@ tape.skip('sync-progress: database sync progress restarts at 0/N per sync', func
   })
 })
 
-tape.skip('sync-progress: database sync progress includes uploads', function (t) {
+tape('sync-progress: database sync progress includes uploads', function (t) {
   t.plan(4)
 
   var setup = {
@@ -214,7 +214,7 @@ tape.skip('sync-progress: database sync progress includes uploads', function (t)
       t.error(err)
 
       syncer.once('progress', function (p) {
-        t.same(p.db.total, 10, 'db progress total is correct')
+        t.same(p.db.total, 20, 'db progress total is correct')
       })
       syncer.once('error', function (err) {
         t.error(err)
@@ -280,7 +280,7 @@ tape('sync-progress: correct totals when receiving multiple remote feeds', funct
   })
 })
 
-tape.skip('sync-progress: mix of uploading cores & downloading cores', function (t) {
+tape('sync-progress: mix of uploading cores & downloading cores', function (t) {
   t.plan(5)
 
   var setup = {
