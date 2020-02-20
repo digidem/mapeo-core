@@ -3,6 +3,7 @@ var os = require('os')
 var tape = require('tape')
 var itar = require('indexed-tarball')
 var crypto = require('crypto')
+var errors = require('../lib/errors')
 
 var helpers = require('./helpers')
 
@@ -233,7 +234,7 @@ tape('sync: bad syncfile replication: osm-p2p-syncfile', function (t) {
         })
         .once('error', function (err) {
           t.ok(err)
-          t.same(err.message, 'trying to sync this kappa-osm database with a hyperlog database!')
+          t.same(err.code, errors.ERR_UNSUPPORTED_SYNCFILE_FORMAT)
         })
         .on('progress', function (progress) {
           t.fail()
@@ -327,7 +328,7 @@ tape('sync: try to sync two different projectKey syncfiles together', function (
         })
         .once('error', function (err) {
           t.ok(err)
-          t.ok(/trying to sync two different projects/.test(err.message), 'expected error message')
+          t.equals(err.code, errors.ERR_DIFF_PROJECT_KEYS, 'expected error message')
         })
         .on('progress', function (progress) {
           t.fail()
