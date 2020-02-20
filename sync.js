@@ -328,8 +328,12 @@ class Sync extends events.EventEmitter {
               'p2p-db': 'kappa-osm'
             }
             if (opts.projectKey) userdata.discoveryKey = discoKey
-            syncfile.userdata(userdata, function () {
-              syncfile.close(onend.bind(null, error))
+            syncfile.userdata(userdata, function (err) {
+              error = error || err
+              syncfile.close(function (err) {
+                error = error || err
+                onend(error)
+              })
             })
           }
         }
