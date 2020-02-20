@@ -19,11 +19,17 @@ class Mapeo extends events.EventEmitter {
   constructor (osm, media, opts) {
     super()
     if (!opts) opts = {}
+
     this.sync = new Sync(osm, media, opts)
     this.sync.on('error', (err) => {
       this.emit('error', err)
     })
+
     this.osm = osm
+    this.osm.on('error', (err) => {
+      this.emit('error', err)
+    })
+
     this.media = media
     this.importer = Importer(osm)
   }
