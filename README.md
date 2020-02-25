@@ -126,7 +126,7 @@ Join the swarm and begin making introductory connections with other peers.
 
 Optionally accepts a `projectKey` which must be a 32-byte buffer or a string hex encoding of a 32-byte buffer. This will swarm only with peers that have also passed in the same `projectKey`.
 
-An invalid `projectKey` will throw an error.
+An invalid `projectKey` will throw a `ERR_MALFORMED_PROJECT_KEY` error.
 
 ### sync.leave([projectKey])
 
@@ -136,7 +136,7 @@ open connections are kept until the swarm is destroyed (using `close` or
 
 Optionally accepts a `projectKey` which must be a 32-byte buffer or a string hex encoding of a 32-byte buffer, to leave the same swarm you joined.
 
-An invalid `projectKey` will throw an error.
+An invalid `projectKey` will throw a `ERR_MALFORMED_PROJECT_KEY` error.
 
 ### sync.close(cb)
 
@@ -190,6 +190,23 @@ event or returned on the `peers()` method.
 If you want to replicate with a peer that is not discovered yet, but you have
 the host and port, we haven't made this easy at the moment. The code is written
 internally but not exposed via a public API. PRs welcome.
+
+### Sync errors
+
+Various subclasssed `Error`s are exposed by this module, to make it easier to
+check for specific failure modes. They all use the `.code` and `.message` fields.
+
+These are the supported error `code`s:
+
+- `ERR_PEER_NOT_FOUND`: the peer (network or file) could not be located / doesn't exist
+- `ERR_DIFF_PROJECT_KEYS`: you're trying to sync with a peer that's using a different project
+- `ERR_PREMATURE_SYNC`: you tried to sync with a peer before the initial handshake finished (this shouldn't happen)
+- `ERR_UNSUPPORTED_SYNCFILE_FORMAT`: the syncfile's format is incompatible with your version of mapeo-core
+- `ERR_CONNECTION_LOST`: the connection to the network peer was lost
+- `ERR_SYNC`: general sync error
+- `ERR_MALFORMED_PROJECT_KEY`: the project key specified isn't a 32-byte hexstring or `Buffer`
+
+Constants for these codes are accessible under `require('@mapeo/core/lib/errors')`.
 
 ## Importer API (expertimental)
 

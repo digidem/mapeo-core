@@ -13,6 +13,7 @@ const datDefaults = require('dat-swarm-defaults')
 const MapeoSync = require('./lib/sync-stream')
 const progressSync = require('./lib/db-sync-progress')
 const util = require('./lib/util')
+const errors = require('./lib/errors')
 
 const SYNC_VERSION = 2
 
@@ -158,7 +159,9 @@ class Sync extends events.EventEmitter {
     super()
     opts = Object.assign(opts.internetDiscovery ? DEFAULT_INTERNET_DISCO : DEFAULT_LOCAL_DISCO, opts)
     opts.writeFormat = opts.writeFormat || 'osm-p2p-syncfile'
-    if (!SYNCFILE_FORMATS[opts.writeFormat]) throw new Error('unknown syncfile write format: ' + opts.writeFormat)
+    if (!SYNCFILE_FORMATS[opts.writeFormat]) {
+      throw new errors.UnsupportedSyncfileError(opts.writeFormat)
+    }
 
     this.osm = osm
     this.media = media
@@ -185,11 +188,12 @@ class Sync extends events.EventEmitter {
       if (!peer) {
         var emitter = new events.EventEmitter()
         process.nextTick(() => {
-          emitter.emit('error', new Error('trying to sync to unknown peer'))
+          emitter.emit('error', new errors.PeerNotFoundError())
         })
         return emitter
       }
       this.replicateNetwork(peer, opts)
+      return peer.sync
     } else if (filename) {
       peer = {
         id: filename,
@@ -198,15 +202,20 @@ class Sync extends events.EventEmitter {
       }
       this.state.onfile(peer)
       this.replicateFromFile(peer, opts)
-    } else throw new Error('Requires filename or host and port')
-
-    return peer.sync
+      return peer.sync
+    } else {
+      var emitter = new events.EventEmitter()
+      process.nextTick(() => {
+        emitter.emit('error', new errors.PeerNotFoundError())
+      })
+      return emitter
+    }
   }
 
   replicateNetwork (peer, opts) {
     if (!peer.handshake) {
       process.nextTick(function () {
-        peer.sync.emit('error', new Error('trying to sync before handshake has occurred'))
+        peer.sync.emit('error', new errors.PrematureSyncError())
       })
       return peer.sync
     }
@@ -267,12 +276,12 @@ class Sync extends events.EventEmitter {
     fs.access(filename, function (err) {
       if (err) { // file doesn't exist, write
         if (self.opts.writeFormat === 'osm-p2p-syncfile') sync()
-        else return onerror(new Error('unsupported syncfile type'))
+        else return onerror(new errors.UnsupportedSyncfileError())
       } else { // read
         isGzipFile(filename, function (err, isGzip) {
           if (err) return onerror(err)
           if (!isGzip) sync()
-          else return onerror(new Error('unsupported syncfile type'))
+          else return onerror(new errors.UnsupportedSyncfileError())
         })
       }
     })
@@ -285,10 +294,10 @@ class Sync extends events.EventEmitter {
         syncfile.userdata(function (err, data) {
           if (err) return onerror(err)
           if (data && data['p2p-db'] && data['p2p-db'] !== 'kappa-osm') {
-            return onerror(new Error('trying to sync this kappa-osm database with a ' + data['p2p-db'] + ' database!'))
+            return onerror(new errors.UnsupportedSyncfileError(data['p2p-db']))
           }
           if (data && data.discoveryKey && opts.projectKey && data.discoveryKey !== discoKey) {
-            return onerror(new Error(`trying to sync two different projects (us=${discoKey}) (syncfile=${data.discoveryKey})`))
+            return onerror(new errors.IncompatibleProjectsError())
           }
           start()
         })
@@ -376,7 +385,9 @@ class Sync extends events.EventEmitter {
       debug('connection', peer.host, peer.port)
 
       connection.on('close', onClose)
-      connection.on('error', onClose)
+      connection.on('error', err => {
+        onClose(new errors.ConnectionLostError(err))
+      })
 
       var open = true
       var stream
@@ -427,7 +438,11 @@ class Sync extends events.EventEmitter {
           if (--self._activeSyncs === 0) {
             self.osm.core.resume()
           }
-          if (peer.started && !stream.goodFinish && !err) err = new Error('sync stream terminated on remote side')
+          if (err) {
+            err = new errors.SyncError('general sync failure', err)
+          } else if (peer.started && !stream.goodFinish) {
+            err = new errors.SyncError('sync terminated on remote side')
+          }
           onClose(err)
         })
       }
@@ -492,13 +507,13 @@ function WifiPeer (connection, info) {
  */
 function discoveryKey (projectKey) {
   if (typeof projectKey === 'undefined') return SYNC_DEFAULT_KEY
-  if (typeof projectKey === 'string') {
+
+  if (typeof projectKey === 'string' && projectKey.length === 64) {
     projectKey = Buffer.from(projectKey, 'hex')
-  }
-  if (Buffer.isBuffer(projectKey) && projectKey.length === 32) {
+  } else if (Buffer.isBuffer(projectKey) && projectKey.length === 32) {
     return hcrypto.discoveryKey(projectKey).toString('hex')
   } else {
-    throw new Error('projectKey must be undefined or a 32-byte Buffer, or a hex string encoding a 32-byte buffer')
+    throw new errors.MalformedProjectKeyError(projectKey)
   }
 }
 
