@@ -2,7 +2,7 @@ const createMediaReplicationStream = require('blob-store-replication-stream')
 const Syncfile = require('osm-p2p-syncfile')
 const debug = require('debug')('mapeo-sync')
 const Swarm = require('discovery-swarm')
-const events = require('events')
+const { EventEmitter } = require('events')
 const fs = require('fs')
 const os = require('os')
 const randombytes = require('randombytes')
@@ -62,7 +62,6 @@ class SyncState {
   }
 
   add (peer) {
-    peer.sync = new events.EventEmitter()
     var onstart = () => this.onstart(peer)
     var onerror = (error) => this.onerror(peer, error)
     var onend = () => {
@@ -100,12 +99,12 @@ class SyncState {
     return peer.state.topic === states.COMPLETE || peer.state.topic === states.ERROR
   }
 
-  onwifi (peer) {
+  addWifiPeer (peer) {
     peer.state = PeerState(states.WIFI_READY)
     this.add(peer)
   }
 
-  onfile (peer) {
+  addFilePeer (peer) {
     this.onstart(peer)
     this.add(peer)
     this.addProgressEventListeners(peer)
@@ -154,7 +153,7 @@ class SyncState {
   }
 }
 
-class Sync extends events.EventEmitter {
+class Sync extends EventEmitter {
   constructor (osm, media, opts) {
     super()
     opts = Object.assign(opts.internetDiscovery ? DEFAULT_INTERNET_DISCO : DEFAULT_LOCAL_DISCO, opts)
@@ -180,13 +179,12 @@ class Sync extends events.EventEmitter {
 
   replicate ({host, port, filename}, opts) {
     if (!opts) opts = {}
-    var peer
 
     if (host && port) {
       port = parseInt(port)
-      peer = this.state.get(host, port)
+      const peer = this.state.get(host, port)
       if (!peer) {
-        let emitter = new events.EventEmitter()
+        let emitter = new EventEmitter()
         process.nextTick(() => {
           emitter.emit('error', new errors.PeerNotFoundError())
         })
@@ -195,16 +193,12 @@ class Sync extends events.EventEmitter {
       this.replicateNetwork(peer, opts)
       return peer.sync
     } else if (filename) {
-      peer = {
-        id: filename,
-        name: filename,
-        filename
-      }
-      this.state.onfile(peer)
+      const peer = new FilePeer(filename)
+      this.state.addFilePeer(peer)
       this.replicateFromFile(peer, opts)
       return peer.sync
     } else {
-      let emitter = new events.EventEmitter()
+      let emitter = new EventEmitter()
       process.nextTick(() => {
         emitter.emit('error', new errors.PeerNotFoundError())
       })
@@ -375,8 +369,6 @@ class Sync extends events.EventEmitter {
   }
 
   _swarm () {
-    var self = this
-
     const swarmId = crypto.createHash('sha256').update(this.id).digest()
     var opts = Object.assign(this.opts, {
       keepExistingConnections: true,
@@ -384,95 +376,94 @@ class Sync extends events.EventEmitter {
     })
     var swarm = Swarm(opts)
 
-    swarm.on('connection', (connection, info) => {
-      const peer = WifiPeer(connection, info)
-      debug('connection', peer.host, peer.port)
+    swarm.on('connection', this.onConnection.bind(this))
+    return swarm
+  }
 
-      connection.on('close', onClose)
-      connection.on('error', err => {
-        onClose(new errors.ConnectionLostError(err))
+  onConnection (connection, info) {
+    const self = this
+    const peerId = info.id.toString('hex')
+    let peer
+    debug('connection made', info.host, info.port)
+
+    connection.on('close', onClose)
+    connection.on('error', err => {
+      onClose(new errors.ConnectionLostError(err))
+    })
+
+    var open = true
+    setTimeout(doHandshake.bind(null, info.initiator), 500)
+
+    function onClose (err) {
+      if (!open) return
+      open = false
+      if (peer) {
+        debug('emitting sync event', peer.host, peer.port, err)
+        if (err) peer.sync.emit('error', err)
+        else peer.sync.emit('end')
+        self.emit('down', peer)
+      }
+      debug('connection ended', info.host, info.port)
+    }
+
+    function doHandshake (isInitiator) {
+      if (!open) return
+
+      debug('doHandshake', info.host, info.port)
+
+      var deviceType = self.opts.deviceType
+      const stream = MapeoSync(isInitiator, self.osm, self.media, {
+        id: peerId,
+        deviceType: deviceType,
+        deviceName: self.name || os.hostname(),
+        protocolVersion: SYNC_VERSION,
+        handshake: onHandshake
       })
 
-      var open = true
-      setTimeout(doHandshake.bind(null, info.initiator), 500)
-
-      function onClose (err) {
-        debug('onClose', peer.host, peer.port, err)
-        if (!open) return
-        open = false
-        if (peer.sync) {
-          debug('emitting sync event', peer.host, peer.port, err)
-          if (err) peer.sync.emit('error', err)
-          else peer.sync.emit('end')
-        }
-        self.emit('down', peer)
-        debug('down', peer.host, peer.port)
-      }
-
-      function doHandshake (isInitiator) {
-        if (!open) return
-
-        debug('doHandshake', peer.host, peer.port)
-
-        var deviceType = self.opts.deviceType
-        peer.deviceType = deviceType
-        const stream = MapeoSync(isInitiator, self.osm, self.media, {
-          id: peer.id,
-          deviceType: deviceType,
-          deviceName: self.name || os.hostname(),
-          protocolVersion: SYNC_VERSION,
-          handshake: onHandshake
-        })
-
-        stream.once('sync-start', function () {
-          debug('sync started', peer.host, peer.port)
-          if (++self._activeSyncs === 1) {
-            self.osm.core.pause(function () {
-              if (peer.sync) peer.sync.emit('sync-start')
-            })
-          }
-        })
-
-        stream.on('progress', (progress) => {
-          debug('sync progress', peer.host, peer.port, progress)
-          if (peer.sync) peer.sync.emit('progress', progress)
-        })
-
-        peer._stream = stream
-
-        pump(stream, connection, stream, function (err) {
-          debug('pump ended', peer.host, peer.port)
-          if (--self._activeSyncs === 0) {
-            self.osm.core.resume()
-          }
-          if (err) {
-            err = new errors.SyncError('general sync failure', err)
-          } else if (peer.started && !stream.goodFinish) {
-            err = new errors.SyncError('sync terminated on remote side')
-          }
-          onClose(err)
-        })
-
-        function onHandshake (req, accept) {
-          debug('got handshake', peer.host, peer.port, req)
-          peer.handshake = {
-            accept: accept
-          }
-          // as soon as any data is received, accept! Because this means that
-          // the other side just have accepted & wants to start.
-          stream.once('accepted', function () {
-            self.state.addProgressEventListeners(peer)
-            accept()
+      stream.once('sync-start', function () {
+        debug('sync started', info.host, info.port)
+        if (++self._activeSyncs === 1) {
+          self.osm.core.pause(function () {
+            if (peer) peer.sync.emit('sync-start')
           })
-
-          self.state.onwifi(peer)
-          peer.deviceType = req.deviceType
-          peer.name = req.deviceName
-          self.emit('peer', peer)
         }
+      })
+
+      stream.on('progress', (progress) => {
+        debug('sync progress', info.host, info.port, progress)
+        if (peer) peer.sync.emit('progress', progress)
+      })
+
+      pump(stream, connection, stream, function (err) {
+        debug('pump ended', info.host, info.port)
+        if (--self._activeSyncs === 0) {
+          self.osm.core.resume()
+        }
+        if (err) {
+          err = new errors.SyncError('general sync failure', err)
+        } else if (peer && peer.started && !stream.goodFinish) {
+          err = new errors.SyncError('sync terminated on remote side')
+        }
+        onClose(err)
+      })
+
+      function onHandshake (req, accept) {
+        debug('got handshake', info.host, info.port, req)
+        // as soon as any data is received, accept! Because this means that
+        // the other side just have accepted & wants to start.
+        stream.once('accepted', function () {
+          self.state.addProgressEventListeners(peer)
+          accept()
+        })
+
+        peer = new WifiPeer(connection, info, req.deviceName, req.deviceType)
+        peer.handshake = { accept: accept }
+        peer._stream = stream // XXX: used in tests
+
+        self.state.addWifiPeer(peer)
+        self.emit('peer', peer)
       }
-    })
-    return swarm
+    }
   }
 }
 
@@ -494,14 +485,22 @@ function isGzipFile (filepath, cb) {
   })
 }
 
-function WifiPeer (connection, info) {
-  return {
-    type: 'wifi',
-    id: info.id.toString('hex'),
-    host: info.host,
-    port: info.port,
-    connection: connection
-  }
+function FilePeer (filename) {
+  this.type = 'file'
+  this.id = filename
+  this.filename = filename
+  this.sync = new EventEmitter()
+}
+
+function WifiPeer (connection, info, name, deviceType) {
+  this.type = 'wifi'
+  this.id = info.id.toString('hex')
+  this.host = info.host
+  this.port = info.port
+  this.connection = connection
+  this.name = name
+  this.deviceType = deviceType
+  this.sync = new EventEmitter()
 }
 
 /**
