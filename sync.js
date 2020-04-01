@@ -15,7 +15,7 @@ const progressSync = require('./lib/db-sync-progress')
 const util = require('./lib/util')
 const errors = require('./lib/errors')
 
-const SYNC_VERSION = 2
+const SYNC_VERSION = 3
 
 const SYNC_DEFAULT_KEY = 'mapeo-sync'
 const SYNCFILE_FORMATS = {
