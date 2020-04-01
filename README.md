@@ -162,8 +162,8 @@ Emitted when a new wifi peer connection is discovered.
 
 ### var ev = sync.replicate(target[, opts])
 
-`peer` is an object with properties `host`, `port`, and `name` **or** an object
-with the `filename` property, for local file replication. Calls
+`target` is an object with properties `host`, `port`, and `name` **or** an
+object with the `filename` property, for local file replication. Calls
 `replicateFromFile` or `replicateNetwork` below.
 
 `filename` is a string specifying where the find the file to sync with. If it
