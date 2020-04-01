@@ -20,7 +20,7 @@ const SYNC_VERSION = 2
 const SYNC_DEFAULT_KEY = 'mapeo-sync'
 const SYNCFILE_FORMATS = {
   'hyperlog-sneakernet': 1,
-  'osm-p2p-syncfile'   : 2
+  'osm-p2p-syncfile': 2
 }
 
 const DEFAULT_LOCAL_DISCO = {
@@ -186,7 +186,7 @@ class Sync extends events.EventEmitter {
       port = parseInt(port)
       peer = this.state.get(host, port)
       if (!peer) {
-        var emitter = new events.EventEmitter()
+        let emitter = new events.EventEmitter()
         process.nextTick(() => {
           emitter.emit('error', new errors.PeerNotFoundError())
         })
@@ -204,7 +204,7 @@ class Sync extends events.EventEmitter {
       this.replicateFromFile(peer, opts)
       return peer.sync
     } else {
-      var emitter = new events.EventEmitter()
+      let emitter = new events.EventEmitter()
       process.nextTick(() => {
         emitter.emit('error', new errors.PeerNotFoundError())
       })
@@ -303,7 +303,7 @@ class Sync extends events.EventEmitter {
         })
       })
 
-      function start() {
+      function start () {
         const remoteState = util.mfState(syncfile._mfeed)
         const localState = util.dbState(self.osm)
         const expectedDown = util.getExpectedDownloadEvents(localState, remoteState)
@@ -394,7 +394,6 @@ class Sync extends events.EventEmitter {
       })
 
       var open = true
-      var stream
       setTimeout(doSync.bind(null, info.initiator), 500)
 
       function onClose (err) {
@@ -412,18 +411,21 @@ class Sync extends events.EventEmitter {
 
       function doSync (isInitiator) {
         if (!open) return
+
         debug('doSync', peer.host, peer.port)
+
         // Set up the sync stream immediately, but don't do anything with it
         // until one side initiates the sync operation.
         var deviceType = self.opts.deviceType
         peer.deviceType = deviceType
-        stream = MapeoSync(isInitiator, self.osm, self.media, {
+        const stream = MapeoSync(isInitiator, self.osm, self.media, {
           id: peer.id,
           deviceType: deviceType,
           deviceName: self.name || os.hostname(),
           protocolVersion: SYNC_VERSION,
           handshake: onHandshake
         })
+
         stream.once('sync-start', function () {
           debug('sync started', peer.host, peer.port)
           if (++self._activeSyncs === 1) {
@@ -432,11 +434,14 @@ class Sync extends events.EventEmitter {
             })
           }
         })
+
         stream.on('progress', (progress) => {
           debug('sync progress', peer.host, peer.port, progress)
           if (peer.sync) peer.sync.emit('progress', progress)
         })
+
         peer._stream = stream
+
         pump(stream, connection, stream, function (err) {
           debug('pump ended', peer.host, peer.port)
           if (--self._activeSyncs === 0) {
@@ -449,24 +454,24 @@ class Sync extends events.EventEmitter {
           }
           onClose(err)
         })
-      }
 
-      function onHandshake (req, accept) {
-        debug('got handshake', peer.host, peer.port, req)
-        peer.handshake = {
-          accept: accept
+        function onHandshake (req, accept) {
+          debug('got handshake', peer.host, peer.port, req)
+          peer.handshake = {
+            accept: accept
+          }
+          // as soon as any data is received, accept! Because this means that
+          // the other side just have accepted & wants to start.
+          stream.once('accepted', function () {
+            self.state.addProgressEventListeners(peer)
+            accept()
+          })
+
+          self.state.onwifi(peer)
+          peer.deviceType = req.deviceType
+          peer.name = req.deviceName
+          self.emit('peer', peer)
         }
-        // as soon as any data is received, accept! Because this means that
-        // the other side just have accepted & wants to start.
-        stream.once('accepted', function () {
-          self.state.addProgressEventListeners(peer)
-          accept()
-        })
-
-        self.state.onwifi(peer)
-        peer.deviceType = req.deviceType
-        peer.name = req.deviceName
-        self.emit('peer', peer)
       }
     })
     return swarm
@@ -474,8 +479,8 @@ class Sync extends events.EventEmitter {
 }
 
 function isGzipFile (filepath, cb) {
-  fs.exists(filepath, function (exists) {
-    if (!exists) return cb(null, false)
+  fs.access(filepath, function (err) {
+    if (err) return cb(null, false)
     fs.open(filepath, 'r', function (err, fd) {
       if (err) return cb(err)
       var magic = Buffer.alloc(2)
