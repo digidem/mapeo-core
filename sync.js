@@ -394,7 +394,7 @@ class Sync extends events.EventEmitter {
       })
 
       var open = true
-      setTimeout(doSync.bind(null, info.initiator), 500)
+      setTimeout(doHandshake.bind(null, info.initiator), 500)
 
       function onClose (err) {
         debug('onClose', peer.host, peer.port, err)
@@ -409,13 +409,11 @@ class Sync extends events.EventEmitter {
         debug('down', peer.host, peer.port)
       }
 
-      function doSync (isInitiator) {
+      function doHandshake (isInitiator) {
         if (!open) return
 
-        debug('doSync', peer.host, peer.port)
+        debug('doHandshake', peer.host, peer.port)
 
-        // Set up the sync stream immediately, but don't do anything with it
-        // until one side initiates the sync operation.
         var deviceType = self.opts.deviceType
         peer.deviceType = deviceType
         const stream = MapeoSync(isInitiator, self.osm, self.media, {
