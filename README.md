@@ -182,15 +182,6 @@ Valid `opts` include:
   syncfile that declares a different project ID. If either side doesn't have a
   project ID set, sync will be permitted.
 
-### var ev = sync.replicateNetwork(peer)
-
-`peer` should be an already-discoverable peer object, emitted from the `peer`
-event or returned on the `peers()` method.
-
-If you want to replicate with a peer that is not discovered yet, but you have
-the host and port, we haven't made this easy at the moment. The code is written
-internally but not exposed via a public API. PRs welcome.
-
 ### Sync errors
 
 Various subclasssed `Error`s are exposed by this module, to make it easier to
