@@ -411,10 +411,10 @@ class Sync extends EventEmitter {
 
       debug('doHandshake', info.host, info.port)
 
-      var deviceType = self.opts.deviceType
-      const stream = MapeoSync(isInitiator, self.osm, self.media, {
+      const stream = MapeoSync(self.osm, self.media, {
+        isInitiator: isInitiator,
         id: peerId,
-        deviceType: deviceType,
+        deviceType: self.opts.deviceType,
         deviceName: self.name || os.hostname(),
         protocolVersion: SYNC_VERSION,
         handshake: onHandshake
