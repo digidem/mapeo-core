@@ -227,6 +227,7 @@ class Sync extends EventEmitter {
     if (this.swarm || this._destroyingSwarm) {
       return process.nextTick(cb)
     }
+    this.state = new SyncState()
     this.swarm = this._swarm()
     process.nextTick(cb)
   }
