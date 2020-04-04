@@ -294,7 +294,8 @@ class Sync extends EventEmitter {
           if (data && data.discoveryKey && opts.projectKey && data.discoveryKey !== discoKey) {
             return onerror(new errors.IncompatibleProjectsError())
           }
-          start()
+
+          self.osm.ready(start)
         })
       })
 
@@ -387,17 +388,7 @@ class Sync extends EventEmitter {
     let peer
     debug('connection made', info.host, info.port)
 
-    connection.on('close', onClose)
-    connection.on('error', err => {
-      onClose(new errors.ConnectionLostError(err))
-    })
-
-    var open = true
-    setTimeout(doHandshake.bind(null, info.initiator), 500)
-
     function onClose (err) {
-      if (!open) return
-      open = false
       if (peer) {
         debug('emitting sync event', peer.host, peer.port, err)
         if (err) peer.sync.emit('error', err)
@@ -407,63 +398,58 @@ class Sync extends EventEmitter {
       debug('connection ended', info.host, info.port)
     }
 
-    function doHandshake (isInitiator) {
-      if (!open) return
+    const stream = MapeoSync(self.osm, self.media, {
+      isInitiator: info.initiator,
+      id: peerId,
+      deviceType: self.opts.deviceType,
+      deviceName: self.name || os.hostname(),
+      protocolVersion: SYNC_VERSION,
+      handshake: onHandshake
+    })
 
-      debug('doHandshake', info.host, info.port)
-
-      const stream = MapeoSync(self.osm, self.media, {
-        isInitiator: isInitiator,
-        id: peerId,
-        deviceType: self.opts.deviceType,
-        deviceName: self.name || os.hostname(),
-        protocolVersion: SYNC_VERSION,
-        handshake: onHandshake
-      })
-
-      stream.once('sync-start', function () {
-        debug('sync started', info.host, info.port)
-        if (++self._activeSyncs === 1) {
-          self.osm.core.pause(function () {
-            if (peer) peer.sync.emit('sync-start')
-          })
-        }
-      })
-
-      stream.on('progress', (progress) => {
-        debug('sync progress', info.host, info.port, progress)
-        if (peer) peer.sync.emit('progress', progress)
-      })
-
-      pump(stream, connection, stream, function (err) {
-        debug('pump ended', info.host, info.port)
-        if (--self._activeSyncs === 0) {
-          self.osm.core.resume()
-        }
-        if (err) {
-          err = new errors.SyncError('general sync failure', err)
-        } else if (peer && peer.started && !stream.goodFinish) {
-          err = new errors.SyncError('sync terminated on remote side')
-        }
-        onClose(err)
-      })
-
-      function onHandshake (req, accept) {
-        debug('got handshake', info.host, info.port, req)
-        // as soon as any data is received, accept! Because this means that
-        // the other side just have accepted & wants to start.
-        stream.once('accepted', function () {
-          self.state.addProgressEventListeners(peer)
-          accept()
+    stream.once('sync-start', function () {
+      debug('sync started', info.host, info.port)
+      if (++self._activeSyncs === 1) {
+        self.osm.core.pause(function () {
+          if (peer) peer.sync.emit('sync-start')
         })
-
-        peer = new WifiPeer(connection, info, req.deviceName, req.deviceType)
-        peer.handshake = { accept: accept }
-        peer._stream = stream // XXX: used in tests
-
-        self.state.addWifiPeer(peer)
-        self.emit('peer', peer)
       }
+    })
+
+    stream.on('progress', (progress) => {
+      debug('sync progress', info.host, info.port, progress)
+      if (peer) peer.sync.emit('progress', progress)
+    })
+
+    pump(stream, connection, stream, function (err) {
+      debug('pump ended', info.host, info.port)
+      if (--self._activeSyncs === 0) {
+        self.osm.core.resume()
+      }
+      if (err) {
+        err = new errors.SyncError('general sync failure', err)
+      } else if (peer && peer.started && !stream.goodFinish) {
+        err = new errors.SyncError('sync terminated on remote side')
+      }
+      onClose(err)
+    })
+
+    function onHandshake (req, accept) {
+      debug('got handshake', info.host, info.port, req)
+
+      // as soon as any data is received, accept! Because this means that
+      // the other side just have accepted & wants to start.
+      stream.once('accepted', function () {
+        self.state.addProgressEventListeners(peer)
+        accept()
+      })
+
+      peer = new WifiPeer(connection, info, req.deviceName, req.deviceType)
+      peer.handshake = { accept: accept }
+      peer._stream = stream // XXX: used in tests
+
+      self.state.addWifiPeer(peer)
+      self.emit('peer', peer)
     }
   }
 }
