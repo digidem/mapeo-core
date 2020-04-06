@@ -100,14 +100,13 @@ Retrieves the current device's unique ID (string).
 
 ## Sync API
 
-Mapeo core provides some key functionality for syncing between two devices over
+Mapeo Core provides some key functionality for syncing between two devices over
 WiFi and filesystem (i.e., over USB sneakernets).
 
 ```js
 var sync = mapeo.sync
 
 sync.listen(function () {
-
 })
 ```
 
@@ -148,35 +147,35 @@ Fetch a list of the current sync peers that have been found thus far.
 
 A peer can have the following properties:
 
-* `name`: a human-readable identifier for the peer (e.g., hostname)
-* `connection`: The open connection to this peer. Can be closed manually to
+* `name` (string): a human-readable identifier for the peer (e.g., hostname)
+* `connection` (duplex stream): The open connection to this peer. Can be closed manually to
   stop any data transfer.
-* `host`: the ip
-* `port`: the port
-* `type`: 'wifi' or 'file'
-* `deviceType`: either `mobile` or `desktop`, if `type == 'wifi'`
+* `host` (string): the ip
+* `port` (number): the port
+* `type` (string): 'wifi' or 'file'
+* `deviceType` (string): either `mobile` or `desktop`, if `type == 'wifi'`
 
 ### sync.on('peer', peer)
 
 Emitted when a new wifi peer connection is discovered.
 
-### var ev = sync.replicate(target[, opts])
+### var ev = sync.replicate(peer[, opts])
 
-`target` is an object with properties `host`, `port`, and `name` **or** an
-object with the `filename` property, for local file replication. Calls
-`replicateFromFile` or `replicateNetwork` below.
+Begin replicating with a peer, where `peer` is one of
 
-`filename` is a string specifying where the find the file to sync with. If it
-doesn't exist, it will be created, and use the format specified in the
-constructor's `opts.writeFormat`.
+- a Peer object (as returned by the `'peer'` event and `.peers()` APIs above),
+  for replication with a network peer.
+- an object of the form `{ filename: 'somefile' }`, for local file replication.
+  If it doesn't exist, it will be created, and use the format specified in the
+  constructor's `opts.writeFormat`.
 
-Both `replicate` and `replicateNetwork` return an EventEmitter `ev`. It can emit
+This function returns an EventEmitter `ev`. It can emit the following events:
 
 * `"error" (err)`: gives an Error object signalling an error in syncing.
 * `"progress" (progress)`: gives information about how many objects have been synced and how many to be synced in total, e.g. `{ db: { sofar: 5, total: 10 }, media: { sofar: 18, total: 100 } }`
 * `"end"`: successful completion of OSM and media sync.
 
-Valid `opts` include:
+Valid `opts` include
 
 - `opts.projectKey` (string): a unique identifier that prohibits sync with a
   syncfile that declares a different project ID. If either side doesn't have a
