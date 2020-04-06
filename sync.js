@@ -10,7 +10,7 @@ const pump = require('pump')
 const hcrypto = require('hypercore-crypto')
 const crypto = require('crypto')
 const datDefaults = require('dat-swarm-defaults')
-const MapeoSync = require('./lib/sync-stream')
+const SyncStream = require('./lib/sync-stream')
 const progressSync = require('./lib/db-sync-progress')
 const util = require('./lib/util')
 const errors = require('./lib/errors')
@@ -398,7 +398,7 @@ class Sync extends EventEmitter {
       debug('connection ended', info.host, info.port)
     }
 
-    const stream = MapeoSync(self.osm, self.media, {
+    const stream = SyncStream(self.osm, self.media, {
       isInitiator: info.initiator,
       id: peerId,
       deviceType: self.opts.deviceType,
