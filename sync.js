@@ -10,7 +10,7 @@ const pump = require('pump')
 const hcrypto = require('hypercore-crypto')
 const crypto = require('crypto')
 const datDefaults = require('dat-swarm-defaults')
-const SyncStream = require('./lib/sync-stream')
+const PeerChannel = require('./lib/peer-channel')
 const progressSync = require('./lib/db-sync-progress')
 const util = require('./lib/util')
 const errors = require('./lib/errors')
@@ -65,7 +65,7 @@ class SyncState {
     var onstart = () => this.onstart(peer)
     var onerror = (error) => this.onerror(peer, error)
     var onend = () => {
-      this.onend(peer)
+      this.remove(peer)
       peer.sync.removeListener('sync-start', onstart)
       peer.sync.removeListener('end', onend)
       peer.sync.removeListener('error', onerror)
@@ -76,6 +76,15 @@ class SyncState {
     peer.sync.on('error', onerror)
     peer.sync.on('end', onend)
     this._state[peer.id] = peer
+  }
+
+  remove (peer) {
+    if (this._isclosed(peer)) return
+    if (peer.started) {
+      peer.state = PeerState(states.COMPLETE, Date.now())
+      this._completed[peer.name] = Object.assign({}, peer)
+    }
+    delete this._state[peer.id]
   }
 
   addProgressEventListeners (peer) {
@@ -127,15 +136,6 @@ class SyncState {
       if (error[key]) errorMetadata[key] = error[key]
     })
     peer.state = PeerState(states.ERROR, error ? error.toString() : 'Error', errorMetadata)
-  }
-
-  onend (peer) {
-    if (this._isclosed(peer)) return
-    if (peer.started) {
-      peer.state = PeerState(states.COMPLETE, Date.now())
-      this._completed[peer.name] = Object.assign({}, peer)
-    }
-    delete this._state[peer.id]
   }
 
   peers () {
@@ -207,7 +207,7 @@ class Sync extends EventEmitter {
   }
 
   replicateNetwork (peer, opts) {
-    if (!peer.handshake) {
+    if (!peer.sync) {
       process.nextTick(function () {
         peer.sync.emit('error', new errors.PrematureSyncError())
       })
@@ -215,10 +215,10 @@ class Sync extends EventEmitter {
     }
 
     // return existing emitter
-    if (peer.accepted) return peer.sync
+    if (peer.syncing) return peer.sync
 
-    peer.handshake.accept()
-    peer.accepted = true
+    peer.doSync()
+    peer.syncing = true
     return peer.sync
   }
 
@@ -398,59 +398,71 @@ class Sync extends EventEmitter {
       debug('connection ended', info.host, info.port)
     }
 
-    const stream = SyncStream(self.osm, self.media, {
+    const channel = new PeerChannel({
+      osm: self.osm,
+      media: self.media,
+      connection: connection,
       isInitiator: info.initiator,
-      id: peerId,
-      deviceType: self.opts.deviceType,
-      deviceName: self.name || os.hostname(),
-      protocolVersion: SYNC_VERSION,
-      handshake: onHandshake
-    })
-
-    stream.once('sync-start', function () {
-      debug('sync started', info.host, info.port)
-      if (++self._activeSyncs === 1) {
-        self.osm.core.pause(function () {
-          if (peer) peer.sync.emit('sync-start')
-        })
+      handshakePayload: {
+        id: peerId,
+        deviceType: self.opts.deviceType,
+        deviceName: self.name || os.hostname(),
+        protocolVersion: SYNC_VERSION
       }
     })
 
-    stream.on('progress', (progress) => {
-      debug('sync progress', info.host, info.port, progress)
-      if (peer) peer.sync.emit('progress', progress)
+    channel.once('end', () => {
+      debug('connection ended gracefully', info.host, info.port)
+      onClose()
     })
 
-    pump(stream, connection, stream, function (err) {
-      debug('pump ended', info.host, info.port)
-      if (--self._activeSyncs === 0) {
-        self.osm.core.resume()
-      }
-      if (err) {
-        err = new errors.SyncError('general sync failure', err)
-      } else if (peer && peer.started && !stream.goodFinish) {
-        err = new errors.SyncError('sync terminated on remote side')
-      }
+    channel.once('error', err => {
+      debug('connection dropped', info.host, info.port)
       onClose(err)
     })
 
-    function onHandshake (req, accept) {
-      debug('got handshake', info.host, info.port, req)
-
-      // as soon as any data is received, accept! Because this means that
-      // the other side just have accepted & wants to start.
-      stream.once('accepted', function () {
-        self.state.addProgressEventListeners(peer)
-        accept()
-      })
-
+    channel.once('handshake-complete', req => {
       peer = new WifiPeer(connection, info, req.deviceName, req.deviceType)
-      peer.handshake = { accept: accept }
-      peer._stream = stream // XXX: used in tests
-
+      // TODO: can maybe do s/self/this?
       self.state.addWifiPeer(peer)
       self.emit('peer', peer)
-    }
+      self.state.addProgressEventListeners(peer)
+
+      // start a new sync
+      peer.doSync = function () {
+        const sync = channel.sync()
+
+        sync.once('sync-start', function () {
+          debug('sync started', info.host, info.port)
+          if (++self._activeSyncs === 1) {
+            self.osm.core.pause(function () {
+              if (peer) peer.sync.emit('sync-start')
+            })
+          }
+        })
+
+        sync.once('end', () => {
+          debug('sync ended', info.host, info.port)
+          if (--self._activeSyncs === 0) {
+            self.osm.core.resume()
+          }
+          peer.sync.emit('end')
+        })
+
+        sync.once('error', err => {
+          debug('sync ended with error', err, info.host, info.port)
+          if (--self._activeSyncs === 0) {
+            self.osm.core.resume()
+          }
+          peer.sync.emit('error', err)
+        })
+
+        sync.on('progress', (progress) => {
+          debug('sync progress', info.host, info.port, progress)
+          if (peer) peer.sync.emit('progress', progress)
+        })
+      }
+    })
   }
 }
 
