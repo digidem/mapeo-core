@@ -42,7 +42,7 @@ const DEFAULT_INTERNET_DISCO = Object.assign(
 )
 
 const states = {
-  WIFI_READY: 'replication-wifi-ready',
+  READY: 'replication-wifi-ready',
   PROGRESS: 'replication-progress',
   COMPLETE: 'replication-complete',
   ERROR: 'replication-error',
@@ -53,6 +53,15 @@ const multifeedErrorProps = ['code', 'usVersion', 'themVersion', 'usClient', 'th
 
 function PeerState (topic, message, other) {
   return { topic, message, ...other }
+}
+
+class Peer {
+  constructor (type) {
+    this.type = type
+    this.sync = new EventEmitter()
+    this.state = states.READY
+    this.error = null
+  }
 }
 
 class SyncState {
@@ -80,7 +89,7 @@ class SyncState {
 
   remove (peer) {
     if (this._isclosed(peer)) return
-    if (peer.started) {
+    if (peer.state.topic === states.STARTED) {
       peer.state = PeerState(states.COMPLETE, Date.now())
       this._completed[peer.name] = Object.assign({}, peer)
     }
@@ -109,7 +118,7 @@ class SyncState {
   }
 
   addWifiPeer (peer) {
-    peer.state = PeerState(states.WIFI_READY)
+    peer.state = PeerState(states.READY)
     this.add(peer)
   }
 
