@@ -89,7 +89,7 @@ class SyncState {
 
   remove (peer) {
     if (this._isclosed(peer)) return
-    if (peer.state.topic === states.STARTED) {
+    if (peer.started) {
       peer.state = PeerState(states.COMPLETE, Date.now())
       this._completed[peer.name] = Object.assign({}, peer)
     }
@@ -400,8 +400,6 @@ class Sync extends EventEmitter {
     function onClose (err) {
       if (peer) {
         debug('emitting sync event', peer.host, peer.port, err)
-        if (err) peer.sync.emit('error', err)
-        else peer.sync.emit('end')
         self.emit('down', peer)
       }
       debug('connection ended', info.host, info.port)
@@ -441,14 +439,12 @@ class Sync extends EventEmitter {
       peer.doSync = function () {
         const sync = channel.sync()
 
-        sync.once('sync-start', function () {
-          debug('sync started', info.host, info.port)
-          if (++self._activeSyncs === 1) {
-            self.osm.core.pause(function () {
-              if (peer) peer.sync.emit('sync-start')
-            })
-          }
-        })
+        debug('sync started', info.host, info.port)
+        if (++self._activeSyncs === 1) {
+          self.osm.core.pause(function () {
+            if (peer) peer.sync.emit('sync-start')
+          })
+        }
 
         sync.once('end', () => {
           debug('sync ended', info.host, info.port)

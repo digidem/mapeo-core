@@ -192,7 +192,7 @@ tape('sync: replication of a simple observation with media', function (t) {
     function sync (peer) {
       var syncer = api1.sync.replicate(peer)
       syncer.on('error', function (err) {
-        t.error(err)
+        t.fail(err)
         close()
       })
       syncer.on('end', function () {
@@ -206,8 +206,8 @@ tape('sync: replication of a simple observation with media', function (t) {
               t.error(err)
               t.ok(exists, 'foo.txt exists on api2')
               close(function () {
-                t.ok(true)
-                t.same(peer.state.topic, 'replication-complete')
+                t.pass('closed ok')
+                t.same(peer.state.topic, 'replication-complete', 'peer state ok')
                 var date = new Date(peer.state.message)
                 t.ok(date.getTime() <= new Date().getTime(), 'timestamp ok')
               })
