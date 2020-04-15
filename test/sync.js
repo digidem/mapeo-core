@@ -788,8 +788,7 @@ tape('sync: sync with one peer only triggers events for that sync', function (t)
   })
 })
 
-// TODO: need to think through how to destroy a sync in progress safely
-tape.skip('sync: destroy during sync is reflected in peer state', function (t) {
+tape('sync: destroy during sync is reflected in peer state', function (t) {
   var opts = {api1: {deviceType: 'desktop'}, api2: {deviceType: 'desktop'}}
   helpers.createApis(opts, function (api1, api2, close) {
     var pending = 4
@@ -832,7 +831,7 @@ tape.skip('sync: destroy during sync is reflected in peer state', function (t) {
       var totalProgressEvents = 0
       syncer.on('progress', function (progress) {
         totalProgressEvents++
-        if (totalProgressEvents === 5) api2.sync.peers()[0]._stream.end()
+        if (totalProgressEvents === 5) api2.sync.destroy()
       })
     }
   })
