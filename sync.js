@@ -428,6 +428,8 @@ class Sync extends EventEmitter {
       onClose(err)
     })
 
+    channel.on('remote-sync', sync)
+
     channel.once('handshake-complete', req => {
       peer = new WifiPeer(connection, info, req.deviceName, req.deviceType)
       // TODO: can maybe do s/self/this?
@@ -437,37 +439,39 @@ class Sync extends EventEmitter {
 
       // start a new sync
       peer.doSync = function () {
-        const sync = channel.sync()
-
-        debug('sync started', info.host, info.port)
-        if (++self._activeSyncs === 1) {
-          self.osm.core.pause(function () {
-            if (peer) peer.sync.emit('sync-start')
-          })
-        }
-
-        sync.once('end', () => {
-          debug('sync ended', info.host, info.port)
-          if (--self._activeSyncs === 0) {
-            self.osm.core.resume()
-          }
-          peer.sync.emit('end')
-        })
-
-        sync.once('error', err => {
-          debug('sync ended with error', err, info.host, info.port)
-          if (--self._activeSyncs === 0) {
-            self.osm.core.resume()
-          }
-          peer.sync.emit('error', err)
-        })
-
-        sync.on('progress', (progress) => {
-          debug('sync progress', info.host, info.port, progress)
-          if (peer) peer.sync.emit('progress', progress)
-        })
+        sync(channel.sync())
       }
     })
+
+    function sync (emitter) {
+      debug('sync started', info.host, info.port)
+      if (++self._activeSyncs === 1) {
+        self.osm.core.pause(function () {
+          if (peer) peer.sync.emit('sync-start')
+        })
+      }
+
+      emitter.once('end', () => {
+        debug('sync ended', info.host, info.port)
+        if (--self._activeSyncs === 0) {
+          self.osm.core.resume()
+        }
+        peer.sync.emit('end')
+      })
+
+      emitter.once('error', err => {
+        debug('sync ended with error', err, info.host, info.port)
+        if (--self._activeSyncs === 0) {
+          self.osm.core.resume()
+        }
+        peer.sync.emit('error', err)
+      })
+
+      emitter.on('progress', (progress) => {
+        debug('sync progress', info.host, info.port, progress)
+        if (peer) peer.sync.emit('progress', progress)
+      })
+    }
   }
 }
 
