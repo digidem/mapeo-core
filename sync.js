@@ -55,15 +55,6 @@ function PeerState (topic, message, other) {
   return { topic, message, ...other }
 }
 
-class Peer {
-  constructor (type) {
-    this.type = type
-    this.sync = new EventEmitter()
-    this.state = states.READY
-    this.error = null
-  }
-}
-
 class SyncState {
   constructor () {
     this._completed = {}
@@ -432,15 +423,16 @@ class Sync extends EventEmitter {
 
     channel.once('handshake-complete', req => {
       peer = new WifiPeer(connection, info, req.deviceName, req.deviceType)
-      // TODO: can maybe do s/self/this?
-      self.state.addWifiPeer(peer)
-      self.emit('peer', peer)
-      self.state.addProgressEventListeners(peer)
 
       // start a new sync
       peer.doSync = function () {
         sync(channel.sync())
       }
+
+      // TODO: can maybe do s/self/this?
+      self.state.addWifiPeer(peer)
+      self.emit('peer', peer)
+      self.state.addProgressEventListeners(peer)
     })
 
     function sync (emitter) {
