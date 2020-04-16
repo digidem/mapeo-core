@@ -457,6 +457,7 @@ class Sync extends EventEmitter {
           self.osm.core.resume()
         }
         peer.sync.emit('error', err)
+        emitter.on('error', ()=>{}) // XXX: sometimes hypercore will emit a 2nd error for e.g. a request timeout
       })
 
       emitter.on('progress', (progress) => {
