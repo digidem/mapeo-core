@@ -354,17 +354,8 @@ class Sync extends EventEmitter {
 
   onConnection (connection, info) {
     const self = this
-    const peerId = info.id.toString('hex')
     let peer
     debug('connection made', info.host, info.port)
-
-    function onClose (err) {
-      if (peer) {
-        debug('emitting sync event', peer.host, peer.port, err)
-        self.emit('down', peer)
-      }
-      debug('connection ended', info.host, info.port)
-    }
 
     const channel = new PeerChannel({
       osm: this.osm,
@@ -372,7 +363,7 @@ class Sync extends EventEmitter {
       connection: connection,
       isInitiator: info.initiator,
       handshakePayload: {
-        id: peerId,
+        id: info.id.toString('hex'),
         deviceType: this.opts.deviceType,
         deviceName: this.name || os.hostname(),
         protocolVersion: SYNC_VERSION
@@ -403,6 +394,14 @@ class Sync extends EventEmitter {
       this.emit('peer', peer)
       this.state.addProgressEventListeners(peer)
     })
+
+    function onClose (err) {
+      if (peer) {
+        debug('emitting sync event', peer.host, peer.port, err)
+        self.emit('down', peer)
+      }
+      debug('connection ended', info.host, info.port)
+    }
 
     function sync (emitter) {
       if (!peer.sync) peer.sync = new EventEmitter()
