@@ -61,32 +61,22 @@ class SyncState {
   }
 
   add (peer) {
-    var onstart = () => this.onstart(peer)
-    var onerror = (error) => this.onerror(peer, error)
-    var onend = () => {
-      peer.sync.removeListener('sync-start', onstart)
-      peer.sync.removeListener('end', onend)
-      peer.sync.removeListener('error', onerror)
-      if (peer.sync.onprogress) peer.sync.removeListener('progress', peer.sync.onprogress)
-      this.onend(peer)
-    }
-
-    peer.sync.on('sync-start', onstart)
-    peer.sync.on('error', onerror)
-    peer.sync.on('end', onend)
+    peer.sync.on('sync-start', () => this.onStart(peer))
+    peer.sync.on('error', err => this.onError(peer, err))
+    peer.sync.on('end', () => this.onEnd(peer))
     this._active[peer.id] = peer
   }
 
-  onend (peer) {
-    if (this._isclosed(peer)) return
+  onEnd (peer) {
+    if (this.isClosed(peer)) return
     peer.state = PeerState(states.COMPLETE, Date.now())
     peer.syncing = false
     peer.sync = null
   }
 
   addProgressEventListeners (peer) {
-    peer.sync.onprogress = (progress) => this.onprogress(peer, progress)
-    peer.sync.on('progress', peer.sync.onprogress)
+    peer.sync.onProgress = (progress) => this.onProgress(peer, progress)
+    peer.sync.on('progress', peer.sync.onProgress)
   }
 
   get (host, port) {
@@ -101,7 +91,7 @@ class SyncState {
     }
   }
 
-  _isclosed (peer) {
+  isClosed (peer) {
     return peer.state.topic === states.COMPLETE || peer.state.topic === states.ERROR
   }
 
@@ -111,22 +101,22 @@ class SyncState {
   }
 
   addFilePeer (peer) {
-    this.onstart(peer)
+    this.onStart(peer)
     this.add(peer)
     this.addProgressEventListeners(peer)
   }
 
-  onstart (peer) {
+  onStart (peer) {
     peer.state = PeerState(states.STARTED)
   }
 
-  onprogress (peer, progress) {
-    if (this._isclosed(peer)) return
+  onProgress (peer, progress) {
+    if (this.isClosed(peer)) return
     peer.state = PeerState(states.PROGRESS, progress)
   }
 
-  onerror (peer, error) {
-    if (this._isclosed(peer)) return
+  onError (peer, error) {
+    if (this.isClosed(peer)) return
     const errorMetadata = {}
     multifeedErrorProps.forEach(key => {
       if (error[key]) errorMetadata[key] = error[key]
