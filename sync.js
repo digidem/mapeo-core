@@ -367,14 +367,14 @@ class Sync extends EventEmitter {
     }
 
     const channel = new PeerChannel({
-      osm: self.osm,
-      media: self.media,
+      osm: this.osm,
+      media: this.media,
       connection: connection,
       isInitiator: info.initiator,
       handshakePayload: {
         id: peerId,
-        deviceType: self.opts.deviceType,
-        deviceName: self.name || os.hostname(),
+        deviceType: this.opts.deviceType,
+        deviceName: this.name || os.hostname(),
         protocolVersion: SYNC_VERSION
       }
     })
@@ -399,10 +399,9 @@ class Sync extends EventEmitter {
         sync(channel.sync())
       }
 
-      // TODO: can maybe do s/self/this?
-      self.state.addWifiPeer(peer)
-      self.emit('peer', peer)
-      self.state.addProgressEventListeners(peer)
+      this.state.addWifiPeer(peer)
+      this.emit('peer', peer)
+      this.state.addProgressEventListeners(peer)
     })
 
     function sync (emitter) {
