@@ -121,43 +121,6 @@ tape('sync: trying to sync with an invalid projectKey throws', function (t) {
   })
 })
 
-// TODO: doesn't do what the description says; needs to be rewritten
-// tape('sync: remote peer error/destroyed is reflected in peer state', function (t) {
-//   helpers.createApis(function (api1, api2, close) {
-//     var pending = 2
-
-//     function done () {
-//       if (pending === 1) {
-//         setTimeout(() => {
-//           api2.sync.close()
-//         }, 2000)
-//       }
-//       if (--pending) return
-//       close()
-//       t.end()
-//     }
-
-//     api1.sync.listen(function () {
-//       api2.sync.listen(function () {
-//         function check (api) {
-//           return (peer) => {
-//             t.same(peer.id, api.sync.swarm.id.toString('hex'), 'api2 id cmp')
-//             done()
-//           }
-//         }
-//         api1.sync.once('peer', check(api2))
-//         api2.sync.once('peer', check(api1))
-//         api1.sync.once('down', function () {
-//           var peers = api1.sync.peers()
-//           t.same(peers.length, 0)
-//         })
-//         api1.sync.join()
-//         api2.sync.join()
-//       })
-//     })
-//   })
-// })
-
 tape('sync: replication of a simple observation with media', function (t) {
   t.plan(15)
 
@@ -837,6 +800,89 @@ tape('sync: destroy during sync is reflected in peer state', function (t) {
       syncer.on('progress', function (progress) {
         totalProgressEvents++
         if (totalProgressEvents === 5) api2.sync.destroy()
+      })
+    }
+  })
+})
+
+tape('sync: can sync to a peer multiple times', function (t) {
+  var opts = {api1: {deviceType: 'desktop'}, api2: {deviceType: 'desktop'}}
+  helpers.createApis(opts, function (api1, api2, close) {
+    var pending = 3
+    var total = 5
+
+    api2.sync.setName('device_2')
+
+    api1.sync.listen()
+    api1.sync.join()
+    api1.sync.once('peer', written.bind(null, null))
+    api2.sync.listen()
+    api2.sync.join()
+    api2.sync.once('peer', written.bind(null, null))
+    helpers.writeBigData(api1, total, written)
+
+    function written (err) {
+      t.error(err)
+      if (--pending === 0) {
+        var peers1 = api1.sync.peers()
+        var peers2 = api2.sync.peers()
+        t.same(peers1.length, 1, 'api1 has 1 peer')
+        t.same(peers2.length, 1, 'api2 has 1 peer')
+        sync(peers1[0])
+      }
+    }
+
+    function sync (peer) {
+      t.equals(peer.name, 'device_2')
+      var syncer = api1.sync.replicate(peer)
+      syncer.on('error', function (err) {
+        t.error(err)
+        close(() => {
+          t.fail()
+        })
+      })
+
+      syncer.on('end', function () {
+        t.pass('replication complete')
+
+        var pending = 3
+        var expected = mockExpectedMedia(total)
+        api1.media.list(function (err, files) {
+          t.error(err)
+          t.deepEquals(files.sort(), expected.sort(), 'api1 has the files')
+          if (!--pending) addObs()
+        })
+        api2.media.list(function (err, files) {
+          t.error(err)
+          t.deepEquals(files.sort(), expected.sort(), 'api2 has the files')
+          if (!--pending) addObs()
+        })
+        api2.observationList(function (err, results2) {
+          t.error(err, 'api2 list ok')
+          api1.observationList(function (err, results) {
+            t.error(err, 'api1 list ok')
+            t.same(results2, results, 'observation lists match')
+            if (!--pending) addObs()
+          })
+        })
+      })
+    }
+
+    function addObs () {
+      const obs = {
+        type: 'observation'
+      }
+      api1.observationCreate(obs, (err) => {
+        t.error(err, 'create ok')
+        var syncer = api1.sync.replicate(api1.sync.peers()[0])
+        syncer.on('error', (err) => t.error(err))
+        syncer.on('end', () => {
+          api2.observationList(function (err, results) {
+            t.error(err, 'api2 list ok')
+            t.same(results.length, 6, 'one more item in list')
+            close(() => t.end())
+          })
+        })
       })
     }
   })
