@@ -68,7 +68,7 @@ class SyncState {
       peer.sync.removeListener('end', onend)
       peer.sync.removeListener('error', onerror)
       if (peer.sync.onprogress) peer.sync.removeListener('progress', peer.sync.onprogress)
-      this.remove(peer)
+      this.onend(peer)
     }
 
     peer.sync.on('sync-start', onstart)
@@ -77,13 +77,11 @@ class SyncState {
     this._active[peer.id] = peer
   }
 
-  remove (peer) {
+  onend (peer) {
     if (this._isclosed(peer)) return
-    if (peer.started) {
-      peer.state = PeerState(states.COMPLETE, Date.now())
-      peer.syncing = false
-      peer.sync = null
-    }
+    peer.state = PeerState(states.COMPLETE, Date.now())
+    peer.syncing = false
+    peer.sync = null
   }
 
   addProgressEventListeners (peer) {
@@ -119,7 +117,6 @@ class SyncState {
   }
 
   onstart (peer) {
-    peer.started = true
     peer.state = PeerState(states.STARTED)
   }
 
@@ -138,11 +135,8 @@ class SyncState {
   }
 
   peers () {
-    return Object.values(this._active).map(peer => {
-      // XXX: why?
-      if (peer.state.topic === states.COMPLETE) peer.state.lastCompletedDate = peer.state.message
-      return peer
-    })
+    // TODO: use a safe copy of the subset of fields we want to expose
+    return Object.values(this._active)
   }
 }
 
@@ -445,7 +439,7 @@ class Sync extends EventEmitter {
           self.osm.core.resume()
         }
         peer.sync.emit('error', err)
-        emitter.on('error', ()=>{}) // XXX: sometimes hypercore will emit a 2nd error for e.g. a request timeout
+        emitter.on('error', () => {}) // XXX: sometimes hypercore will emit a 2nd error for e.g. a request timeout
       })
 
       emitter.on('progress', (progress) => {
