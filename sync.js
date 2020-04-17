@@ -57,34 +57,33 @@ function PeerState (topic, message, other) {
 
 class SyncState {
   constructor () {
-    this._completed = {}
-    this._state = {}
+    this._active = {}
   }
 
   add (peer) {
     var onstart = () => this.onstart(peer)
     var onerror = (error) => this.onerror(peer, error)
     var onend = () => {
-      this.remove(peer)
       peer.sync.removeListener('sync-start', onstart)
       peer.sync.removeListener('end', onend)
       peer.sync.removeListener('error', onerror)
       if (peer.sync.onprogress) peer.sync.removeListener('progress', peer.sync.onprogress)
+      this.remove(peer)
     }
 
     peer.sync.on('sync-start', onstart)
     peer.sync.on('error', onerror)
     peer.sync.on('end', onend)
-    this._state[peer.id] = peer
+    this._active[peer.id] = peer
   }
 
   remove (peer) {
     if (this._isclosed(peer)) return
     if (peer.started) {
       peer.state = PeerState(states.COMPLETE, Date.now())
-      this._completed[peer.name] = Object.assign({}, peer)
+      peer.syncing = false
+      peer.sync = null
     }
-    delete this._state[peer.id]
   }
 
   addProgressEventListeners (peer) {
@@ -93,7 +92,7 @@ class SyncState {
   }
 
   get (host, port) {
-    var res = Object.values(this._state)
+    var res = Object.values(this._active)
       .filter(function (peer) {
         return peer.port === port && peer.host === host
       })
@@ -139,17 +138,11 @@ class SyncState {
   }
 
   peers () {
-    var self = this
-    var peers = []
-    Object.values(this._state).map((peer) => {
-      var completed = self._completed[peer.name]
-      if (completed) peer.state.lastCompletedDate = completed.state.message
-      peers.push(peer)
+    return Object.values(this._active).map(peer => {
+      // XXX: why?
+      if (peer.state.topic === states.COMPLETE) peer.state.lastCompletedDate = peer.state.message
+      return peer
     })
-    Object.values(this._completed).map((peer) => {
-      if (!(peers.find((p) => p.name === peer.name))) peers.push(peer)
-    })
-    return peers
   }
 }
 
@@ -207,13 +200,6 @@ class Sync extends EventEmitter {
   }
 
   replicateNetwork (peer, opts) {
-    if (!peer.sync) {
-      process.nextTick(function () {
-        peer.sync.emit('error', new errors.PrematureSyncError())
-      })
-      return peer.sync
-    }
-
     // return existing emitter
     if (peer.syncing) return peer.sync
 
@@ -436,6 +422,8 @@ class Sync extends EventEmitter {
     })
 
     function sync (emitter) {
+      if (!peer.sync) peer.sync = new EventEmitter()
+
       debug('sync started', info.host, info.port)
       if (++self._activeSyncs === 1) {
         self.osm.core.pause(function () {

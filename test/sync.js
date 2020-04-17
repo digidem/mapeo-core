@@ -485,8 +485,7 @@ tape('sync: desktop <-> desktop photos', function (t) {
   })
 })
 
-// TODO: needs reusable peers to pass
-tape.skip('sync: deletes are not synced back', function (t) {
+tape('sync: deletes are not synced back', function (t) {
   var deleted
 
   var opts = {api1: {deviceType: 'desktop'}, api2: {deviceType: 'desktop'}}
@@ -494,15 +493,22 @@ tape.skip('sync: deletes are not synced back', function (t) {
     var pending = 4
     var total = 5
     var lastProgress
+    let api1Peer, api2Peer
 
     api2.sync.setName('device_2')
 
     api1.sync.listen()
     api1.sync.join()
-    api1.sync.once('peer', written.bind(null, null))
+    api1.sync.once('peer', peer => {
+      api1Peer = peer
+      written()
+    })
     api2.sync.listen()
     api2.sync.join()
-    api2.sync.once('peer', written.bind(null, null))
+    api2.sync.once('peer', peer => {
+      api2Peer = peer
+      written()
+    })
     helpers.writeBigData(api1, total, written)
     writeBlob(api2, 'goodbye_world.png', written)
 
@@ -518,23 +524,22 @@ tape.skip('sync: deletes are not synced back', function (t) {
     }
 
     function deleteObs () {
-      api1.sync.once('peer', (peer) => {
-        api2.observationList(function (err, results2) {
-          t.error(err, 'api2 list ok')
-          api1.observationList(function (err, results) {
-            t.error(err, 'api1 list ok')
-            t.same(results2, results, 'observation lists match')
-            deleted = results[0]
-            api1.observationDelete(deleted.id, (err) => {
-              t.error(err, 'delete ok')
-              var syncer = api1.sync.replicate(peer)
-              syncer.on('error', (err) => t.error(err))
-              syncer.on('end', () => {
-                api2.observationList(function (err, after) {
-                  t.error(err, 'api2 list ok')
-                  t.same(results.length - 1, after.length, 'one less item in list')
-                  close(() => t.end())
-                })
+      const peer = api1Peer
+      api2.observationList(function (err, results2) {
+        t.error(err, 'api2 list ok')
+        api1.observationList(function (err, results) {
+          t.error(err, 'api1 list ok')
+          t.same(results2, results, 'observation lists match')
+          deleted = results[0]
+          api1.observationDelete(deleted.id, (err) => {
+            t.error(err, 'delete ok')
+            var syncer = api1.sync.replicate(peer)
+            syncer.on('error', (err) => t.error(err))
+            syncer.on('end', () => {
+              api2.observationList(function (err, after) {
+                t.error(err, 'api2 list ok')
+                t.same(results.length - 1, after.length, 'one less item in list')
+                close(() => t.end())
               })
             })
           })
