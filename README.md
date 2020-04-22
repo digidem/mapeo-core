@@ -98,6 +98,11 @@ Convert an observation to an OSM type `node`.
 
 Retrieves the current device's unique ID (string).
 
+### `mapeo.close(cb)`
+
+Ends all peer sync connections, disables discovery of peers, and shuts down the
+underlying database. `cb` is called once this is complete.
+
 ## Sync API
 
 Mapeo core provides some key functionality for syncing between two devices over
