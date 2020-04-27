@@ -147,7 +147,6 @@ class Mapeo extends events.EventEmitter {
         obses.forEach(obs => {
           if (!obs.attachments) return
           obs.attachments.map((a) => {
-            console.log('gonna del', a)
             // only delete files once
             if (attachmentIds[a.id]) return
             attachmentIds[a.id] = true

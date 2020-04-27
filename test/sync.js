@@ -574,11 +574,17 @@ tape('sync: deletes are not synced back', function (t) {
               var syncer = api1.sync.replicate(peer)
               syncer.on('error', (err) => t.error(err))
               syncer.on('end', () => {
-                api2.observationList(function (err, after) {
-                  t.error(err)
-                  t.same(results.length - 1, after.length, 'one less item in list')
-                  close(() => t.end())
-                })
+                // XXX: race condition where the indexers haven't warmed back
+                // up after syncing yet, but an API request is being made on
+                // the view immediately, resulting in stale data being given
+                // back (unless we wait for a bit)
+                setTimeout(() => {
+                  api2.observationList(function (err, after) {
+                    t.error(err)
+                    t.same(after.length, results.length - 1, 'one less item in list')
+                    close(() => t.end())
+                  })
+                }, 100)
               })
             })
           })
