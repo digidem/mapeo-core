@@ -159,7 +159,10 @@ class Sync extends events.EventEmitter {
     this.osm = osm
     this.media = media
     this.name = opts.name
-    if (!opts.id) opts.id = randombytes(32)
+    if (Buffer.isBuffer(opts.id)) this.id = opts.id.toString('hex')
+    else if (typeof opts.id === 'string') this.id = opts.id
+    else if (!opts.id) this.id = randombytes(32).toString('hex')
+    else throw new Error('opts.id must be a string or buffer')
     this.opts = Object.assign({}, opts)
 
     this._activeSyncs = 0
@@ -354,9 +357,8 @@ class Sync extends events.EventEmitter {
 
   _swarm () {
     var self = this
-    // XXX(noffle): having opts.id set causes connections to get dropped on my
-    // local home network; haven't investigated deeper yet.
-    var swarm = Swarm(Object.assign({}, this.opts, {id: undefined}))
+    const id = Buffer.from(this.id, 'hex')
+    var swarm = Swarm({id: id})
 
     swarm.on('connection', (connection, info) => {
       const peer = WifiPeer(connection, info)
@@ -460,8 +462,6 @@ function isGzipFile (filepath, cb) {
 function WifiPeer (connection, info) {
   info.type = 'wifi'
   info.swarmId = info.swarmId || info.id
-  // XXX: this is so that each connection has a unique id, even if it's from the same peer.
-  info.id = (!info.id || info.id.length !== 12) ? randombytes(6).toString('hex') : info.id
   info.connection = connection
   return info
 }
