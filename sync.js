@@ -231,22 +231,27 @@ class Sync extends events.EventEmitter {
 
   listen (cb) {
     if (!cb) cb = () => {}
-    if (this.swarm || this._destroyingSwarm) {
-      console.error('Swarm already exists or is currently destroying itself..')
+    if (this.swarm && !this._destroyingSwarm) {
+      console.error('Swarm already exists.')
       return process.nextTick(cb)
     }
 
-    this.osm.ready(() => {
-      this.osm.core._logs.writer('default', (err, feed) => {
-        if (err) return cb(err)
-        this.swarm = this._swarm(feed.key)
-        this.swarm.listen(0, err => {
+    const _listen = () => {
+      this.osm.ready(() => {
+        this.osm.core._logs.writer('default', (err, feed) => {
           if (err) return cb(err)
-          cb()
-          this.emit('listen')
+          this.swarm = this._swarm(feed.key)
+          this.swarm.listen(0, err => {
+            if (err) return cb(err)
+            cb()
+            this.emit('listen')
+          })
         })
       })
-    })
+    }
+
+    if (this._destroyingSwarm) this.on('close', _listen)
+    else _listen()
   }
 
   leave (projectKey) {
@@ -273,6 +278,7 @@ class Sync extends events.EventEmitter {
     this.swarm.destroy(() => {
       this.swarm = null
       this._destroyingSwarm = false
+      this.emit('close')
       cb()
     })
   }

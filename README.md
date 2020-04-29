@@ -138,9 +138,11 @@ Optionally accepts a `projectKey` which must be a 32-byte buffer or a string hex
 
 An invalid `projectKey` will throw an error.
 
-### sync.close(cb)
+### sync.close([cb])
 
-Unannounces the sync service & cleans up the underlying UDP socket. `cb` is called once this is complete.
+Unannounces the sync service & cleans up the underlying UDP socket. Optionally accepts `cb` which is called once this is complete. 
+
+Emits `close` event.
 
 ### sync.peers()
 
