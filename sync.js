@@ -217,12 +217,18 @@ class Sync extends events.EventEmitter {
 
   listen (cb) {
     if (!cb) cb = () => {}
-    if (this.swarm || this._destroyingSwarm) {
-      console.error('Swarm already exists or is currently destroying itself..')
+    if (this.swarm && !this._destroyingSwarm) {
+      console.error('Swarm already exists.')
       return process.nextTick(cb)
     }
-    this.swarm = this._swarm()
-    this.swarm.listen(0, cb)
+
+    var _listen = () => {
+      this.swarm = this._swarm()
+      this.swarm.listen(0, cb)
+    }
+
+    if (this._destroyingSwarm) this.on('close', _listen)
+    else _listen()
   }
 
   leave (projectKey) {
@@ -246,6 +252,7 @@ class Sync extends events.EventEmitter {
     this.swarm.destroy(() => {
       this.swarm = null
       this._destroyingSwarm = false
+      this.emit('close')
       cb()
     })
   }

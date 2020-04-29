@@ -246,7 +246,15 @@ class Mapeo extends events.EventEmitter {
   }
 
   close (cb) {
-    this.sync.close(cb)
+    this.sync.close(() => {
+      this.osm.core.pause(() => {
+        // This calls multifeed.close() which closes the hypercore feeds
+        this.osm.core._logs.close(() => {
+          this.emit('close')
+          if (cb) cb()
+        })
+      })
+    })
   }
 }
 
