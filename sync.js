@@ -36,7 +36,7 @@ const DEFAULT_INTERNET_DISCO = Object.assign(
   }
 )
 
-const states = {
+const ReplicationState = {
   WIFI_READY: 'replication-wifi-ready',
   PROGRESS: 'replication-progress',
   COMPLETE: 'replication-complete',
@@ -92,11 +92,11 @@ class SyncState {
   }
 
   _isclosed (peer) {
-    return peer.state.topic === states.COMPLETE || peer.state.topic === states.ERROR
+    return peer.state.topic === ReplicationState.COMPLETE || peer.state.topic === ReplicationState.ERROR
   }
 
   onwifi (peer) {
-    peer.state = PeerState(states.WIFI_READY)
+    peer.state = PeerState(ReplicationState.WIFI_READY)
     this.add(peer)
   }
 
@@ -108,12 +108,12 @@ class SyncState {
 
   onsync (peer) {
     peer.started = true
-    peer.state = PeerState(states.STARTED)
+    peer.state = PeerState(ReplicationState.STARTED)
   }
 
   onprogress (peer, progress) {
     if (this._isclosed(peer)) return
-    peer.state = PeerState(states.PROGRESS, progress)
+    peer.state = PeerState(ReplicationState.PROGRESS, progress)
   }
 
   onerror (peer, error) {
@@ -122,13 +122,13 @@ class SyncState {
     multifeedErrorProps.forEach(key => {
       if (error[key]) errorMetadata[key] = error[key]
     })
-    peer.state = PeerState(states.ERROR, error ? error.toString() : 'Error', errorMetadata)
+    peer.state = PeerState(ReplicationState.ERROR, error ? error.toString() : 'Error', errorMetadata)
   }
 
   onend (peer) {
     if (this._isclosed(peer)) return
     if (peer.started) {
-      peer.state = PeerState(states.COMPLETE, Date.now())
+      peer.state = PeerState(ReplicationState.COMPLETE, Date.now())
       this._completed[peer.name] = Object.assign({}, peer)
     }
     delete this._state[peer.id]
