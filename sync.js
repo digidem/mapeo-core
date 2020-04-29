@@ -58,17 +58,17 @@ class SyncState {
 
   add (peer) {
     peer.sync = new events.EventEmitter()
-    var onstart = () => this.onstart(peer)
+    var onsync = () => this.onsync(peer)
     var onerror = (error) => this.onerror(peer, error)
     var onend = () => {
       this.onend(peer)
-      peer.sync.removeListener('sync-start', onstart)
+      peer.sync.removeListener('sync-start', onsync)
       peer.sync.removeListener('end', onend)
       peer.sync.removeListener('error', onerror)
       if (peer.sync.onprogress) peer.sync.removeListener('progress', peer.sync.onprogress)
     }
 
-    peer.sync.on('sync-start', onstart)
+    peer.sync.on('sync-start', onsync)
     peer.sync.on('error', onerror)
     peer.sync.on('end', onend)
     this._state[peer.id] = peer
@@ -101,12 +101,12 @@ class SyncState {
   }
 
   onfile (peer) {
-    this.onstart(peer)
+    this.onsync(peer)
     this.add(peer)
     this.addProgressEventListeners(peer)
   }
 
-  onstart (peer) {
+  onsync (peer) {
     peer.started = true
     peer.state = PeerState(states.STARTED)
   }
