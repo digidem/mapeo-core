@@ -250,7 +250,7 @@ class Sync extends events.EventEmitter {
       })
     }
 
-    if (this._destroyingSwarm) this.on('close', _listen)
+    if (this._destroyingSwarm) this.once('close', _listen)
     else _listen()
   }
 
