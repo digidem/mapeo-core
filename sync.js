@@ -364,7 +364,7 @@ class Sync extends events.EventEmitter {
 
   _swarm (id) {
     var self = this
-    var swarm = Swarm({id: id})
+    var swarm = Swarm(Object.assign(this.opts, {id: id}))
 
     swarm.on('connection', (connection, info) => {
       const peer = WifiPeer(connection, info)
