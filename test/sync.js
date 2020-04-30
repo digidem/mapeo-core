@@ -161,14 +161,18 @@ tape('sync: remote peer error/destroyed is reflected in peer state', function (t
     var pending = 2
 
     function done () {
-      if (pending === 1) {
-        setTimeout(() => {
-          api2.close()
-        }, 2000)
-      }
-      if (--pending) return
-      close()
-      t.end()
+      if (--pending === 0) return
+
+      api1.sync.once('down', function () {
+        var peers = api1.sync.peers()
+        t.same(peers.length, 1)
+        close()
+        t.end()
+      })
+
+      setTimeout(() => {
+        api2.close()
+      }, 1000)
     }
 
     api1.sync.listen(function () {
@@ -180,12 +184,8 @@ tape('sync: remote peer error/destroyed is reflected in peer state', function (t
             done()
           }
         }
-        api1.sync.on('peer', check(api2))
-        api2.sync.on('peer', check(api1))
-        api1.sync.on('down', function () {
-          var peers = api1.sync.peers()
-          t.same(peers.length, 1)
-        })
+        api1.sync.once('peer', check(api2))
+        api2.sync.once('peer', check(api1))
         api1.sync.join()
         api2.sync.join()
       })
