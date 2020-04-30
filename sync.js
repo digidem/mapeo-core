@@ -126,7 +126,8 @@ class SyncState {
     multifeedErrorProps.forEach(key => {
       if (error[key]) errorMetadata[key] = error[key]
     })
-    peer.state = PeerState(states.ERROR, error ? error.toString() : 'Error', errorMetadata)
+    this._completed[peer.name] = PeerState(states.ERROR, error ? error.toString() : 'Error', errorMetadata)
+    delete this._state[peer.id]
   }
 
   onend (peer) {
