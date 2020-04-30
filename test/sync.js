@@ -71,12 +71,12 @@ tape('sync: two servers find each other with default sync key', function (t) {
         api1.sync.join()
         api2.sync.join()
         api1.sync.on('peer', function (peer) {
-          var peerId = peer.swarmId.toString('hex')
+          var peerId = peer.id.toString('hex')
           t.same(peerId, api2.sync.swarm.id.toString('hex'), 'api2 id cmp')
           done()
         })
         api2.sync.on('peer', function (peer) {
-          var peerId = peer.swarmId.toString('hex')
+          var peerId = peer.id.toString('hex')
           t.same(peerId, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
           done()
         })
@@ -102,12 +102,12 @@ tape('sync: two servers find each other with same projectKey', function (t) {
         api1.sync.join(projectKey)
         api2.sync.join(projectKey)
         api1.sync.on('peer', function (peer) {
-          var peerId = peer.swarmId.toString('hex')
+          var peerId = peer.id.toString('hex')
           t.same(peerId, api2.sync.swarm.id.toString('hex'), 'api2 id cmp')
           done()
         })
         api2.sync.on('peer', function (peer) {
-          var peerId = peer.swarmId.toString('hex')
+          var peerId = peer.id.toString('hex')
           t.same(peerId, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
           done()
         })
@@ -179,7 +179,7 @@ tape('sync: remote peer error/destroyed is reflected in peer state', function (t
       api2.sync.listen(function () {
         function check (api) {
           return (peer) => {
-            var peerId = peer.swarmId.toString('hex')
+            var peerId = peer.id.toString('hex')
             t.same(peerId, api.sync.swarm.id.toString('hex'), 'api2 id cmp')
             done()
           }
@@ -999,6 +999,6 @@ function writeBlob (api, filename, cb) {
 function loggablePeer (peer) {
   const { connection, handshake, sync, ...loggablePeer } = peer
   loggablePeer.channel = loggablePeer.channel && loggablePeer.channel.toString('hex')
-  loggablePeer.swarmId = loggablePeer.swarmId.toString('hex')
+  loggablePeer.id = loggablePeer.id.toString('hex')
   return loggablePeer
 }

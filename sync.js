@@ -455,8 +455,8 @@ function isGzipFile (filepath, cb) {
 
 function WifiPeer (connection, info) {
   info.type = 'wifi'
-  info.swarmId = info.swarmId || info.id
   info.connection = connection
+  info.swarmId = info.id // XXX: not used; for backwards compatibility
   return info
 }
 
