@@ -47,12 +47,13 @@ tape('sync: trying to sync to unknown peer', function (t) {
     t.end()
   }
 
-  api1.sync.listen()
-  api1.sync.join()
-  var emitter = api1.sync.replicate({host: 'not a thing', port: 1337})
-  emitter.on('error', (err) => {
-    t.ok(err)
-    done()
+  api1.sync.listen(() => {
+    api1.sync.join()
+    var emitter = api1.sync.replicate({host: 'not a thing', port: 1337})
+    emitter.on('error', (err) => {
+      t.ok(err)
+      done()
+    })
   })
 })
 
@@ -204,12 +205,14 @@ tape('sync: replication of a simple observation with media', function (t) {
     ws.on('finish', written)
     ws.on('error', written)
     ws.end('bar')
-    api1.sync.listen()
-    api1.sync.join()
-    api1.sync.on('peer', written.bind(null, null))
-    api2.sync.listen()
-    api2.sync.join()
-    api2.sync.on('peer', written.bind(null, null))
+    api1.sync.listen(() => {
+      api1.sync.join()
+      api1.sync.once('peer', written.bind(null, null))
+    })
+    api2.sync.listen(() => {
+      api2.sync.join()
+      api2.sync.on('peer', written.bind(null, null))
+    })
 
     function written (err) {
       t.error(err)
@@ -460,12 +463,14 @@ tape('sync: desktop <-> desktop photos', function (t) {
 
     api2.sync.setName('device_2')
 
-    api1.sync.listen()
-    api1.sync.join()
-    api1.sync.once('peer', written.bind(null, null))
-    api2.sync.listen()
-    api2.sync.join()
-    api2.sync.once('peer', written.bind(null, null))
+    api1.sync.listen(() => {
+      api1.sync.join()
+      api1.sync.once('peer', written.bind(null, null))
+    })
+    api2.sync.listen(() => {
+      api2.sync.join()
+      api2.sync.once('peer', written.bind(null, null))
+    })
     helpers.writeBigData(api1, total, written)
     writeBlob(api2, 'goodbye_world.png', written)
 
@@ -529,7 +534,7 @@ tape('sync: desktop <-> desktop photos', function (t) {
 })
 
 tape('sync: deletes are not synced back', function (t) {
-  t.plan(17)
+  t.plan(19)
 
   var deleted
 
@@ -541,12 +546,14 @@ tape('sync: deletes are not synced back', function (t) {
 
     api2.sync.setName('device_2')
 
-    api1.sync.listen()
-    api1.sync.join()
-    api1.sync.once('peer', written.bind(null, null))
-    api2.sync.listen()
-    api2.sync.join()
-    api2.sync.once('peer', written.bind(null, null))
+    api1.sync.listen(() => {
+      api1.sync.join()
+      api1.sync.once('peer', written.bind(null, null))
+    })
+    api2.sync.listen(() => {
+      api2.sync.join()
+      api2.sync.on('peer', written.bind(null, null))
+    })
     helpers.writeBigData(api1, total, written)
     writeBlob(api2, 'goodbye_world.png', written)
 
@@ -572,8 +579,8 @@ tape('sync: deletes are not synced back', function (t) {
             api1.observationDelete(deleted.id, (err) => {
               t.error(err)
               var syncer = api1.sync.replicate(peer)
-              syncer.on('error', (err) => t.error(err))
-              syncer.on('end', () => {
+              syncer.once('error', (err) => t.error(err))
+              syncer.once('end', () => {
                 // XXX: race condition where the indexers haven't warmed back
                 // up after syncing yet, but an API request is being made on
                 // the view immediately, resulting in stale data being given
@@ -582,7 +589,7 @@ tape('sync: deletes are not synced back', function (t) {
                   api2.observationList(function (err, after) {
                     t.error(err)
                     t.same(after.length, results.length - 1, 'one less item in list')
-                    close(() => t.end())
+                    close(() => t.pass())
                   })
                 }, 100)
               })
@@ -647,12 +654,14 @@ tape('sync: mobile <-> desktop photos', function (t) {
     var mobile = api1
     var desktop = api2
 
-    mobile.sync.listen()
-    mobile.sync.join()
-    mobile.sync.on('peer', written.bind(null, null))
-    desktop.sync.listen()
-    desktop.sync.join()
-    desktop.sync.on('peer', written.bind(null, null))
+    api1.sync.listen(() => {
+      api1.sync.join()
+      api1.sync.once('peer', written.bind(null, null))
+    })
+    api2.sync.listen(() => {
+      api2.sync.join()
+      api2.sync.on('peer', written.bind(null, null))
+    })
     helpers.writeBigData(mobile, total, written)
     writeBlob(desktop, 'goodbye_world.png', written)
 
@@ -714,12 +723,14 @@ tape('sync: mobile <-> mobile photos', function (t) {
 
     var clone = api2
 
-    api1.sync.listen()
-    api1.sync.join()
-    api1.sync.on('peer', written.bind(null, null))
-    clone.sync.listen()
-    clone.sync.join()
-    clone.sync.on('peer', written.bind(null, null))
+    api1.sync.listen(() => {
+      api1.sync.join()
+      api1.sync.once('peer', written.bind(null, null))
+    })
+    api2.sync.listen(() => {
+      api2.sync.join()
+      api2.sync.on('peer', written.bind(null, null))
+    })
     helpers.writeBigData(api1, total, written)
     writeBlob(clone, 'goodbye_world.png', written)
 
@@ -780,10 +791,11 @@ tape('sync: with two peers available, sync with one only triggers events for one
       var total = 20
 
       function doListen (api, cb) {
-        api.sync.listen()
-        api.sync.join()
-        api.on('error', console.error)
-        api.sync.once('peer', cb.bind(null, null))
+        api.sync.listen(() => {
+          api.sync.join()
+          api.once('error', console.error)
+          api.sync.once('peer', cb.bind(null, null))
+        })
       }
 
       var target
@@ -851,12 +863,14 @@ tape('sync: destroy during sync is reflected in peer state', function (t) {
     var pending = 4
     var total = 20
 
-    api1.sync.listen()
-    api1.sync.join()
-    api1.sync.once('peer', written.bind(null, null))
-    api2.sync.listen()
-    api2.sync.join()
-    api2.sync.once('peer', written.bind(null, null))
+    api1.sync.listen(() => {
+      api1.sync.join()
+      api1.sync.once('peer', written.bind(null, null))
+    })
+    api2.sync.listen(() => {
+      api2.sync.join()
+      api2.sync.on('peer', written.bind(null, null))
+    })
     helpers.writeBigData(api1, total, written)
     writeBlob(api2, 'goodbye_world.png', written)
 
@@ -903,12 +917,14 @@ tape('sync: 200 photos', function (t) {
     var pending = 4
     var total = 200
 
-    api1.sync.listen()
-    api1.sync.join()
-    api1.sync.on('peer', written.bind(null, null))
-    api2.sync.listen()
-    api2.sync.join()
-    api2.sync.on('peer', written.bind(null, null))
+    api1.sync.listen(() => {
+      api1.sync.join()
+      api1.sync.once('peer', written.bind(null, null))
+    })
+    api2.sync.listen(() => {
+      api2.sync.join()
+      api2.sync.on('peer', written.bind(null, null))
+    })
     helpers.writeBigData(api1, total, written)
     writeBlob(api2, 'goodbye_world.png', written)
 
