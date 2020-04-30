@@ -52,7 +52,6 @@ function PeerState (topic, message, other) {
 
 class SyncState {
   constructor () {
-    this._completed = {}
     this._state = {}
   }
 
@@ -95,6 +94,10 @@ class SyncState {
     return peer.state.topic === ReplicationState.COMPLETE || peer.state.topic === ReplicationState.ERROR
   }
 
+  _iscomplete (peer) {
+    return peer.state.topic === ReplicationState.COMPLETE
+  }
+
   onwifi (peer) {
     peer.state = PeerState(ReplicationState.WIFI_READY)
     this.add(peer)
@@ -129,23 +132,14 @@ class SyncState {
     if (this._isclosed(peer)) return
     if (peer.started) {
       peer.state = PeerState(ReplicationState.COMPLETE, Date.now())
-      this._completed[peer.name] = Object.assign({}, peer)
     }
-    delete this._state[peer.id]
   }
 
   peers () {
-    var self = this
-    var peers = []
-    Object.values(this._state).map((peer) => {
-      var completed = self._completed[peer.name]
-      if (completed) peer.state.lastCompletedDate = completed.state.message
-      peers.push(peer)
+    return Object.values(this._state).map((peer) => {
+      if (this._iscomplete(peer)) peer.state.lastCompletedDate = peer.state.message
+      return peer
     })
-    Object.values(this._completed).map((peer) => {
-      if (!(peers.find((p) => p.name === peer.name))) peers.push(peer)
-    })
-    return peers
   }
 }
 
