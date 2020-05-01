@@ -55,7 +55,14 @@ class SyncState {
     this._state = {}
   }
 
-  add (peer) {
+  _add (peer) {
+    peer.state = PeerState(ReplicationState.WIFI_READY)
+    this.init(peer)
+    this._state[peer.id] = peer
+  }
+
+  init (peer) {
+    peer.started = false
     peer.sync = new events.EventEmitter()
     var onsync = () => this.onsync(peer)
     var onerror = (error) => this.onerror(peer, error)
@@ -70,7 +77,6 @@ class SyncState {
     peer.sync.on('sync-start', onsync)
     peer.sync.on('error', onerror)
     peer.sync.on('end', onend)
-    this._state[peer.id] = peer
   }
 
   addProgressEventListeners (peer) {
@@ -98,15 +104,29 @@ class SyncState {
     return peer.state.topic === ReplicationState.COMPLETE
   }
 
-  onwifi (peer) {
-    peer.state = PeerState(ReplicationState.WIFI_READY)
-    this.add(peer)
+  addWifiPeer (connection, info) {
+    let peer = this._state[info.id]
+    if (!peer) {
+      peer = WifiPeer(connection, info)
+      this._add(peer)
+    } else {
+      // reuse peer
+      this.init(peer)
+    }
+    return peer
   }
 
-  onfile (peer) {
-    this.onsync(peer)
-    this.add(peer)
+  addFilePeer (filename) {
+    const peer = {
+      id: filename,
+      name: filename,
+      filename
+    }
+    this._state[peer.id] = peer
+    this._add(peer)
     this.addProgressEventListeners(peer)
+    this.onsync(peer)
+    return peer
   }
 
   onsync (peer) {
@@ -135,6 +155,7 @@ class SyncState {
     }
   }
 
+  // XXX: depends on 'peer' being a persistent reference
   peers () {
     return Object.values(this._state).map((peer) => {
       if (this._iscomplete(peer)) peer.state.lastCompletedDate = peer.state.message
@@ -184,12 +205,7 @@ class Sync extends events.EventEmitter {
       }
       this.replicateNetwork(peer, opts)
     } else if (filename) {
-      peer = {
-        id: filename,
-        name: filename,
-        filename
-      }
-      this.state.onfile(peer)
+      peer = this.state.addFilePeer(filename)
       this.replicateFromFile(peer, opts)
     } else throw new Error('Requires filename or host and port')
 
@@ -205,10 +221,10 @@ class Sync extends events.EventEmitter {
     }
 
     // return existing emitter
-    if (peer.accepted) return peer.sync
+    if (!peer.handshake) return peer.sync
 
     peer.handshake.accept()
-    peer.accepted = true
+    delete peer.handshake
     return peer.sync
   }
 
@@ -367,8 +383,9 @@ class Sync extends events.EventEmitter {
     var swarm = Swarm(Object.assign(this.opts, {id: id}))
 
     swarm.on('connection', (connection, info) => {
-      const peer = WifiPeer(connection, info)
-      debug('connection', peer)
+      debug('connection', info.host, info.port, info.id.toString('hex'))
+
+      const peer = self.state.addWifiPeer(connection, info)
 
       connection.on('close', onClose)
       connection.on('error', onClose)
@@ -382,7 +399,7 @@ class Sync extends events.EventEmitter {
         if (!open) return
         open = false
         if (peer.sync) {
-          debug('emitting sync event', peer.host, peer.port, err)
+          debug('emitting sync end/error event', peer.host, peer.port, err)
           if (err) peer.sync.emit('error', err)
           else peer.sync.emit('end')
         }
@@ -437,7 +454,6 @@ class Sync extends events.EventEmitter {
           accept()
         })
 
-        self.state.onwifi(peer)
         peer.deviceType = req.deviceType
         peer.name = req.deviceName
         self.emit('peer', peer)

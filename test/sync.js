@@ -195,8 +195,7 @@ tape('sync: remote peer error/destroyed is reflected in peer state', function (t
 })
 
 tape('sync: replication of a simple observation with media', function (t) {
-  t.plan(15)
-  var complete = false
+  t.plan(14)
 
   createApis(function (api1, api2, close) {
     var obs = {lat: 1, lon: 2, type: 'observation'}
@@ -240,7 +239,6 @@ tape('sync: replication of a simple observation with media', function (t) {
         t.fail()
       })
       syncer.on('end', function () {
-        complete = true
         t.ok(true, 'replication complete')
         api1.osm.get(id, function (err, node) {
           t.error(err)
@@ -251,12 +249,9 @@ tape('sync: replication of a simple observation with media', function (t) {
               t.error(err)
               t.ok(exists)
               close(function () {
-                t.ok(true)
-                if (complete) {
-                  t.same(peer.state.topic, 'replication-complete')
-                  var date = new Date(peer.state.message)
-                  t.ok(date.getTime() < new Date().getTime(), 'last completed date')
-                }
+                t.same(peer.state.topic, 'replication-complete')
+                const date = new Date(peer.state.message)
+                t.ok(date.getTime() < new Date().getTime(), 'last completed date')
               })
             })
           })
@@ -829,7 +824,8 @@ tape('sync: with two peers available, sync with one only triggers events for one
           setTimeout(function () {
             var peers = api1.sync.peers()
             peers.forEach((p) => {
-              t.same(p.state.topic, 'replication-wifi-ready')
+              if (p === peer) t.same(p.state.topic, 'replication-complete')
+              else t.same(p.state.topic, 'replication-wifi-ready')
             })
             close1()
             close2()
