@@ -485,6 +485,7 @@ function WifiPeer (connection, info) {
   info.type = 'wifi'
   info.connection = connection
   info.swarmId = info.id // XXX: not used; for backwards compatibility
+  info.id = info.id.toString('hex')
   return info
 }
 
