@@ -105,7 +105,8 @@ class SyncState {
   }
 
   addWifiPeer (connection, info) {
-    let peer = this._state[info.id]
+    const peerId = info.id.toString('hex')
+    let peer = this._state[peerId]
     if (!peer) {
       peer = WifiPeer(connection, info)
       this._add(peer)
