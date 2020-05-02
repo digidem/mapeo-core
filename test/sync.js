@@ -71,12 +71,12 @@ tape('sync: two servers find each other with default sync key', function (t) {
       api2.sync.listen(function () {
         api1.sync.join()
         api2.sync.join()
-        api1.sync.on('peer', function (peer) {
+        api1.sync.once('peer', function (peer) {
           var peerId = peer.id.toString('hex')
           t.same(peerId, api2.sync.swarm.id.toString('hex'), 'api2 id cmp')
           done()
         })
-        api2.sync.on('peer', function (peer) {
+        api2.sync.once('peer', function (peer) {
           var peerId = peer.id.toString('hex')
           t.same(peerId, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
           done()
@@ -102,12 +102,12 @@ tape('sync: two servers find each other with same projectKey', function (t) {
       api2.sync.listen(function () {
         api1.sync.join(projectKey)
         api2.sync.join(projectKey)
-        api1.sync.on('peer', function (peer) {
+        api1.sync.once('peer', function (peer) {
           var peerId = peer.id.toString('hex')
           t.same(peerId, api2.sync.swarm.id.toString('hex'), 'api2 id cmp')
           done()
         })
-        api2.sync.on('peer', function (peer) {
+        api2.sync.once('peer', function (peer) {
           var peerId = peer.id.toString('hex')
           t.same(peerId, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
           done()
@@ -131,11 +131,11 @@ tape('sync: two servers with different projectKey don\'t find each other', funct
       api2.sync.listen(function () {
         api1.sync.join(crypto.randomBytes(32))
         api2.sync.join(crypto.randomBytes(32))
-        api1.sync.on('peer', function (peer) {
+        api1.sync.once('peer', function (peer) {
           t.fail('Should not find peer')
           console.log(loggablePeer(peer))
         })
-        api2.sync.on('peer', function (peer) {
+        api2.sync.once('peer', function (peer) {
           t.fail('Should not find peer')
           console.log(loggablePeer(peer))
         })
@@ -206,7 +206,7 @@ tape('sync: replication of a simple observation with media', function (t) {
     ws.end('bar')
 
     api1.sync.once('peer', written.bind(null, null))
-    api2.sync.on('peer', written.bind(null, null))
+    api2.sync.once('peer', written.bind(null, null))
     api1.sync.listen(() => {
       api1.sync.join()
     })
@@ -460,7 +460,7 @@ tape('sync: desktop <-> desktop photos', function (t) {
     api2.sync.setName('device_2')
 
     api1.sync.once('peer', written.bind(null, null))
-    api2.sync.on('peer', written.bind(null, null))
+    api2.sync.once('peer', written.bind(null, null))
     api1.sync.listen(() => {
       api1.sync.join()
     })
@@ -543,7 +543,7 @@ tape('sync: deletes are not synced back', function (t) {
     api2.sync.setName('device_2')
 
     api1.sync.once('peer', written.bind(null, null))
-    api2.sync.on('peer', written.bind(null, null))
+    api2.sync.once('peer', written.bind(null, null))
     api1.sync.listen(() => {
       api1.sync.join()
     })
@@ -651,7 +651,7 @@ tape('sync: mobile <-> desktop photos', function (t) {
     var desktop = api2
 
     api1.sync.once('peer', written.bind(null, null))
-    api2.sync.on('peer', written.bind(null, null))
+    api2.sync.once('peer', written.bind(null, null))
     api1.sync.listen(() => {
       api1.sync.join()
     })
@@ -720,7 +720,7 @@ tape('sync: mobile <-> mobile photos', function (t) {
     var clone = api2
 
     api1.sync.once('peer', written.bind(null, null))
-    api2.sync.on('peer', written.bind(null, null))
+    api2.sync.once('peer', written.bind(null, null))
     api1.sync.listen(() => {
       api1.sync.join()
     })
@@ -861,7 +861,7 @@ tape('sync: destroy during sync is reflected in peer state', function (t) {
     var total = 20
 
     api1.sync.once('peer', written.bind(null, null))
-    api2.sync.on('peer', written.bind(null, null))
+    api2.sync.once('peer', written.bind(null, null))
     api1.sync.listen(() => {
       api1.sync.join()
     })
@@ -915,7 +915,7 @@ tape('sync: 200 photos', function (t) {
     var total = 200
 
     api1.sync.once('peer', written.bind(null, null))
-    api2.sync.on('peer', written.bind(null, null))
+    api2.sync.once('peer', written.bind(null, null))
     api1.sync.listen(() => {
       api1.sync.join()
     })
