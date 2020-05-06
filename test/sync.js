@@ -530,7 +530,7 @@ tape('sync: desktop <-> desktop photos', function (t) {
 })
 
 tape('sync: deletes are not synced back', function (t) {
-  t.plan(19)
+  t.plan(18)
 
   var deleted
 
