@@ -76,8 +76,6 @@ tape('sync: two servers find each other with default sync key', function (t) {
 
     api1.sync.listen(function () {
       api2.sync.listen(function () {
-        api1.sync.join()
-        api2.sync.join()
         api1.sync.once('peer', function (peer) {
           var peerId = peer.id.toString('hex')
           t.same(peerId, api2.sync.swarm.id.toString('hex'), 'api2 id cmp')
@@ -88,6 +86,8 @@ tape('sync: two servers find each other with default sync key', function (t) {
           t.same(peerId, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
           done()
         })
+        api1.sync.join()
+        api2.sync.join()
       })
     })
   })
@@ -110,8 +110,6 @@ tape('sync: two servers find each other with same projectKey', function (t) {
 
     api1.sync.listen(function () {
       api2.sync.listen(function () {
-        api1.sync.join(projectKey)
-        api2.sync.join(projectKey)
         api1.sync.once('peer', function (peer) {
           var peerId = peer.id.toString('hex')
           t.same(peerId, api2.sync.swarm.id.toString('hex'), 'api2 id cmp')
@@ -122,6 +120,8 @@ tape('sync: two servers find each other with same projectKey', function (t) {
           t.same(peerId, api1.sync.swarm.id.toString('hex'), 'api1 id cmp')
           done()
         })
+        api1.sync.join(projectKey)
+        api2.sync.join(projectKey)
       })
     })
   })
@@ -141,8 +141,6 @@ tape('sync: two servers with different projectKey don\'t find each other', funct
 
     api1.sync.listen(function () {
       api2.sync.listen(function () {
-        api1.sync.join(crypto.randomBytes(32))
-        api2.sync.join(crypto.randomBytes(32))
         api1.sync.once('peer', function (peer) {
           t.fail('Should not find peer')
           console.log(loggablePeer(peer))
@@ -151,6 +149,8 @@ tape('sync: two servers with different projectKey don\'t find each other', funct
           t.fail('Should not find peer')
           console.log(loggablePeer(peer))
         })
+        api1.sync.join(crypto.randomBytes(32))
+        api2.sync.join(crypto.randomBytes(32))
       })
     })
   })
