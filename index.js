@@ -245,7 +245,11 @@ class Mapeo extends events.EventEmitter {
   }
 
   close (cb) {
-    this.sync.close(cb)
+    this.osm.core.pause(() => {
+      this.osm.core._logs.close(() => {
+        this.sync.close(cb)
+      })
+    })
   }
 }
 

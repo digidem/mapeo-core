@@ -29,7 +29,9 @@ function createApi (_, opts) {
     id: randombytes(8).toString('hex')
   }))
 
-  // TODO: expose a cleanup function
+  osm.close = function (cb) {
+    this.index.close(cb)
+  }
 
   mapeo._dir = dir
   return mapeo

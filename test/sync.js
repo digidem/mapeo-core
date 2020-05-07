@@ -22,9 +22,13 @@ function createApis (opts, cb) {
     var pending = 2
     function done () {
       if (!--pending) {
-        rimraf(api1._dir, function () {
-          rimraf(api2._dir, function () {
-            cb()
+        api1.osm.close(function () {
+          api2.osm.close(function () {
+            rimraf(api1._dir, function () {
+              rimraf(api2._dir, function () {
+                cb()
+              })
+            })
           })
         })
       }
@@ -58,13 +62,16 @@ tape('sync: trying to sync to unknown peer', function (t) {
 })
 
 tape('sync: two servers find each other with default sync key', function (t) {
+  t.plan(3)
+
   createApis(function (api1, api2, close) {
     var pending = 2
 
     function done () {
       if (--pending) return
-      close()
-      t.end()
+      close(() => {
+        t.pass('close ok')
+      })
     }
 
     api1.sync.listen(function () {
@@ -87,13 +94,16 @@ tape('sync: two servers find each other with default sync key', function (t) {
 })
 
 tape('sync: two servers find each other with same projectKey', function (t) {
+  t.plan(3)
+
   createApis(function (api1, api2, close) {
     var pending = 2
 
     function done () {
       if (--pending) return
-      close()
-      t.end()
+      close(() => {
+        t.pass('close ok')
+      })
     }
 
     const projectKey = crypto.randomBytes(32)
@@ -118,13 +128,15 @@ tape('sync: two servers find each other with same projectKey', function (t) {
 })
 
 tape('sync: two servers with different projectKey don\'t find each other', function (t) {
-  createApis(function (api1, api2, close) {
+  t.plan(3)
 
+  createApis(function (api1, api2, close) {
     setTimeout(() => {
       t.equal(api1.sync.peers().length, 0, 'api1 has found no peers')
       t.equal(api2.sync.peers().length, 0, 'api2 has found no peers')
-      close()
-      t.end()
+      close(() => {
+        t.pass('close ok')
+      })
     }, 5000)
 
     api1.sync.listen(function () {
@@ -145,19 +157,23 @@ tape('sync: two servers with different projectKey don\'t find each other', funct
 })
 
 tape('sync: trying to sync with an invalid projectKey throws', function (t) {
-  createApis(function (api1, api2, close) {
+  t.plan(2)
 
+  createApis(function (api1, api2, close) {
     api1.sync.listen(function () {
       api2.sync.listen(function () {
         t.throws(() => api1.sync.join('invalid key'), 'throws on invalid key')
-        close()
-        t.end()
+        close(() => {
+          t.pass('close ok')
+        })
       })
     })
   })
 })
 
 tape('sync: remote peer error/destroyed is reflected in peer state', function (t) {
+  t.plan(4)
+
   createApis(function (api1, api2, close) {
     var pending = 2
 
@@ -167,8 +183,9 @@ tape('sync: remote peer error/destroyed is reflected in peer state', function (t
       api1.sync.once('down', function () {
         var peers = api1.sync.peers()
         t.same(peers.length, 1)
-        close()
-        t.end()
+        close(() => {
+          t.pass('close ok')
+        })
       })
 
       setTimeout(() => {
@@ -195,7 +212,7 @@ tape('sync: remote peer error/destroyed is reflected in peer state', function (t
 })
 
 tape('sync: replication of a simple observation with media', function (t) {
-  t.plan(14)
+  t.plan(15)
 
   createApis(function (api1, api2, close) {
     var obs = {lat: 1, lon: 2, type: 'observation'}
@@ -236,8 +253,9 @@ tape('sync: replication of a simple observation with media', function (t) {
       var syncer = api1.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
-        close()
-        t.fail()
+        close(() => {
+          t.fail()
+        })
       })
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
@@ -249,10 +267,11 @@ tape('sync: replication of a simple observation with media', function (t) {
             api2.media.exists('foo.txt', function (err, exists) {
               t.error(err)
               t.ok(exists)
+              t.same(peer.state.topic, 'replication-complete')
+              const date = new Date(peer.state.message)
+              t.ok(date.getTime() < new Date().getTime(), 'last completed date')
               close(function () {
-                t.same(peer.state.topic, 'replication-complete')
-                const date = new Date(peer.state.message)
-                t.ok(date.getTime() < new Date().getTime(), 'last completed date')
+                t.pass('close ok')
               })
             })
           })
@@ -263,7 +282,7 @@ tape('sync: replication of a simple observation with media', function (t) {
 })
 
 tape('bad sync: syncfile replication: osm-p2p-syncfile', function (t) {
-  t.plan(2)
+  t.plan(3)
 
   var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
   var syncfile = new itar(tmpfile)
@@ -278,9 +297,14 @@ tape('bad sync: syncfile replication: osm-p2p-syncfile', function (t) {
         .once('error', function (err) {
           t.ok(err)
           t.same(err.message, 'trying to sync this kappa-osm database with a hyperlog database!')
+          close(() => {
+            t.pass('close ok')
+          })
         })
         .on('progress', function (progress) {
-          t.fail()
+          close(() => {
+            t.fail()
+          })
         })
     })
   }
@@ -346,7 +370,9 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
         api2.media.createReadStream('foo.txt')
           .on('data', function (buf) {
             t.equals(buf.toString(), 'bar')
-            t.end()
+            close(() => {
+              t.end()
+            })
           })
       })
     }
@@ -354,7 +380,7 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
 })
 
 tape('sync: try to sync two different projectKey syncfiles together', function (t) {
-  t.plan(2)
+  t.plan(3)
 
   var key1 = crypto.randomBytes(32).toString('hex')
   var key2 = crypto.randomBytes(32).toString('hex')
@@ -367,14 +393,21 @@ tape('sync: try to sync two different projectKey syncfiles together', function (
     createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
       api1.sync.replicate({filename: tmpfile}, {projectKey: key2})
         .once('end', function () {
-          t.fail()
+          close(() => {
+            t.fail()
+          })
         })
         .once('error', function (err) {
           t.ok(err)
           t.ok(/trying to sync two different projects/.test(err.message), 'expected error message')
+          close(() => {
+            t.pass('close ok')
+          })
         })
         .on('progress', function (progress) {
-          t.fail()
+          close(() => {
+            t.fail()
+          })
         })
     })
   }
@@ -441,7 +474,9 @@ tape('sync: syncfile /wo projectKey, api with projectKey set', function (t) {
         api2.media.createReadStream('foo.txt')
           .on('data', function (buf) {
             t.equals(buf.toString(), 'bar')
-            t.end()
+            close(() => {
+              t.end()
+            })
           })
       })
     }
@@ -486,8 +521,9 @@ tape('sync: desktop <-> desktop photos', function (t) {
       var syncer = api1.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
-        close()
-        t.fail()
+        close(() => {
+          t.fail()
+        })
       })
 
       syncer.once('progress', function (progress) {
@@ -517,12 +553,12 @@ tape('sync: desktop <-> desktop photos', function (t) {
         api1.media.list(function (err, files) {
           t.error(err)
           t.deepEquals(files.sort(), expected.sort(), 'api1 has the files')
-          if (!--pending) close(() => t.ok(true))
+          if (!--pending) close(() => t.pass('close ok'))
         })
         api2.media.list(function (err, files) {
           t.error(err)
           t.deepEquals(files.sort(), expected.sort(), 'api2 has the files')
-          if (!--pending) close(() => t.ok(true))
+          if (!--pending) close(() => t.pass('close ok'))
         })
       })
     }
@@ -585,7 +621,7 @@ tape('sync: deletes are not synced back', function (t) {
                   api2.observationList(function (err, after) {
                     t.error(err)
                     t.same(after.length, results.length - 1, 'one less item in list')
-                    close(() => t.pass())
+                    close(() => t.pass('close ok'))
                   })
                 }, 100)
               })
@@ -600,8 +636,9 @@ tape('sync: deletes are not synced back', function (t) {
       var syncer = api1.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
-        close()
-        t.fail()
+        close(() => {
+          t.fail()
+        })
       })
 
       syncer.once('progress', function (progress) {
@@ -676,8 +713,9 @@ tape('sync: mobile <-> desktop photos', function (t) {
       var syncer = mobile.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
-        close()
-        t.fail()
+        close(() => {
+          t.fail()
+        })
       })
 
       syncer.on('end', function () {
@@ -697,12 +735,12 @@ tape('sync: mobile <-> desktop photos', function (t) {
         mobile.media.list(function (err, files) {
           t.error(err)
           t.deepEquals(files.sort(), expectedMobile.sort())
-          if (!--pending) close(() => t.ok(true))
+          if (!--pending) close(() => t.pass('close ok'))
         })
         desktop.media.list(function (err, files) {
           t.error(err)
           t.deepEquals(files.sort(), expectedDesktop.sort())
-          if (!--pending) close(() => t.ok(true))
+          if (!--pending) close(() => t.pass('close ok'))
         })
       })
     }
@@ -745,8 +783,9 @@ tape('sync: mobile <-> mobile photos', function (t) {
       var syncer = api1.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
-        close()
-        t.fail()
+        close(() => {
+          t.fail()
+        })
       })
 
       syncer.on('end', function () {
@@ -766,12 +805,12 @@ tape('sync: mobile <-> mobile photos', function (t) {
         api1.media.list(function (err, files) {
           t.error(err)
           t.deepEquals(files.sort(), expected1.sort())
-          if (!--pending) close(() => t.ok(true))
+          if (!--pending) close(() => t.pass('close ok'))
         })
         clone.media.list(function (err, files) {
           t.error(err)
           t.deepEquals(files.sort(), expectedClone.sort())
-          if (!--pending) close(() => t.ok(true))
+          if (!--pending) close(() => t.pass('close ok'))
         })
       })
     }
@@ -894,7 +933,7 @@ tape('sync: destroy during sync is reflected in peer state', function (t) {
         t.same(peers[0].state.topic, 'replication-error', 'replication error!')
         t.same(peers[0].state.message, err.toString(), 'got message')
         close(function () {
-          t.ok(true)
+          t.pass('close ok')
         })
       })
 
@@ -940,8 +979,9 @@ tape('sync: 200 photos', function (t) {
       var syncer = api2.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
-        close()
-        t.fail()
+        close(() => {
+          t.fail()
+        })
       })
 
       var totalProgressEvents = 0
@@ -969,12 +1009,12 @@ tape('sync: 200 photos', function (t) {
         api1.media.list(function (err, files) {
           t.error(err, 'listed media1 ok')
           t.deepEquals(files.sort(), expectedMedia.sort(), 'api1 has the files')
-          if (!--pending) close(() => t.ok(true))
+          if (!--pending) close(() => t.pass('close ok'))
         })
         api2.media.list(function (err, files) {
           t.error(err, 'listed media2 ok')
           t.deepEquals(files.sort(), expectedMedia.sort(), 'api2 has the files')
-          if (!--pending) close(() => t.ok(true))
+          if (!--pending) close(() => t.pass('close ok'))
         })
       })
     }
