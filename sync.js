@@ -386,7 +386,9 @@ class Sync extends events.EventEmitter {
     swarm.on('connection', (connection, info) => {
       debug('connection', info.host, info.port, info.id.toString('hex'))
 
-      const peer = self.state.addWifiPeer(connection, info)
+      let peer
+      let deviceType
+      let disconnected = false
 
       connection.on('close', onClose)
       connection.on('error', onClose)
@@ -396,58 +398,59 @@ class Sync extends events.EventEmitter {
       setTimeout(doSync, 500)
 
       function onClose (err) {
-        debug('onClose', peer.host, peer.port, err)
+        disconnected = true
+        debug('onClose', info.host, info.port, err)
         if (!open) return
         open = false
-        if (peer.sync) {
-          debug('emitting sync end/error event', peer.host, peer.port, err)
+        if (peer) {
+          debug('emitting sync end/error event', info.host, info.port, err)
           if (err) peer.sync.emit('error', err)
           else peer.sync.emit('end')
+          self.emit('down', peer)
         }
-        self.emit('down', peer)
-        debug('down', peer)
+        debug('down', info.host, info.port)
       }
 
       function doSync () {
-        if (!open) return
-        debug('doSync', peer.host, peer.port)
+        if (!open || disconnected) return
+        debug('doSync', info.host, info.port)
         // Set up the sync stream immediately, but don't do anything with it
         // until one side initiates the sync operation.
-        var deviceType = self.opts.deviceType
-        peer.deviceType = deviceType
+        deviceType = self.opts.deviceType
+        const id = Buffer.isBuffer(info.id) ? info.id.toString('hex') : info.id
         stream = MapeoSync(self.osm, self.media, {
-          id: peer.id,
+          id: id,
           deviceType: deviceType,
           deviceName: self.name || os.hostname(),
           handshake: onHandshake
         })
         stream.once('sync-start', function () {
-          debug('sync started', peer.host, peer.port)
+          debug('sync started', info.host, info.port)
           if (++self._activeSyncs === 1) {
             self.osm.core.pause(function () {
-              peer.sync.emit('sync-start')
+              if (peer) peer.sync.emit('sync-start')
             })
           }
         })
         stream.on('progress', (progress) => {
-          debug('sync progress', peer.host, peer.port, progress)
-          if (peer.sync) peer.sync.emit('progress', progress)
+          debug('sync progress', info.host, info.port, progress)
+          if (peer) peer.sync.emit('progress', progress)
         })
         pump(stream, connection, stream, function (err) {
-          debug('pump ended', peer.host, peer.port)
+          debug('pump ended', info.host, info.port)
           if (--self._activeSyncs === 0) {
             self.osm.core.resume()
           }
-          if (peer.started && !stream.goodFinish && !err) err = new Error('sync stream terminated on remote side')
+          if (peer && peer.started && !stream.goodFinish && !err) {
+            err = new Error('sync stream terminated on remote side')
+          }
           onClose(err)
         })
       }
 
       function onHandshake (req, accept) {
-        debug('got handshake', peer.host, peer.port)
-        peer.handshake = {
-          accept: accept
-        }
+        debug('got handshake', info.host, info.port)
+
         // as soon as any data is received, accept! Because this means that
         // the other side just have accepted & wants to start.
         stream.once('accepted', function () {
@@ -455,6 +458,8 @@ class Sync extends events.EventEmitter {
           accept()
         })
 
+        peer = self.state.addWifiPeer(connection, info)
+        peer.handshake = { accept: accept }
         peer.deviceType = req.deviceType
         peer.name = req.deviceName
         self.emit('peer', peer)
