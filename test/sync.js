@@ -827,9 +827,10 @@ tape('sync: with two peers available, sync with one only triggers events for one
 
       function doListen (api, cb) {
         api.sync.listen(() => {
-          api.sync.join()
+          let pending = 3
           api.once('error', console.error)
-          api.sync.once('peer', cb.bind(null, null))
+          api.sync.on('peer', () => { if (!--pending) cb() })
+          api.sync.join()
         })
       }
 
@@ -846,14 +847,12 @@ tape('sync: with two peers available, sync with one only triggers events for one
       function written (err) {
         t.error(err)
         if (--pending === 0) {
-          t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
-          t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
-          t.ok(api3.sync.peers().length > 0, 'api 3 has peers')
-          t.ok(api4.sync.peers().length > 0, 'api 4 has peers')
-          if (api1.sync.peers().length >= 1) {
-            target = api1.sync.peers()[0]
-            sync(target)
-          }
+          t.same(api1.sync.peers().length, 3, 'api 1 has 3 peers')
+          t.same(api2.sync.peers().length, 3, 'api 2 has 3 peers')
+          t.same(api3.sync.peers().length, 3, 'api 3 has 3 peers')
+          t.same(api4.sync.peers().length, 3, 'api 4 has 3 peers')
+          target = api1.sync.peers()[0]
+          sync(target)
         }
       }
 
