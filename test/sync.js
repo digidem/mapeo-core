@@ -269,7 +269,7 @@ tape('sync: replication of a simple observation with media', function (t) {
               t.ok(exists)
               t.same(peer.state.topic, 'replication-complete')
               const date = new Date(peer.state.message)
-              t.ok(date.getTime() < new Date().getTime(), 'last completed date')
+              t.ok(date.getTime() <= new Date().getTime(), 'last completed date')
               close(function () {
                 t.pass('close ok')
               })
