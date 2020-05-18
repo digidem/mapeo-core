@@ -47,7 +47,6 @@ test('should properly open and close', function (t) {
 test('should properly close before reopening', function (t) {
   var mapeo = helpers.createApi()
   mapeo.sync.listen(function () {
-    mapeo.close()
     mapeo.close(function () {
       mapeo.sync.listen(function () {
         mapeo.close(() => {
@@ -80,7 +79,6 @@ test('should properly close during a sync', function (t) {
         var peers1 = api1.sync.peers()
         var peers2 = api2.sync.peers()
         if (peers1.length >= 1 && peers2.length >= 1) {
-          console.log('syncing')
           sync(peers1[0])
         }
       }
@@ -88,9 +86,7 @@ test('should properly close during a sync', function (t) {
 
     function onerror (err) {
       t.ok(err)
-      console.log('closing api1')
       api1.close(function () {
-        console.log('closed api1')
         t.end()
       })
     }
@@ -104,7 +100,6 @@ test('should properly close during a sync', function (t) {
       })
       syncer.once('progress', function (progress) {
         api2.close(() => {
-          console.log('closed api2')
         })
       })
     }
