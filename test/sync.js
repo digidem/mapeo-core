@@ -945,6 +945,54 @@ tape('sync: destroy during sync is reflected in peer state', function (t) {
   })
 })
 
+tape('sync: peer.connected property', function (t) {
+  t.plan(13)
+
+  var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
+  createApis(opts, function (api1, api2, close) {
+    var pending = 4
+    var total = 5
+    var lastProgress
+
+    api1.sync.once('peer', ready.bind(null, null))
+    api2.sync.once('peer', ready.bind(null, null))
+    helpers.writeBigData(api1, total, ready)
+    writeBlob(api2, 'goodbye_world.png', ready)
+
+    api1.sync.listen(() => api1.sync.join())
+    api2.sync.listen(() => api2.sync.join())
+
+    function ready (err) {
+      t.error(err)
+      if (--pending === 0) {
+        t.same(1, api1.sync.peers().length, 'api1 has 1 peer')
+        t.same(1, api2.sync.peers().length, 'api2 has 1 peer')
+        t.ok(api1.sync.peers()[0].connected, 'peer1 is connected')
+        t.ok(api2.sync.peers()[0].connected, 'peer2 is connected')
+        sync(api1.sync.peers()[0])
+      }
+    }
+
+    function sync (peer) {
+      var syncer = api1.sync.replicate(peer)
+      syncer.on('error', function (err) {
+        t.error(err, 'sync error')
+        close(() => t.fail('close ok'))
+      })
+
+      syncer.on('end', function () {
+        t.pass('replication complete')
+        t.notOk(peer.connected, 'peer is disconnected')
+        api1.sync.once('peer', peer1 => {
+          t.deepEquals(peer, peer1, 'old peer & new peer are the same object')
+          t.ok(peer.connected, 'peer is reconnected')
+          close(() => t.pass('close ok'))
+        })
+      })
+    }
+  })
+})
+
 tape('sync: 200 photos', function (t) {
   t.plan(14)
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}

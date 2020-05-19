@@ -63,6 +63,7 @@ class SyncState {
 
   init (peer) {
     peer.started = false
+    peer.connected = true
     peer.sync = new events.EventEmitter()
     var onsync = () => this.onsync(peer)
     var onerror = (error) => this.onerror(peer, error)
@@ -142,6 +143,7 @@ class SyncState {
 
   onerror (peer, error) {
     if (this._isclosed(peer)) return
+    peer.connected = false
     const errorMetadata = {}
     multifeedErrorProps.forEach(key => {
       if (error[key]) errorMetadata[key] = error[key]
@@ -151,6 +153,7 @@ class SyncState {
 
   onend (peer) {
     if (this._isclosed(peer)) return
+    peer.connected = false
     if (peer.started) {
       peer.state = PeerState(ReplicationState.COMPLETE, Date.now())
     }
