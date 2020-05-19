@@ -36,7 +36,7 @@ const DEFAULT_INTERNET_DISCO = Object.assign(
   }
 )
 
-const states = {
+const ReplicationState = {
   WIFI_READY: 'replication-wifi-ready',
   PROGRESS: 'replication-progress',
   COMPLETE: 'replication-complete',
@@ -52,26 +52,32 @@ function PeerState (topic, message, other) {
 
 class SyncState {
   constructor () {
-    this._completed = {}
     this._state = {}
   }
 
-  add (peer) {
+  _add (peer) {
+    peer.state = PeerState(ReplicationState.WIFI_READY)
+    this.init(peer)
+    this._state[peer.id] = peer
+  }
+
+  init (peer) {
+    peer.started = false
+    peer.connected = true
     peer.sync = new events.EventEmitter()
-    var onstart = () => this.onstart(peer)
+    var onsync = () => this.onsync(peer)
     var onerror = (error) => this.onerror(peer, error)
     var onend = () => {
       this.onend(peer)
-      peer.sync.removeListener('sync-start', onstart)
+      peer.sync.removeListener('sync-start', onsync)
       peer.sync.removeListener('end', onend)
       peer.sync.removeListener('error', onerror)
       if (peer.sync.onprogress) peer.sync.removeListener('progress', peer.sync.onprogress)
     }
 
-    peer.sync.on('sync-start', onstart)
+    peer.sync.on('sync-start', onsync)
     peer.sync.on('error', onerror)
     peer.sync.on('end', onend)
-    this._state[peer.id] = peer
   }
 
   addProgressEventListeners (peer) {
@@ -92,60 +98,73 @@ class SyncState {
   }
 
   _isclosed (peer) {
-    return peer.state.topic === states.COMPLETE || peer.state.topic === states.ERROR
+    return peer.state.topic === ReplicationState.COMPLETE || peer.state.topic === ReplicationState.ERROR
   }
 
-  onwifi (peer) {
-    peer.state = PeerState(states.WIFI_READY)
-    this.add(peer)
+  _iscomplete (peer) {
+    return peer.state.topic === ReplicationState.COMPLETE
   }
 
-  onfile (peer) {
-    this.onstart(peer)
-    this.add(peer)
+  addWifiPeer (connection, info) {
+    const peerId = info.id.toString('hex')
+    let peer = this._state[peerId]
+    if (!peer) {
+      peer = WifiPeer(connection, info)
+      this._add(peer)
+    } else {
+      // reuse peer
+      this.init(peer)
+    }
+    return peer
+  }
+
+  addFilePeer (filename) {
+    const peer = {
+      id: filename,
+      name: filename,
+      filename
+    }
+    this._state[peer.id] = peer
+    this._add(peer)
     this.addProgressEventListeners(peer)
+    this.onsync(peer)
+    return peer
   }
 
-  onstart (peer) {
+  onsync (peer) {
     peer.started = true
-    peer.state = PeerState(states.STARTED)
+    peer.state = PeerState(ReplicationState.STARTED)
   }
 
   onprogress (peer, progress) {
     if (this._isclosed(peer)) return
-    peer.state = PeerState(states.PROGRESS, progress)
+    peer.state = PeerState(ReplicationState.PROGRESS, progress)
   }
 
   onerror (peer, error) {
     if (this._isclosed(peer)) return
+    peer.connected = false
     const errorMetadata = {}
     multifeedErrorProps.forEach(key => {
       if (error[key]) errorMetadata[key] = error[key]
     })
-    peer.state = PeerState(states.ERROR, error ? error.toString() : 'Error', errorMetadata)
+    peer.state = PeerState(ReplicationState.ERROR, error ? error.toString() : 'Error', errorMetadata)
   }
 
   onend (peer) {
     if (this._isclosed(peer)) return
+    peer.connected = false
     if (peer.started) {
-      peer.state = PeerState(states.COMPLETE, Date.now())
-      this._completed[peer.name] = Object.assign({}, peer)
+      peer.state = PeerState(ReplicationState.COMPLETE, Date.now())
     }
-    delete this._state[peer.id]
   }
 
+  // XXX: depends on 'peer' being a persistent reference
   peers () {
-    var self = this
-    var peers = []
-    Object.values(this._state).map((peer) => {
-      var completed = self._completed[peer.name]
-      if (completed) peer.state.lastCompletedDate = completed.state.message
-      peers.push(peer)
+    return Object.values(this._state).map((peer) => {
+      if (this._iscomplete(peer)) peer.state.lastCompletedDate = peer.state.message
+      return peer
     })
-    Object.values(this._completed).map((peer) => {
-      if (!(peers.find((p) => p.name === peer.name))) peers.push(peer)
-    })
-    return peers
   }
 }
 
@@ -190,12 +209,7 @@ class Sync extends events.EventEmitter {
       }
       this.replicateNetwork(peer, opts)
     } else if (filename) {
-      peer = {
-        id: filename,
-        name: filename,
-        filename
-      }
-      this.state.onfile(peer)
+      peer = this.state.addFilePeer(filename)
       this.replicateFromFile(peer, opts)
     } else throw new Error('Requires filename or host and port')
 
@@ -211,21 +225,35 @@ class Sync extends events.EventEmitter {
     }
 
     // return existing emitter
-    if (peer.accepted) return peer.sync
+    if (!peer.handshake) return peer.sync
 
     peer.handshake.accept()
-    peer.accepted = true
+    delete peer.handshake
     return peer.sync
   }
 
   listen (cb) {
     if (!cb) cb = () => {}
-    if (this.swarm || this._destroyingSwarm) {
-      console.error('Swarm already exists or is currently destroying itself..')
+    if (this.swarm && !this._destroyingSwarm) {
       return process.nextTick(cb)
     }
-    this.swarm = this._swarm()
-    this.swarm.listen(0, cb)
+
+    const _listen = () => {
+      this.osm.ready(() => {
+        this.osm.core._logs.writer('default', (err, feed) => {
+          if (err) return cb(err)
+          this.swarm = this._swarm(feed.key)
+          this.swarm.listen(0, err => {
+            if (err) return cb(err)
+            cb()
+            this.emit('listen')
+          })
+        })
+      })
+    }
+
+    if (this._destroyingSwarm) this.once('close', _listen)
+    else _listen()
   }
 
   leave (projectKey) {
@@ -234,8 +262,11 @@ class Sync extends events.EventEmitter {
   }
 
   join (projectKey) {
-    var key = discoveryKey(projectKey)
-    this.swarm.join(key)
+    const key = discoveryKey(projectKey)
+    const join = () => this.swarm.join(key)
+
+    if (!this.swarm) this.once('listen', join)
+    else join()
   }
 
   destroy (cb) {
@@ -249,6 +280,7 @@ class Sync extends events.EventEmitter {
     this.swarm.destroy(() => {
       this.swarm = null
       this._destroyingSwarm = false
+      this.emit('close')
       cb()
     })
   }
@@ -355,14 +387,16 @@ class Sync extends events.EventEmitter {
     this.name = name
   }
 
-  _swarm () {
+  _swarm (id) {
     var self = this
-    const id = Buffer.from(this.id, 'hex')
-    var swarm = Swarm({id: id})
+    var swarm = Swarm(Object.assign(this.opts, {id: id}))
 
     swarm.on('connection', (connection, info) => {
-      const peer = WifiPeer(connection, info)
-      debug('connection', peer)
+      debug('connection', info.host, info.port, info.id.toString('hex'))
+
+      let peer
+      let deviceType
+      let disconnected = false
 
       connection.on('close', onClose)
       connection.on('error', onClose)
@@ -372,58 +406,59 @@ class Sync extends events.EventEmitter {
       setTimeout(doSync, 500)
 
       function onClose (err) {
-        debug('onClose', peer.host, peer.port, err)
+        disconnected = true
+        debug('onClose', info.host, info.port, err)
         if (!open) return
         open = false
-        if (peer.sync) {
-          debug('emitting sync event', peer.host, peer.port, err)
+        if (peer) {
+          debug('emitting sync end/error event', info.host, info.port, err)
           if (err) peer.sync.emit('error', err)
           else peer.sync.emit('end')
+          self.emit('down', peer)
         }
-        self.emit('down', peer)
-        debug('down', peer)
+        debug('down', info.host, info.port)
       }
 
       function doSync () {
-        if (!open) return
-        debug('doSync', peer.host, peer.port)
+        if (!open || disconnected) return
+        debug('doSync', info.host, info.port)
         // Set up the sync stream immediately, but don't do anything with it
         // until one side initiates the sync operation.
-        var deviceType = self.opts.deviceType
-        peer.deviceType = deviceType
+        deviceType = self.opts.deviceType
+        const id = Buffer.isBuffer(info.id) ? info.id.toString('hex') : info.id
         stream = MapeoSync(self.osm, self.media, {
-          id: peer.id,
+          id: id,
           deviceType: deviceType,
           deviceName: self.name || os.hostname(),
           handshake: onHandshake
         })
         stream.once('sync-start', function () {
-          debug('sync started', peer.host, peer.port)
+          debug('sync started', info.host, info.port)
           if (++self._activeSyncs === 1) {
             self.osm.core.pause(function () {
-              peer.sync.emit('sync-start')
+              if (peer) peer.sync.emit('sync-start')
             })
           }
         })
         stream.on('progress', (progress) => {
-          debug('sync progress', peer.host, peer.port, progress)
-          if (peer.sync) peer.sync.emit('progress', progress)
+          debug('sync progress', info.host, info.port, progress)
+          if (peer) peer.sync.emit('progress', progress)
         })
         pump(stream, connection, stream, function (err) {
-          debug('pump ended', peer.host, peer.port)
+          debug('pump ended', info.host, info.port)
           if (--self._activeSyncs === 0) {
             self.osm.core.resume()
           }
-          if (peer.started && !stream.goodFinish && !err) err = new Error('sync stream terminated on remote side')
+          if (peer && peer.started && !stream.goodFinish && !err) {
+            err = new Error('sync stream terminated on remote side')
+          }
           onClose(err)
         })
       }
 
       function onHandshake (req, accept) {
-        debug('got handshake', peer.host, peer.port)
-        peer.handshake = {
-          accept: accept
-        }
+        debug('got handshake', info.host, info.port)
+
         // as soon as any data is received, accept! Because this means that
         // the other side just have accepted & wants to start.
         stream.once('accepted', function () {
@@ -431,7 +466,8 @@ class Sync extends events.EventEmitter {
           accept()
         })
 
-        self.state.onwifi(peer)
+        peer = self.state.addWifiPeer(connection, info)
+        peer.handshake = { accept: accept }
         peer.deviceType = req.deviceType
         peer.name = req.deviceName
         self.emit('peer', peer)
@@ -461,8 +497,9 @@ function isGzipFile (filepath, cb) {
 
 function WifiPeer (connection, info) {
   info.type = 'wifi'
-  info.swarmId = info.swarmId || info.id
   info.connection = connection
+  info.swarmId = info.id // XXX: not used; for backwards compatibility
+  info.id = info.id.toString('hex')
   return info
 }
 

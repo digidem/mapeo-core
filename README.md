@@ -138,9 +138,11 @@ Optionally accepts a `projectKey` which must be a 32-byte buffer or a string hex
 
 An invalid `projectKey` will throw an error.
 
-### sync.close(cb)
+### sync.close([cb])
 
-Unannounces the sync service & cleans up the underlying UDP socket. `cb` is called once this is complete.
+Unannounces the sync service & cleans up the underlying UDP socket. Optionally accepts `cb` which is called once this is complete. 
+
+Emits `close` event.
 
 ### sync.peers()
 
@@ -148,13 +150,12 @@ Fetch a list of the current sync peers that have been found thus far.
 
 A peer can have the following properties:
 
-* `name`: a human-readable identifier for the peer (e.g., hostname)
-* `connection`: The open connection to this peer. Can be closed manually to
-  stop any data transfer.
-* `host`: the ip
-* `port`: the port
-* `type`: 'wifi' or 'file'
-* `deviceType`: either `mobile` or `desktop`, if `type == 'wifi'`
+* `name` (string): a human-readable identifier for the peer (e.g., hostname)
+* `connected` (boolean): whether the peer is currently connected to you
+* `host` (string): the ip
+* `port` (number): the port
+* `type` (string): 'wifi' or 'file'
+* `deviceType` (string): either `mobile` or `desktop`, if `type == 'wifi'`
 
 ### sync.on('peer', peer)
 
