@@ -2,8 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-### [8.1.1](https://github.com/digidem/mapeo-core/compare/v8.1.0...v8.1.1) (2019-11-25)
+### [8.2.0](https://github.com/digidem/mapeo-core/compare/v8.1.3...v8.2.0) (2020-05-18)
 
+### Bug Fixes
+- Peers no longer automatically sync multifeeds on connect
+- `peer.id` is now exposed as a string (not a Buffer)
+- More thorough closing on `close` API (also now emits `"close"` event)
+
+### Features
+- Exposed `peer.connected` property
+
+### Deprecated
+- Deprecated `peer.swarmId`
+- Deprecated `peer.connection`
+
+
+### [8.1.1](https://github.com/digidem/mapeo-core/compare/v8.1.0...v8.1.1) (2019-11-25)
 
 ### Bug Fixes
 
