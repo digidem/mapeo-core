@@ -376,6 +376,7 @@ class Sync extends events.EventEmitter {
     function onend (err) {
       if (err) return onerror(err)
       self.osm.ready(function () {
+        self.emit('down', peer)
         emitter.emit('end')
       })
     }
