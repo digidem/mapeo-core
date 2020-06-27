@@ -29,6 +29,10 @@ function createApi (_dir, opts) {
     id: randombytes(8).toString('hex')
   }))
 
+  osm.close = function (cb) {
+    this.index.close(cb)
+  }
+
   mapeo._dir = dir
   return mapeo
 }

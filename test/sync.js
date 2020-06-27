@@ -22,8 +22,8 @@ function createApis (opts, cb) {
     var pending = 2
     function done () {
       if (!--pending) {
-        api1.close(function () {
-          api2.close(function () {
+        api1.osm.close(function () {
+          api2.osm.close(function () {
             rimraf(api1._dir, function () {
               rimraf(api2._dir, function () {
                 cb()
@@ -1059,18 +1059,20 @@ tape('sync: 200 photos & close/reopen real-world scenario', function (t) {
           // TEST: close one side and then re-open it before syncing
           api1.sync.leave()
           api1.close(() => {
-            _api1 = helpers.createApi(api1._dir)
-            _api1.sync.listen(() => {
-              _api1.sync.join()
+            api1.osm.close(() => {
+              _api1 = helpers.createApi(api1._dir)
+              _api1.sync.listen(() => {
+                _api1.sync.join()
 
-              // wait to sync until we have the handshake and are connected
-              var interval = setInterval(() => {
-                var peer = api2.sync.peers()[0]
-                if (peer.connected && peer.handshake) {
-                  sync(peer)
-                  clearInterval(interval)
-                }
-              }, 200)
+                // wait to sync until we have the handshake and are connected
+                var interval = setInterval(() => {
+                  var peer = api2.sync.peers()[0]
+                  if (peer.connected && peer.handshake) {
+                    sync(peer)
+                    clearInterval(interval)
+                  }
+                }, 200)
+              })
             })
           })
         }
