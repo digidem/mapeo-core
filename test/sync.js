@@ -1031,12 +1031,12 @@ tape('sync: peer.connected property on graceful exit', function (t) {
   })
 })
 
-tape('sync: 200 photos & close/reopen real-world scenario', function (t) {
-  t.plan(15)
+tape.only('sync: 200 photos & close/reopen real-world scenario', function (t) {
+  t.plan(17)
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
-    var total = 200
+    var total = 5
     var _api1 = null
 
     api1.sync.once('peer', written.bind(null, null))
@@ -1080,8 +1080,13 @@ tape('sync: 200 photos & close/reopen real-world scenario', function (t) {
     }
 
     function done (cb) {
-      _api1.close(() => {
+      // CLOSE ONE SIDE and see that it is not connected anymore
+      api2.sync.on('down', () => {
+        t.pass('emit down event on close')
         close(cb)
+      })
+      _api1.close(() => {
+        t.notOk(api2.sync.peers()[0].connected, 'not connected anymore')
       })
     }
 
