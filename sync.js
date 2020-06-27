@@ -231,6 +231,13 @@ class Sync extends events.EventEmitter {
       return peer.sync
     }
 
+    if (!peer.connected) {
+      process.nextTick(() => {
+        peer.sync.emit('error', new Error('trying to sync to a peer that is not connected'))
+      })
+      return peer.sync
+    }
+
     peer.handshake.accept()
     delete peer.handshake
     return peer.sync

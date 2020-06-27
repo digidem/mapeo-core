@@ -1036,7 +1036,7 @@ tape('sync: 200 photos & close/reopen real-world scenario', function (t) {
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
-    var total = 5
+    var total = 200
     var _api1 = null
 
     api1.sync.once('peer', written.bind(null, null))
@@ -1062,9 +1062,10 @@ tape('sync: 200 photos & close/reopen real-world scenario', function (t) {
             api1.osm.close(() => {
               _api1 = helpers.createApi(api1._dir)
               _api1.sync.listen(() => {
+                api2.sync.once('peer', (peer) => {
+                  sync(peer)
+                })
                 _api1.sync.join()
-                var peer = api2.sync.peers()[0]
-                sync(peer)
               })
             })
           })
