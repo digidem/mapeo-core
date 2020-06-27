@@ -1063,15 +1063,8 @@ tape('sync: 200 photos & close/reopen real-world scenario', function (t) {
               _api1 = helpers.createApi(api1._dir)
               _api1.sync.listen(() => {
                 _api1.sync.join()
-
-                // wait to sync until we have the handshake and are connected
-                var interval = setInterval(() => {
-                  var peer = api2.sync.peers()[0]
-                  if (peer.connected && peer.handshake) {
-                    sync(peer)
-                    clearInterval(interval)
-                  }
-                }, 200)
+                var peer = api2.sync.peers()[0]
+                sync(peer)
               })
             })
           })

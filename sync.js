@@ -226,8 +226,7 @@ class Sync extends events.EventEmitter {
   replicateNetwork (peer, opts) {
     if (!peer.handshake) {
       process.nextTick(() => {
-        this._syncQueue.set(peer.id, peer)
-        // peer.sync.emit('error', new Error('trying to sync before handshake has occurred'))
+        peer.sync.emit('error', new Error('trying to sync before handshake has occurred'))
       })
       return peer.sync
     }
@@ -477,18 +476,10 @@ class Sync extends events.EventEmitter {
         peer.handshake = { accept: accept }
         peer.deviceType = req.deviceType
         peer.name = req.deviceName
-        self._drainQueue()
         self.emit('peer', peer)
       }
     })
     return swarm
-  }
-
-  _drainQueue () {
-    for (let [peerId, peer] of this._syncQueue) {
-      this._syncQueue.delete(peerId)
-      this.replicate(peer)
-    }
   }
 }
 
