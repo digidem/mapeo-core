@@ -161,7 +161,6 @@ class SyncState {
 
   onend (peer) {
     if (this._isclosed(peer)) return
-    peer.connected = false
     if (peer.started) {
       peer.state = PeerState(ReplicationState.COMPLETE, Date.now())
     }
@@ -414,6 +413,7 @@ class Sync extends events.EventEmitter {
 
       function onClose (err) {
         disconnected = true
+        if (peer) peer.connected = false
         debug('onClose', info.host, info.port, err)
         if (!open) return
         open = false

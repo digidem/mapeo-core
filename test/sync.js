@@ -489,7 +489,7 @@ tape('sync: desktop <-> desktop photos', function (t) {
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
-    var total = 5
+    var total = 200
     var lastProgress
 
     api2.sync.setName('device_2')
@@ -1031,8 +1031,8 @@ tape('sync: peer.connected property on graceful exit', function (t) {
   })
 })
 
-tape.only('sync: 200 photos & close/reopen real-world scenario', function (t) {
-  t.plan(17)
+tape('sync: 200 photos & close/reopen real-world scenario', function (t) {
+  t.plan(18)
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
@@ -1081,16 +1081,17 @@ tape.only('sync: 200 photos & close/reopen real-world scenario', function (t) {
 
     function done (cb) {
       // CLOSE ONE SIDE and see that it is not connected anymore
-      api2.sync.on('down', () => {
-        t.pass('emit down event on close')
-        close(cb)
-      })
       _api1.close(() => {
         t.notOk(api2.sync.peers()[0].connected, 'not connected anymore')
+        close(cb)
       })
     }
 
     function sync (peer) {
+      api2.sync.on('down', () => {
+        t.pass('emit down event on close')
+        t.notOk(api2.sync.peers()[0].connected, 'not connected anymore')
+      })
       var syncer = api2.sync.replicate(peer)
       syncer.on('error', function (err) {
         t.error(err)
