@@ -22,8 +22,8 @@ function createApis (opts, cb) {
     var pending = 2
     function done () {
       if (!--pending) {
-        api1.osm.close(function () {
-          api2.osm.close(function () {
+        api1.close(function () {
+          api2.close(function () {
             rimraf(api1._dir, function () {
               rimraf(api2._dir, function () {
                 cb()
@@ -993,12 +993,51 @@ tape('sync: peer.connected property', function (t) {
   })
 })
 
-tape('sync: 200 photos', function (t) {
-  t.plan(14)
+tape('sync: peer.connected property on graceful exit', function (t) {
+  t.plan(10)
+
+  var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
+  createApis(opts, function (api1, api2, close) {
+    var pending = 2
+
+    api1.sync.once('peer', ready.bind(null, null))
+    api2.sync.once('peer', ready.bind(null, null))
+
+    api1.sync.listen(() => api1.sync.join())
+    api2.sync.listen(() => api2.sync.join())
+
+    function ready (err) {
+      t.error(err)
+      if (--pending === 0) {
+        t.same(1, api1.sync.peers().length, 'api1 has 1 peer')
+        t.same(1, api2.sync.peers().length, 'api2 has 1 peer')
+        t.ok(api1.sync.peers()[0].connected, 'peer1 is connected')
+        t.ok(api2.sync.peers()[0].connected, 'peer2 is connected')
+        quit(api1.sync.peers()[0])
+      }
+    }
+
+    function quit (peer) {
+      api1.sync.on('down', (peer) => {
+        t.notOk(peer.connected, 'api1 emitted down event on api2 close')
+        close(() => t.pass('close ok'))
+      })
+
+      api2.close(function () {
+        t.same(1, api1.sync.peers().length, 'api1 has 1 peer')
+        t.notOk(api1.sync.peers()[0].connected, 'peer shows disconected')
+      })
+    }
+  })
+})
+
+tape('sync: 200 photos & close/reopen real-world scenario', function (t) {
+  t.plan(15)
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
     var total = 200
+    var _api1 = null
 
     api1.sync.once('peer', written.bind(null, null))
     api2.sync.once('peer', written.bind(null, null))
@@ -1017,9 +1056,31 @@ tape('sync: 200 photos', function (t) {
         t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
         t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
         if (api1.sync.peers().length >= 1) {
-          sync(api2.sync.peers()[0])
+          // TEST: close one side and then re-open it before syncing
+          api1.sync.leave()
+          api1.close(() => {
+            _api1 = helpers.createApi(api1._dir)
+            _api1.sync.listen(() => {
+              _api1.sync.join()
+
+              // wait to sync until we have the handshake and are connected
+              var interval = setInterval(() => {
+                var peer = api2.sync.peers()[0]
+                if (peer.connected && peer.handshake) {
+                  sync(peer)
+                  clearInterval(interval)
+                }
+              }, 200)
+            })
+          })
         }
       }
+    }
+
+    function done (cb) {
+      _api1.close(() => {
+        close(cb)
+      })
     }
 
     function sync (peer) {
@@ -1034,6 +1095,7 @@ tape('sync: 200 photos', function (t) {
       var totalProgressEvents = 0
       var lastProgress
       syncer.on('progress', function (progress) {
+        if (!lastProgress) t.ok(api2.sync.peers()[0].started, 'started is true')
         lastProgress = progress
         totalProgressEvents += 1
       })
@@ -1056,12 +1118,12 @@ tape('sync: 200 photos', function (t) {
         api1.media.list(function (err, files) {
           t.error(err, 'listed media1 ok')
           t.deepEquals(files.sort(), expectedMedia.sort(), 'api1 has the files')
-          if (!--pending) close(() => t.pass('close ok'))
+          if (!--pending) done(() => t.pass('close ok'))
         })
         api2.media.list(function (err, files) {
           t.error(err, 'listed media2 ok')
           t.deepEquals(files.sort(), expectedMedia.sort(), 'api2 has the files')
-          if (!--pending) close(() => t.pass('close ok'))
+          if (!--pending) done(() => t.pass('close ok'))
         })
       })
     }

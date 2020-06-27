@@ -17,8 +17,8 @@ module.exports = {
   generateObservations
 }
 
-function createApi (_, opts) {
-  var dir = tmp.dirSync().name
+function createApi (_dir, opts) {
+  var dir = _dir || tmp.dirSync().name
 
   mkdirp.sync(dir)
 
@@ -28,10 +28,6 @@ function createApi (_, opts) {
   var mapeo = new Mapeo(osm, media, Object.assign({}, opts, {
     id: randombytes(8).toString('hex')
   }))
-
-  osm.close = function (cb) {
-    this.index.close(cb)
-  }
 
   mapeo._dir = dir
   return mapeo

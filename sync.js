@@ -97,6 +97,14 @@ class SyncState {
     }
   }
 
+  activePeers () {
+    return this.peers().filter(this._isactive)
+  }
+
+  _isactive (peer) {
+    return peer.state.topic === ReplicationState.PROGRESS || peer.state.topic === ReplicationState.STARTED
+  }
+
   _isclosed (peer) {
     return peer.state.topic === ReplicationState.COMPLETE || peer.state.topic === ReplicationState.ERROR
   }
@@ -184,7 +192,6 @@ class Sync extends events.EventEmitter {
     else throw new Error('opts.id must be a string or buffer')
     this.opts = Object.assign({}, opts)
 
-    this._activeSyncs = 0
     // track all peer states
     this.state = new SyncState()
   }
@@ -435,7 +442,7 @@ class Sync extends events.EventEmitter {
         })
         stream.once('sync-start', function () {
           debug('sync started', info.host, info.port)
-          if (++self._activeSyncs === 1) {
+          if (self.state.activePeers().length + 1 === 1) {
             self.osm.core.pause(function () {
               if (peer) peer.sync.emit('sync-start')
             })
@@ -447,7 +454,7 @@ class Sync extends events.EventEmitter {
         })
         pump(stream, connection, stream, function (err) {
           debug('pump ended', info.host, info.port)
-          if (--self._activeSyncs === 0) {
+          if (self.state.activePeers().length - 1 === 0) {
             self.osm.core.resume()
           }
           if (peer && peer.started && !stream.goodFinish && !err) {
