@@ -193,7 +193,6 @@ class Sync extends events.EventEmitter {
 
     // track all peer states
     this.state = new SyncState()
-    this._syncQueue = new Map()
   }
 
   peers () {

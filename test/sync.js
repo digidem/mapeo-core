@@ -489,7 +489,7 @@ tape('sync: desktop <-> desktop photos', function (t) {
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
-    var total = 200
+    var total = 5
     var lastProgress
 
     api2.sync.setName('device_2')
