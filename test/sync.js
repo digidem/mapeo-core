@@ -613,14 +613,17 @@ tape('sync: deletes are not synced back', function (t) {
               var syncer = api1.sync.replicate(peer)
               syncer.once('error', (err) => t.error(err))
               syncer.once('end', () => {
-                // wait for the indexers to warm up
-                api2.osm.ready(() => {
+                // XXX: race condition where the indexers haven't warmed back
+                // up after syncing yet, but an API request is being made on
+                // the view immediately, resulting in stale data being given
+                // back (unless we wait for a bit)
+                setTimeout(() => {
                   api2.observationList(function (err, after) {
                     t.error(err)
                     t.same(after.length, results.length - 1, 'one less item in list')
                     close(() => t.pass('close ok'))
                   })
-                })
+                }, 100)
               })
             })
           })
