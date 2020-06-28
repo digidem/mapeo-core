@@ -623,7 +623,7 @@ tape('sync: deletes are not synced back', function (t) {
                     t.same(after.length, results.length - 1, 'one less item in list')
                     close(() => t.pass('close ok'))
                   })
-                }, 100)
+                }, 1000)
               })
             })
           })
