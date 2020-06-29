@@ -586,7 +586,7 @@ tape('sync: deletes are not synced back', function (t) {
     api2.sync.listen(() => {
       api2.sync.join()
     })
-    helpers.writeBigData(api1, total, written)
+    helpers.writeBigData(api1, total, written)  // write 5 entries
     writeBlob(api2, 'goodbye_world.png', written)
 
     function written (err) {
@@ -623,7 +623,7 @@ tape('sync: deletes are not synced back', function (t) {
                     t.same(after.length, results.length - 1, 'one less item in list')
                     close(() => t.pass('close ok'))
                   })
-                }, 3000)
+                }, 100)
               })
             })
           })

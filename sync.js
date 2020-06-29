@@ -446,11 +446,9 @@ class Sync extends events.EventEmitter {
         })
         stream.once('sync-start', function () {
           debug('sync started', info.host, info.port)
-          if (self.state.activePeers().length + 1 === 1) {
-            self.osm.core.pause(function () {
-              if (peer) peer.sync.emit('sync-start')
-            })
-          }
+          self.osm.core.pause(function () {
+            if (peer) peer.sync.emit('sync-start')
+          })
         })
         stream.on('progress', (progress) => {
           debug('sync progress', info.host, info.port, progress)
@@ -458,7 +456,7 @@ class Sync extends events.EventEmitter {
         })
         pump(stream, connection, stream, function (err) {
           debug('pump ended', info.host, info.port)
-          if (self.state.activePeers().length - 1 === 0) {
+          if (peer && peer.started) {
             self.osm.core.resume()
           }
           if (peer && peer.started && !stream.goodFinish && !err) {
