@@ -17,8 +17,8 @@ module.exports = {
   generateObservations
 }
 
-function createApi (_, opts) {
-  var dir = tmp.dirSync().name
+function createApi (_dir, opts) {
+  var dir = _dir || tmp.dirSync().name
 
   mkdirp.sync(dir)
 

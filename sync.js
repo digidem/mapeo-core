@@ -97,6 +97,14 @@ class SyncState {
     }
   }
 
+  activePeers () {
+    return this.peers().filter(this._isactive)
+  }
+
+  _isactive (peer) {
+    return peer.state.topic === ReplicationState.PROGRESS || peer.state.topic === ReplicationState.STARTED
+  }
+
   _isclosed (peer) {
     return peer.state.topic === ReplicationState.COMPLETE || peer.state.topic === ReplicationState.ERROR
   }
@@ -153,7 +161,6 @@ class SyncState {
 
   onend (peer) {
     if (this._isclosed(peer)) return
-    peer.connected = false
     if (peer.started) {
       peer.state = PeerState(ReplicationState.COMPLETE, Date.now())
     }
@@ -184,7 +191,6 @@ class Sync extends events.EventEmitter {
     else throw new Error('opts.id must be a string or buffer')
     this.opts = Object.assign({}, opts)
 
-    this._activeSyncs = 0
     // track all peer states
     this.state = new SyncState()
   }
@@ -218,14 +224,18 @@ class Sync extends events.EventEmitter {
 
   replicateNetwork (peer, opts) {
     if (!peer.handshake) {
-      process.nextTick(function () {
+      process.nextTick(() => {
         peer.sync.emit('error', new Error('trying to sync before handshake has occurred'))
       })
       return peer.sync
     }
 
-    // return existing emitter
-    if (!peer.handshake) return peer.sync
+    if (!peer.connected) {
+      process.nextTick(() => {
+        peer.sync.emit('error', new Error('trying to sync to a peer that is not connected'))
+      })
+      return peer.sync
+    }
 
     peer.handshake.accept()
     delete peer.handshake
@@ -408,6 +418,7 @@ class Sync extends events.EventEmitter {
 
       function onClose (err) {
         disconnected = true
+        if (peer) peer.connected = false
         debug('onClose', info.host, info.port, err)
         if (!open) return
         open = false
@@ -435,11 +446,9 @@ class Sync extends events.EventEmitter {
         })
         stream.once('sync-start', function () {
           debug('sync started', info.host, info.port)
-          if (++self._activeSyncs === 1) {
-            self.osm.core.pause(function () {
-              if (peer) peer.sync.emit('sync-start')
-            })
-          }
+          self.osm.core.pause(function () {
+            if (peer) peer.sync.emit('sync-start')
+          })
         })
         stream.on('progress', (progress) => {
           debug('sync progress', info.host, info.port, progress)
@@ -447,7 +456,7 @@ class Sync extends events.EventEmitter {
         })
         pump(stream, connection, stream, function (err) {
           debug('pump ended', info.host, info.port)
-          if (--self._activeSyncs === 0) {
+          if (peer && peer.started) {
             self.osm.core.resume()
           }
           if (peer && peer.started && !stream.goodFinish && !err) {
