@@ -1084,7 +1084,7 @@ tape('sync: 200 photos & close/reopen real-world scenario', function (t) {
     function sync (peer) {
       api2.sync.on('down', () => {
         t.pass('emit down event on close')
-        t.notOk(api2.sync.peers()[0].connected, 'not connected anymore')
+        t.notOk(peer.connected, 'not connected anymore')
       })
       var syncer = api2.sync.replicate(peer)
       syncer.on('error', function (err) {
@@ -1097,7 +1097,7 @@ tape('sync: 200 photos & close/reopen real-world scenario', function (t) {
       var totalProgressEvents = 0
       var lastProgress
       syncer.on('progress', function (progress) {
-        if (!lastProgress) t.ok(api2.sync.peers()[0].started, 'started is true')
+        if (!lastProgress) t.ok(peer.started, 'started is true')
         lastProgress = progress
         totalProgressEvents += 1
       })

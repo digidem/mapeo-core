@@ -446,9 +446,8 @@ class Sync extends events.EventEmitter {
         })
         stream.once('sync-start', function () {
           debug('sync started', info.host, info.port)
-          self.osm.core.pause(function () {
-            if (peer) peer.sync.emit('sync-start')
-          })
+          if (peer) peer.sync.emit('sync-start')
+          self.osm.core.pause()
         })
         stream.on('progress', (progress) => {
           debug('sync progress', info.host, info.port, progress)
@@ -462,8 +461,11 @@ class Sync extends events.EventEmitter {
           if (peer && peer.started && !stream.goodFinish && !err) {
             err = new Error('sync stream terminated on remote side')
           }
+          if (stream.goodFinish && err) err = undefined
           onClose(err)
         })
+        connection.removeListener('close', onClose)
+        connection.removeListener('error', onClose)
       }
 
       function onHandshake (req, accept) {
