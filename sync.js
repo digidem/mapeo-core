@@ -36,7 +36,7 @@ const DEFAULT_INTERNET_DISCO = Object.assign(
   }
 )
 
-const DEFAULT_HEARTBEAT_INTERVAL = 1000 * 5 // 10 seconds
+const DEFAULT_HEARTBEAT_INTERVAL = 1000 * 20 // 20 seconds
 
 const ReplicationState = {
   WIFI_READY: 'replication-wifi-ready',
