@@ -63,8 +63,8 @@ test('sync progress: 6 entries', function (t) {
       var a = sync(db1, { live: false })
       var b = sync(db2, { live: false })
 
-      var eventsLeftA = 5
-      var eventsLeftB = 5
+      var eventsLeftA = 12
+      var eventsLeftB = 12
       a.on('progress', function (sofar, total) {
         eventsLeftA--
       })

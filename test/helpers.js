@@ -13,6 +13,7 @@ var Mapeo = require('..')
 
 module.exports = {
   createApi,
+  writeBigDataNoPhotos,
   writeBigData,
   generateObservations
 }
@@ -35,6 +36,17 @@ function createApi (_dir, opts) {
 
   mapeo._dir = dir
   return mapeo
+}
+
+function writeBigDataNoPhotos (mapeo, n, cb) {
+  generateObservations(n, function (_, obs, i) {
+    mapeo.observationCreate(obs, (_, node) => {
+      if (i === 0) {
+        console.log('done')
+        cb()
+      }
+    })
+  })
 }
 
 function writeBigData (mapeo, n, cb) {

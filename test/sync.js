@@ -340,6 +340,7 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
 
     function syncfileWritten (err) {
       t.error(err, 'first syncfile written ok')
+      delete lastProgress.timestamp
       t.deepEquals(lastProgress, {
         db: { sofar: 1, total: 1 },
         media: { sofar: 1, total: 1 }
@@ -355,6 +356,7 @@ tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
 
     function secondSyncfileWritten (err) {
       t.error(err, 'second syncfile written ok')
+      delete lastProgress.timestamp
       t.deepEquals(lastProgress, {
         db: { sofar: 1, total: 1 },
         media: { sofar: 1, total: 1 }
@@ -444,6 +446,7 @@ tape('sync: syncfile /wo projectKey, api with projectKey set', function (t) {
 
     function syncfileWritten (err) {
       t.error(err, 'first syncfile written ok')
+      delete lastProgress.timestamp
       t.deepEquals(lastProgress, {
         db: { sofar: 1, total: 1 },
         media: { sofar: 1, total: 1 }
@@ -459,6 +462,7 @@ tape('sync: syncfile /wo projectKey, api with projectKey set', function (t) {
 
     function secondSyncfileWritten (err) {
       t.error(err, 'second syncfile written ok')
+      delete lastProgress.timestamp
       t.deepEquals(lastProgress, {
         db: { sofar: 1, total: 1 },
         media: { sofar: 1, total: 1 }
@@ -532,6 +536,7 @@ tape('sync: desktop <-> desktop photos', function (t) {
 
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
+        delete lastProgress.timestamp
         t.deepEquals(lastProgress, {
           db: { sofar: 5, total: 5 },
           media: { sofar: 18, total: 18 }
@@ -647,6 +652,7 @@ tape('sync: deletes are not synced back', function (t) {
 
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
+        delete lastProgress.timestamp
         t.deepEquals(lastProgress, {
           db: { sofar: 5, total: 5 },
           media: { sofar: 18, total: 18 }
@@ -1031,13 +1037,12 @@ tape('sync: peer.connected property on graceful exit', function (t) {
   })
 })
 
-tape.only('sync: missing data still ends', function (t) {
-  t.plan(18)
+tape('sync: missing data still ends', function (t) {
+  t.plan(16)
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
-    var total = 200
-
+    var restarted = false
     var _api1 = null
 
     api1.sync.once('peer', written.bind(null, null))
@@ -1048,11 +1053,11 @@ tape.only('sync: missing data still ends', function (t) {
     api2.sync.listen(() => {
       api2.sync.join()
     })
-    helpers.writeBigData(api1, total, written)
-    writeBlob(api2, 'goodbye_world.png', written)
+    helpers.writeBigDataNoPhotos(api1, 450, written)
+    helpers.writeBigDataNoPhotos(api2, 450, written)
 
     function written (err) {
-      t.error(err)
+      t.error(err, 'written no error')
       if (--pending === 0) {
         t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
         t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
@@ -1068,19 +1073,25 @@ tape.only('sync: missing data still ends', function (t) {
         api1.osm.close(() => {
           t.error(err, 'closed first api')
           _api1 = helpers.createApi(api1._dir)
-          _api1.sync.listen(() => {
-            api2.sync.once('peer', (peer) => {
-              sync(peer, false)
+          helpers.writeBigDataNoPhotos(_api1, 200, () => {
+            _api1.sync.listen(() => {
+              api2.sync.once('peer', (peer) => {
+                sync(peer, false)
+              })
+              _api1.sync.join()
             })
-            _api1.sync.join()
           })
         })
       })
     }
 
-    function done (cb) {
+    function done () {
       _api1.close(() => {
-        close(cb)
+        _api1.osm.close(() => {
+          api2.close(() => {
+            t.end()
+          })
+        })
       })
     }
 
@@ -1089,27 +1100,29 @@ tape.only('sync: missing data still ends', function (t) {
       api2.sync.once('down', (peer) => {
         t.pass('emit down event on close')
         t.notOk(peer.connected, 'not connected anymore')
+        if (!first) done()
       })
       var syncer = api2.sync.replicate(peer)
       syncer.on('error', function (err) {
-        t.ok(err)
+        if (first) t.ok(err)
+        else t.same(err.message, 'missing data', 'error message for missing data')
       })
 
       var totalProgressEvents = 0
       var lastProgress
       syncer.on('progress', function (progress) {
-        if (first && !lastProgress) {
+        if (first && progress.db.sofar > 0 && progress.db.sofar < 5 && !restarted) {
           t.ok(peer.started, 'started is true')
           restart()
+          restarted = true
         }
+
         lastProgress = progress
         totalProgressEvents += 1
-        console.log(totalProgressEvents)
       })
 
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
-        if (!first) done()
       })
     }
   })
@@ -1195,6 +1208,7 @@ tape('sync: 200 photos & close/reopen real-world scenario', function (t) {
             'preview/goodbye_world.png',
             'thumbnail/goodbye_world.png'
           ])
+        delete lastProgress.timestamp
         t.deepEquals(lastProgress, {
           db: { sofar: total, total: total },
           media: { sofar: expectedMedia.length, total: expectedMedia.length }
