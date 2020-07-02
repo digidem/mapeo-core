@@ -42,7 +42,6 @@ function writeBigDataNoPhotos (mapeo, n, cb) {
   generateObservations(n, function (_, obs, i) {
     mapeo.observationCreate(obs, (_, node) => {
       if (i === 0) {
-        console.log('done')
         cb()
       }
     })

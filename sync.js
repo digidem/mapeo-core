@@ -461,6 +461,7 @@ class Sync extends events.EventEmitter {
             if (self.state.stale(peer)) {
               connection.destroy(new Error('timed out due to missing data'))
             }
+            debug('heartbeat', self.state.stale(peer))
           }, DEFAULT_HEARTBEAT_INTERVAL)
         })
         stream.on('progress', (progress) => {

@@ -1038,7 +1038,7 @@ tape('sync: peer.connected property on graceful exit', function (t) {
 })
 
 tape('sync: missing data still ends', function (t) {
-  t.plan(16)
+  t.plan(18)
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
@@ -1053,7 +1053,7 @@ tape('sync: missing data still ends', function (t) {
     api2.sync.listen(() => {
       api2.sync.join()
     })
-    helpers.writeBigDataNoPhotos(api1, 450, written)
+    helpers.writeBigData(api1, 50, written)
     helpers.writeBigDataNoPhotos(api2, 450, written)
 
     function written (err) {
@@ -1096,29 +1096,24 @@ tape('sync: missing data still ends', function (t) {
     }
 
     function sync (peer, first) {
-      t.ok(peer, 'syncronizing ' +  first)
-      api2.sync.once('down', (peer) => {
+      t.ok(peer, 'syncronizing ' + first)
+      api2.sync.on('down', (peer) => {
         t.pass('emit down event on close')
         t.notOk(peer.connected, 'not connected anymore')
         if (!first) done()
       })
       var syncer = api2.sync.replicate(peer)
       syncer.on('error', function (err) {
-        if (first) t.ok(err)
-        else t.same(err.message, 'missing data', 'error message for missing data')
+        if (first) t.ok(err, 'error on first ok')
+        else t.same(err.message, 'timed out due to missing data', 'error message for missing data')
       })
 
-      var totalProgressEvents = 0
-      var lastProgress
       syncer.on('progress', function (progress) {
-        if (first && progress.db.sofar > 0 && progress.db.sofar < 5 && !restarted) {
+        if (first && progress.db.sofar > 450 && progress.db.sofar < 455 && !restarted) {
           t.ok(peer.started, 'started is true')
           restart()
           restarted = true
         }
-
-        lastProgress = progress
-        totalProgressEvents += 1
       })
 
       syncer.on('end', function () {
