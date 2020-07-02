@@ -36,6 +36,8 @@ const DEFAULT_INTERNET_DISCO = Object.assign(
   }
 )
 
+const DEFAULT_HEARTBEAT_INTERVAL = 1000 * 20 // 20 seconds
+
 const ReplicationState = {
   WIFI_READY: 'replication-wifi-ready',
   PROGRESS: 'replication-progress',
@@ -97,8 +99,10 @@ class SyncState {
     }
   }
 
-  activePeers () {
-    return this.peers().filter(this._isactive)
+  stale (peer) {
+    var staleDate = Date.now() - DEFAULT_HEARTBEAT_INTERVAL
+    return peer.state.topic === ReplicationState.PROGRESS &&
+      (peer.state.message.timestamp < staleDate)
   }
 
   _isactive (peer) {
@@ -146,6 +150,7 @@ class SyncState {
 
   onprogress (peer, progress) {
     if (this._isclosed(peer)) return
+    progress.timestamp = Date.now()
     peer.state = PeerState(ReplicationState.PROGRESS, progress)
   }
 
@@ -408,6 +413,7 @@ class Sync extends events.EventEmitter {
       let peer
       let deviceType
       let disconnected = false
+      let heartbeat
 
       connection.on('close', onClose)
       connection.on('error', onClose)
@@ -419,6 +425,7 @@ class Sync extends events.EventEmitter {
       function onClose (err) {
         disconnected = true
         if (peer) peer.connected = false
+        if (heartbeat) clearInterval(heartbeat)
         debug('onClose', info.host, info.port, err)
         if (!open) return
         open = false
@@ -448,11 +455,20 @@ class Sync extends events.EventEmitter {
           debug('sync started', info.host, info.port)
           if (peer) peer.sync.emit('sync-start')
           self.osm.core.pause()
+          // XXX: This is a hack to ensure sync streams always end eventually
+          // Ideally, we'd open a sparse hypercore instead.
+          heartbeat = setInterval(() => {
+            if (self.state.stale(peer)) {
+              connection.destroy(new Error('timed out due to missing data'))
+            }
+            debug('heartbeat', self.state.stale(peer))
+          }, DEFAULT_HEARTBEAT_INTERVAL)
         })
         stream.on('progress', (progress) => {
           debug('sync progress', info.host, info.port, progress)
           if (peer) peer.sync.emit('progress', progress)
         })
+
         pump(stream, connection, stream, function (err) {
           debug('pump ended', info.host, info.port)
           if (peer && peer.started) {
