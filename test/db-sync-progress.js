@@ -123,3 +123,77 @@ test('sync progress: 200 entries', function (t) {
     })
   })
 })
+
+test('sync progress: 3 devices', function (t) {
+  t.plan(29)
+
+  setup(3, function (err, db1) {
+    t.error(err)
+    setup(3, function (err, db2) {
+      t.error(err)
+      setup(3, function (err, db3) {
+        t.error(err)
+        var feed1 = db1.osm.core._logs
+        var feed2 = db2.osm.core._logs
+        var feed3 = db3.osm.core._logs
+
+        var a = sync(db1, { live: false })
+        var b = sync(db2, { live: false })
+        var c = sync(db3, { live: false })
+
+        a.on('progress', function (sofar, total) {
+          t.notOk(sofar > total)
+        })
+        b.on('progress', function (sofar, total) {
+          t.notOk(sofar > total)
+        })
+        c.on('progress', function (sofar, total) {
+          t.notOk(sofar > total)
+        })
+
+        pump(a, b, a, function (err) {
+          t.error(err)
+        })
+      })
+    })
+  })
+})
+
+test('sync progress: 200 entries', function (t) {
+  t.plan(11)
+
+  setup(100, function (err, db1) {
+    t.error(err)
+    setup(100, function (err, db2) {
+      t.error(err)
+      var feed1 = db1.osm.core._logs
+      var feed2 = db2.osm.core._logs
+
+      var a = sync(db1, { live: false })
+      var b = sync(db2, { live: false })
+
+      var sofarA, totalA
+      var sofarB, totalB
+      a.on('progress', function (sofar, total) {
+        sofarA = sofar
+        totalA = total
+      })
+      b.on('progress', function (sofar, total) {
+        sofarB = sofar
+        totalB = total
+      })
+
+      pump(a, b, a, function (err) {
+        t.error(err)
+        t.equals(feed1.feeds()[0].length, 100)
+        t.equals(feed1.feeds()[1].length, 100)
+        t.equals(feed2.feeds()[0].length, 100)
+        t.equals(feed2.feeds()[1].length, 100)
+        t.equals(sofarA, 200)
+        t.equals(sofarA, 200)
+        t.equals(totalB, 200)
+        t.equals(totalB, 200)
+      })
+    })
+  })
+})
