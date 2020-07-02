@@ -459,7 +459,7 @@ class Sync extends events.EventEmitter {
           // Ideally, we'd open a sparse hypercore instead.
           heartbeat = setInterval(() => {
             if (self.state.stale(peer)) {
-              connection.destroy(new Error('missing data'))
+              connection.destroy(new Error('timed out due to missing data'))
             }
           }, DEFAULT_HEARTBEAT_INTERVAL)
         })
