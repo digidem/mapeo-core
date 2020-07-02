@@ -32,7 +32,7 @@
     "handshake-stream": "^3.0.0",
     "hypercore-crypto": "^1.0.0",
     "inherits": "^2.0.3",
-    "multifeed": "github:kappa-db/multifeed#v4-remote-feeds",
+    "multifeed": "^4.3.0",
     "multiplex": "^6.7.0",
     "osm-p2p-geojson": "^4.0.1",
     "osm-p2p-syncfile": "^4.1.0",
