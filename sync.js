@@ -108,7 +108,7 @@ class SyncState {
       peer.state.message.media.sofar !== peer.state.message.media.total
     var staleDate = Date.now() - DEFAULT_HEARTBEAT_INTERVAL
     return peer.state.topic === ReplicationState.PROGRESS &&
-      (peer.state.message.timestamp < staleDate) && COMPLETE
+      (peer.state.message.timestamp < staleDate) && INCOMPLETE
   }
 
   _isactive (peer) {
