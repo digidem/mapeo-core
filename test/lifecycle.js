@@ -105,3 +105,4 @@ test('should properly close during a sync', function (t) {
     }
   })
 })
+
