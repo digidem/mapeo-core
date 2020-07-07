@@ -100,9 +100,15 @@ class SyncState {
   }
 
   stale (peer) {
+    // XXX: This is important because this peer can get in a state where it's in
+    // progress but the other side has not yet acknowlegded to us that it has
+    // finished downloading
+    // we can remove this check once we have ACKs or proper backpressure
+    var INCOMPLETE = peer.state.message.db.sofar !== peer.state.message.db.total ||
+      peer.state.message.media.sofar !== peer.state.message.media.total
     var staleDate = Date.now() - DEFAULT_HEARTBEAT_INTERVAL
     return peer.state.topic === ReplicationState.PROGRESS &&
-      (peer.state.message.timestamp < staleDate)
+      (peer.state.message.timestamp < staleDate) && INCOMPLETE
   }
 
   _isactive (peer) {
@@ -470,7 +476,7 @@ class Sync extends events.EventEmitter {
         })
 
         pump(stream, connection, stream, function (err) {
-          debug('pump ended', info.host, info.port)
+          debug('pump ended', info.host, info.port, err)
           if (peer && peer.started) {
             self.osm.core.resume()
           }
