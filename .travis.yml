@@ -6,9 +6,5 @@ os:
 - windows
 - osx
 - linux
-jobs: 
-  exclude:
-    - node_js: '10'
-    - os: windows
 notifications:
   email: false
