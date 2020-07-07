@@ -156,9 +156,8 @@ class SyncState {
 
   onprogress (peer, progress) {
     if (this._isclosed(peer)) return
-    var newProgress = Object.assign({}, progress)
-    newProgress.timestamp = Date.now()
-    peer.state = PeerState(ReplicationState.PROGRESS, newProgress)
+    progress.timestamp = Date.now()
+    peer.state = PeerState(ReplicationState.PROGRESS, progress)
   }
 
   onerror (peer, error) {
