@@ -6,8 +6,9 @@ os:
 - windows
 - osx
 - linux
-exclude:
-  - node_js: '10'
-  - os: windows
+jobs: 
+  exclude:
+    - node_js: '10'
+    - os: windows
 notifications:
   email: false
