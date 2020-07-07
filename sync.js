@@ -104,7 +104,7 @@ class SyncState {
     // progress but the other side has not yet acknowlegded to us that it has
     // finished downloading
     // we can remove this check once we have ACKs or proper backpressure
-    var COMPLETE = peer.state.message.db.sofar !== peer.state.message.db.total &&
+    var INCOMPLETE = peer.state.message.db.sofar !== peer.state.message.db.total &&
       peer.state.message.media.sofar !== peer.state.message.media.total
     var staleDate = Date.now() - DEFAULT_HEARTBEAT_INTERVAL
     return peer.state.topic === ReplicationState.PROGRESS &&
