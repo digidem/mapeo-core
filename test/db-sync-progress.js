@@ -124,7 +124,7 @@ test('sync progress: 200 entries', function (t) {
   })
 })
 
-test.only('sync progress: 3 devices', function (t) {
+test('sync progress: 3 devices', function (t) {
   t.plan(10)
 
   let aEvents = 0
