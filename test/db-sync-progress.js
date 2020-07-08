@@ -124,8 +124,15 @@ test('sync progress: 200 entries', function (t) {
   })
 })
 
-test('sync progress: 3 devices', function (t) {
-  t.plan(29)
+test.only('sync progress: 3 devices', function (t) {
+  t.plan(10)
+
+  let aEvents = 0
+  let bEvents = 0
+  let cEvents = 0
+  let aLastProgress
+  let bLastProgress
+  let cLastProgress
 
   setup(3, function (err, db1) {
     t.error(err)
@@ -142,17 +149,26 @@ test('sync progress: 3 devices', function (t) {
         var c = sync(db3, { live: false })
 
         a.on('progress', function (sofar, total) {
-          t.notOk(sofar > total)
+          aEvents++
+          aLastProgress = { sofar, total }
         })
         b.on('progress', function (sofar, total) {
-          t.notOk(sofar > total)
+          bEvents++
+          bLastProgress = { sofar, total }
         })
         c.on('progress', function (sofar, total) {
-          t.notOk(sofar > total)
+          cEvents++
+          cLastProgress = { sofar, total }
         })
 
         pump(a, b, a, function (err) {
           t.error(err)
+          t.same(aEvents, 12, 'a # of progress events')
+          t.same(bEvents, 12, 'b # of progress events')
+          t.same(cEvents, 1, 'c # of progress events')
+          t.same(aLastProgress.sofar, aLastProgress.total, 'a progress ok')
+          t.same(bLastProgress.sofar, bLastProgress.total, 'b progress ok')
+          t.same(cLastProgress.sofar, cLastProgress.total, 'c progress ok')
         })
       })
     })
