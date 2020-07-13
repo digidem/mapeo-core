@@ -98,6 +98,20 @@ Convert an observation to an OSM type `node`.
 
 Retrieves the current device's unique ID (string).
 
+### `status = mapeo.getDatabaseStatus()`
+
+Retrieves the status of the database, returns an array of hypercore feed
+download status.
+
+```
+[{
+  id: DeviceID,
+  sofar: Number,
+  total: Number
+}]
+```
+
+
 ## Sync API
 
 Mapeo core provides some key functionality for syncing between two devices over
