@@ -101,11 +101,10 @@ Retrieves the current device's unique ID (string).
 ### `status = mapeo.getDatabaseStatus()`
 
 Retrieves the status of the database, returns an array of Device IDs and their download status.
-download status.
 
 ```
 [{
-  id: DeviceID,
+  id: DeviceID (String[64]),
   sofar: Number,
   total: Number
 }]
