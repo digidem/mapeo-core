@@ -244,7 +244,7 @@ class Mapeo extends events.EventEmitter {
     })
   }
 
-  getDatabaseStatus () {
+  getDeviceStatus () {
     var res = []
     var feeds = this.osm.core._logs.feeds()
     feeds.forEach((feed) => {
@@ -255,6 +255,12 @@ class Mapeo extends events.EventEmitter {
       })
     })
     return res
+  }
+
+  getDatabaseStatus () {
+    return {
+      devices: this.getDeviceStatus()
+    }
   }
 
   close (cb) {

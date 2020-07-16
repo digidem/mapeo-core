@@ -103,11 +103,13 @@ Retrieves the current device's unique ID (string).
 Retrieves the status of the database, returns an array of Device IDs and their download status.
 
 ```
-[{
-  id: DeviceID (String[64]),
-  sofar: Number,
-  total: Number
-}]
+{ 
+  devices: [{
+    id: DeviceID (String[64]),
+    sofar: Number,
+    total: Number
+  }]
+}
 ```
 
 
