@@ -98,13 +98,13 @@ Convert an observation to an OSM type `node`.
 
 Retrieves the current device's unique ID (string).
 
-### `mapeo.getDatabaseStatus(cb)`
+### `mapeo.getFeedStatus(cb)`
 
-Retrieves the status of the database, returns an array of Device IDs and their download status.
+Retrieves the status of the feeds, returns an array of feeds, containing the Device IDs and their download status.
 
 ```
 { 
-  devices: [{
+  [{
     id: DeviceID (String[64]),
     sofar: Number,
     total: Number

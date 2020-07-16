@@ -244,7 +244,7 @@ class Mapeo extends events.EventEmitter {
     })
   }
 
-  getDeviceStatus (cb) {
+  getFeedStatus (cb) {
     this.osm.ready(() => {
       var res = []
 
@@ -257,12 +257,6 @@ class Mapeo extends events.EventEmitter {
         })
       })
       cb(null, res)
-    })
-  }
-
-  getDatabaseStatus (cb) {
-    this.getDeviceStatus((_, devices) => {
-      cb(null, { devices })
     })
   }
 
