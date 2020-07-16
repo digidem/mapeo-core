@@ -98,7 +98,7 @@ Convert an observation to an OSM type `node`.
 
 Retrieves the current device's unique ID (string).
 
-### `status = mapeo.getDatabaseStatus()`
+### `mapeo.getDatabaseStatus(cb)`
 
 Retrieves the status of the database, returns an array of Device IDs and their download status.
 

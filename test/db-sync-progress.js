@@ -209,11 +209,12 @@ test('sync progress: 200 entries', function (t) {
         t.equals(sofarA, 200, 'got all 200 events')
         t.equals(totalB, 200, 'got all 200 events')
         t.equals(totalB, 200, 'got all 200 events')
-        var dbstats = db1.getDatabaseStatus()
-        var stats = dbstats.devices
-        t.same(stats.length, 2)
-        t.same(stats[0].sofar, stats[0].total, 'getDatabaseStatus sofar and total same')
-        t.same(stats[1].sofar, stats[1].total, 'getDatabaseStatus sofar and total same')
+        db1.getDatabaseStatus((_, dbstats) => {
+          var stats = dbstats.devices
+          t.same(stats.length, 2)
+          t.same(stats[0].sofar, stats[0].total, 'getDatabaseStatus sofar and total same')
+          t.same(stats[1].sofar, stats[1].total, 'getDatabaseStatus sofar and total same')
+        })
       })
     })
   })
@@ -235,11 +236,13 @@ test('missing data: device status', function (t) {
 
       pump(a, b, a, function (err) {
         t.ok(err)
-        var stats = db1.getDeviceStatus()
-        t.same(stats.length, 2)
-        var val = stats.find((s) => s.sofar !== s.total)
-        t.ok(val.sofar < val.total, 'sofar is less than total in database status')
-        t.end()
+        db1.getDatabaseStatus((_, dbstats) => {
+          var stats = dbstats.devices
+          t.same(stats.length, 2)
+          var val = stats.find((s) => s.sofar !== s.total)
+          t.ok(val.sofar < val.total, 'sofar is less than total in database status')
+          t.end()
+        })
       })
     })
   })
