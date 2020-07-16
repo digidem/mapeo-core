@@ -176,7 +176,7 @@ test('sync progress: 3 devices', function (t) {
 })
 
 test('sync progress: 200 entries', function (t) {
-  t.plan(11)
+  t.plan(14)
 
   setup(100, function (err, db1) {
     t.error(err)
@@ -205,11 +205,44 @@ test('sync progress: 200 entries', function (t) {
         t.equals(feed1.feeds()[1].length, 100)
         t.equals(feed2.feeds()[0].length, 100)
         t.equals(feed2.feeds()[1].length, 100)
-        t.equals(sofarA, 200)
-        t.equals(sofarA, 200)
-        t.equals(totalB, 200)
-        t.equals(totalB, 200)
+        t.equals(sofarA, 200, 'got all 200 events')
+        t.equals(sofarA, 200, 'got all 200 events')
+        t.equals(totalB, 200, 'got all 200 events')
+        t.equals(totalB, 200, 'got all 200 events')
+        db1.getFeedStatus((_, stats) => {
+          t.same(stats.length, 2)
+          t.same(stats[0].sofar, stats[0].total, 'getFeedStatus sofar and total same')
+          t.same(stats[1].sofar, stats[1].total, 'getFeedStatus sofar and total same')
+        })
       })
     })
   })
 })
+
+test('missing data: device status', function (t) {
+  setup(100, function (err, db1) {
+    t.error(err)
+    setup(100, function (err, db2) {
+      t.error(err)
+      var a = sync(db1, { live: false })
+      var b = sync(db2, { live: false })
+
+      var events = 0
+      a.on('progress', function (sofar, total) {
+        events += 1
+        if (events > 50 && events < 100) db2.close()
+      })
+
+      pump(a, b, a, function (err) {
+        t.ok(err)
+        db1.getFeedStatus((_, stats) => {
+          t.same(stats.length, 2)
+          var val = stats.find((s) => s.sofar !== s.total)
+          t.ok(val.sofar < val.total, 'sofar is less than total in database status')
+          t.end()
+        })
+      })
+    })
+  })
+})
+

@@ -98,6 +98,21 @@ Convert an observation to an OSM type `node`.
 
 Retrieves the current device's unique ID (string).
 
+### `mapeo.getFeedStatus(cb)`
+
+Retrieves the status of the feeds, returns an array of feeds, containing the Device IDs and their download status.
+
+```
+{ 
+  [{
+    id: DeviceID (String[64]),
+    sofar: Number,
+    total: Number
+  }]
+}
+```
+
+
 ## Sync API
 
 Mapeo core provides some key functionality for syncing between two devices over

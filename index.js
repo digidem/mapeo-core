@@ -244,6 +244,22 @@ class Mapeo extends events.EventEmitter {
     })
   }
 
+  getFeedStatus (cb) {
+    this.osm.ready(() => {
+      var res = []
+
+      var feeds = this.osm.core._logs.feeds()
+      feeds.forEach((feed) => {
+        res.push({
+          id: feed.key.toString('hex'),
+          sofar: feed.downloaded(),
+          total: feed.length
+        })
+      })
+      cb(null, res)
+    })
+  }
+
   close (cb) {
     this.sync.close(() => {
       this.osm.core.pause(() => {
