@@ -102,8 +102,8 @@ class SyncState {
   }
 
   stale (peer) {
-    if (peer.state.topic === ReplicationState.STARTED) return true
-    if (peer.state.topic === ReplicationState.ERROR) return false
+    var NOT_STALE = [ReplicationState.STARTED, ReplicationState.ERROR, ReplicationState.COMPLETE, ReplicationState.WIFI_READY]
+    if (NOT_STALE.indexOf(peer.state.topic) > -1) return false
 
     // XXX: This is important because this peer can get in a state where it's in
     // progress but the other side has not yet acknowlegded to us that it has
@@ -157,6 +157,7 @@ class SyncState {
   onsync (peer) {
     peer.started = true
     peer.state = PeerState(ReplicationState.STARTED)
+    this.addProgressEventListeners(peer)
   }
 
   onprogress (peer, progress) {
@@ -434,10 +435,7 @@ class Sync extends events.EventEmitter {
 
       function onClose (err) {
         disconnected = true
-        if (peer) {
-          peer.connected = false
-          if (peer.started) self.osm.core.resume()
-        }
+        if (peer) peer.connected = false
         if (heartbeat) clearInterval(heartbeat)
         debug('onClose', info.host, info.port, err)
         if (!open) return
@@ -487,6 +485,9 @@ class Sync extends events.EventEmitter {
 
         pump(stream, connection, stream, function (err) {
           debug('pump ended', info.host, info.port, err)
+          if (peer && peer.started) {
+            self.osm.core.resume()
+          }
           if (peer && peer.started && !stream.goodFinish && !err) {
             err = new Error('sync stream terminated on remote side')
           }
@@ -503,7 +504,6 @@ class Sync extends events.EventEmitter {
         // as soon as any data is received, accept! Because this means that
         // the other side just have accepted & wants to start.
         stream.once('accepted', function () {
-          self.state.addProgressEventListeners(peer)
           accept()
         })
 

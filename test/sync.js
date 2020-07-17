@@ -1045,7 +1045,7 @@ tape('sync: missing data still ends', function (t) {
     var restarted = false
     var _api1 = null
 
-    let num = 0
+    let numSyncs = 0
 
     api1.sync.once('peer', written.bind(null, null))
     api2.sync.once('peer', written.bind(null, null))
@@ -1099,12 +1099,12 @@ tape('sync: missing data still ends', function (t) {
 
     function sync (peer, cb) {
       if (!cb) cb = () => {}
-      t.ok(peer, 'syncronizing ' + num)
-      num++
+      t.ok(peer, 'syncronizing ' + numSyncs)
+      numSyncs++
       api2.sync.once('down', (downPeer) => {
         t.pass('emit down event on close')
         t.notOk(downPeer.connected, 'not connected anymore')
-        if (num === 2) {
+        if (numSyncs === 2) {
           // SYNC AGAIN!
           api2.sync.once('peer', (_peer) => {
             if (peer.id === _peer.id) sync(_peer, done)
@@ -1114,12 +1114,12 @@ tape('sync: missing data still ends', function (t) {
       })
       var syncer = api2.sync.replicate(peer)
       syncer.on('error', function (err) {
-        if (num === 1) t.ok(err, 'error on first ok')
-        else if (num === 2) t.same(err.message, 'timed out due to missing data', 'error message for missing data')
+        if (numSyncs === 1) t.ok(err, 'error on first ok')
+        else if (numSyncs === 2) t.same(err.message, 'timed out due to missing data', 'error message for missing data')
       })
 
       syncer.on('progress', function (progress) {
-        if (num === 1 && progress.db.sofar > 450 && progress.db.sofar < 455 && !restarted) {
+        if (numSyncs === 1 && progress.db.sofar > 450 && progress.db.sofar < 455 && !restarted) {
           t.ok(peer.started, 'started is true')
           restart()
           restarted = true
