@@ -102,6 +102,9 @@ class SyncState {
   }
 
   stale (peer) {
+    if (peer.state.topic === ReplicationState.STARTED) return true
+    if (peer.state.topic === ReplicationState.ERROR) return false
+
     // XXX: This is important because this peer can get in a state where it's in
     // progress but the other side has not yet acknowlegded to us that it has
     // finished downloading
@@ -251,7 +254,6 @@ class Sync extends events.EventEmitter {
     }
 
     peer.handshake.accept()
-    delete peer.handshake
     return peer.sync
   }
 
@@ -469,12 +471,13 @@ class Sync extends events.EventEmitter {
           // XXX: This is a hack to ensure sync streams always end eventually
           // Ideally, we'd open a sparse hypercore instead.
           heartbeat = setInterval(() => {
-            if (self.state.stale(peer)) {
+            var stale = self.state.stale(peer)
+            if (stale) {
               var err = new Error('timed out due to missing data')
               err.code = ERR_MISSING_DATA
               connection.destroy(err)
             }
-            debug('heartbeat', self.state.stale(peer))
+            debug('heartbeat', stale)
           }, DEFAULT_HEARTBEAT_INTERVAL)
         })
         stream.on('progress', (progress) => {
@@ -483,7 +486,7 @@ class Sync extends events.EventEmitter {
         })
 
         pump(stream, connection, stream, function (err) {
-          debug('pump ended', info.host, info.port, peer.state, err)
+          debug('pump ended', info.host, info.port, err)
           if (peer && peer.started && !stream.goodFinish && !err) {
             err = new Error('sync stream terminated on remote side')
           }
