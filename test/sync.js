@@ -1095,12 +1095,18 @@ tape('sync: missing data still ends', function (t) {
       })
     }
 
-    function sync (peer, first) {
+    function sync (peer, first, cb) {
+      if (!cb) cb = () => {}
       t.ok(peer, 'syncronizing ' + first)
       api2.sync.on('down', (peer) => {
         t.pass('emit down event on close')
         t.notOk(peer.connected, 'not connected anymore')
-        if (!first) done()
+        if (!first) {
+          // SYNC AGAIN!
+          api2.sync.once('peer', (peer) => {
+            sync(peer, false, done)
+          })
+        }
       })
       var syncer = api2.sync.replicate(peer)
       syncer.on('error', function (err) {
@@ -1118,6 +1124,7 @@ tape('sync: missing data still ends', function (t) {
 
       syncer.on('end', function () {
         t.ok(true, 'replication complete')
+        cb()
       })
     }
   })

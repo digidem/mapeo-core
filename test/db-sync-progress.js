@@ -63,8 +63,8 @@ test('sync progress: 6 entries', function (t) {
       var a = sync(db1, { live: false })
       var b = sync(db2, { live: false })
 
-      var eventsLeftA = 12
-      var eventsLeftB = 12
+      var eventsLeftA = 15
+      var eventsLeftB = 15
       a.on('progress', function (sofar, total) {
         eventsLeftA--
       })
@@ -163,9 +163,9 @@ test('sync progress: 3 devices', function (t) {
 
         pump(a, b, a, function (err) {
           t.error(err)
-          t.same(aEvents, 12, 'a # of progress events')
-          t.same(bEvents, 12, 'b # of progress events')
-          t.same(cEvents, 1, 'c # of progress events')
+          t.same(aEvents, 15, 'a # of progress events')
+          t.same(bEvents, 15, 'b # of progress events')
+          t.same(cEvents, 2, 'c # of progress events')
           t.same(aLastProgress.sofar, aLastProgress.total, 'a progress ok')
           t.same(bLastProgress.sofar, bLastProgress.total, 'b progress ok')
           t.same(cLastProgress.sofar, cLastProgress.total, 'c progress ok')

@@ -36,6 +36,8 @@ const DEFAULT_INTERNET_DISCO = Object.assign(
   }
 )
 
+const ERR_MISSING_DATA = 'ERR_MISSING_DATA'
+
 const DEFAULT_HEARTBEAT_INTERVAL = 1000 * 20 // 20 seconds
 
 const ReplicationState = {
@@ -430,7 +432,10 @@ class Sync extends events.EventEmitter {
 
       function onClose (err) {
         disconnected = true
-        if (peer) peer.connected = false
+        if (peer) {
+          peer.connected = false
+          if (peer.started) self.osm.core.resume()
+        }
         if (heartbeat) clearInterval(heartbeat)
         debug('onClose', info.host, info.port, err)
         if (!open) return
@@ -465,7 +470,9 @@ class Sync extends events.EventEmitter {
           // Ideally, we'd open a sparse hypercore instead.
           heartbeat = setInterval(() => {
             if (self.state.stale(peer)) {
-              connection.destroy(new Error('timed out due to missing data'))
+              var err = new Error('timed out due to missing data')
+              err.code = ERR_MISSING_DATA
+              connection.destroy(err)
             }
             debug('heartbeat', self.state.stale(peer))
           }, DEFAULT_HEARTBEAT_INTERVAL)
@@ -476,10 +483,7 @@ class Sync extends events.EventEmitter {
         })
 
         pump(stream, connection, stream, function (err) {
-          debug('pump ended', info.host, info.port, err)
-          if (peer && peer.started) {
-            self.osm.core.resume()
-          }
+          debug('pump ended', info.host, info.port, peer.state, err)
           if (peer && peer.started && !stream.goodFinish && !err) {
             err = new Error('sync stream terminated on remote side')
           }
