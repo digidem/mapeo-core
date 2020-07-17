@@ -102,7 +102,12 @@ class SyncState {
   }
 
   stale (peer) {
-    var NOT_STALE = [ReplicationState.STARTED, ReplicationState.ERROR, ReplicationState.COMPLETE, ReplicationState.WIFI_READY]
+    var NOT_STALE = [
+      ReplicationState.STARTED,
+      ReplicationState.ERROR,
+      ReplicationState.COMPLETE,
+      ReplicationState.WIFI_READY
+    ]
     if (NOT_STALE.indexOf(peer.state.topic) > -1) return false
 
     // XXX: This is important because this peer can get in a state where it's in
