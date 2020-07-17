@@ -255,6 +255,7 @@ class Sync extends events.EventEmitter {
     }
 
     peer.handshake.accept()
+    delete peer.handshake
     return peer.sync
   }
 
