@@ -36,6 +36,8 @@ const DEFAULT_INTERNET_DISCO = Object.assign(
   }
 )
 
+const ERR_MISSING_DATA = 'ERR_MISSING_DATA'
+
 const DEFAULT_HEARTBEAT_INTERVAL = 1000 * 20 // 20 seconds
 
 const ReplicationState = {
@@ -100,6 +102,14 @@ class SyncState {
   }
 
   stale (peer) {
+    var NOT_STALE = [
+      ReplicationState.STARTED,
+      ReplicationState.ERROR,
+      ReplicationState.COMPLETE,
+      ReplicationState.WIFI_READY
+    ]
+    if (NOT_STALE.indexOf(peer.state.topic) > -1) return false
+
     // XXX: This is important because this peer can get in a state where it's in
     // progress but the other side has not yet acknowlegded to us that it has
     // finished downloading
@@ -152,6 +162,7 @@ class SyncState {
   onsync (peer) {
     peer.started = true
     peer.state = PeerState(ReplicationState.STARTED)
+    this.addProgressEventListeners(peer)
   }
 
   onprogress (peer, progress) {
@@ -464,10 +475,13 @@ class Sync extends events.EventEmitter {
           // XXX: This is a hack to ensure sync streams always end eventually
           // Ideally, we'd open a sparse hypercore instead.
           heartbeat = setInterval(() => {
-            if (self.state.stale(peer)) {
-              connection.destroy(new Error('timed out due to missing data'))
+            var stale = self.state.stale(peer)
+            if (stale) {
+              var err = new Error('timed out due to missing data')
+              err.code = ERR_MISSING_DATA
+              connection.destroy(err)
             }
-            debug('heartbeat', self.state.stale(peer))
+            debug('heartbeat', stale)
           }, DEFAULT_HEARTBEAT_INTERVAL)
         })
         stream.on('progress', (progress) => {
@@ -496,7 +510,6 @@ class Sync extends events.EventEmitter {
         // as soon as any data is received, accept! Because this means that
         // the other side just have accepted & wants to start.
         stream.once('accepted', function () {
-          self.state.addProgressEventListeners(peer)
           accept()
         })
 

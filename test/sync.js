@@ -1038,12 +1038,14 @@ tape('sync: peer.connected property on graceful exit', function (t) {
 })
 
 tape('sync: missing data still ends', function (t) {
-  t.plan(18)
+  t.plan(19)
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
     var restarted = false
     var _api1 = null
+
+    let numSyncs = 0
 
     api1.sync.once('peer', written.bind(null, null))
     api2.sync.once('peer', written.bind(null, null))
@@ -1062,7 +1064,7 @@ tape('sync: missing data still ends', function (t) {
         t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
         t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
         if (api2.sync.peers().length >= 1) {
-          sync(api2.sync.peers()[0], true)
+          sync(api2.sync.peers()[0])
         }
       }
     }
@@ -1076,7 +1078,7 @@ tape('sync: missing data still ends', function (t) {
           helpers.writeBigDataNoPhotos(_api1, 200, () => {
             _api1.sync.listen(() => {
               api2.sync.once('peer', (peer) => {
-                sync(peer, false)
+                sync(peer)
               })
               _api1.sync.join()
             })
@@ -1095,21 +1097,29 @@ tape('sync: missing data still ends', function (t) {
       })
     }
 
-    function sync (peer, first) {
-      t.ok(peer, 'syncronizing ' + first)
-      api2.sync.on('down', (peer) => {
+    function sync (peer, cb) {
+      if (!cb) cb = () => {}
+      t.ok(peer, 'syncronizing ' + numSyncs)
+      numSyncs++
+      api2.sync.once('down', (downPeer) => {
         t.pass('emit down event on close')
-        t.notOk(peer.connected, 'not connected anymore')
-        if (!first) done()
+        t.notOk(downPeer.connected, 'not connected anymore')
+        if (numSyncs === 2) {
+          // SYNC AGAIN!
+          api2.sync.once('peer', (_peer) => {
+            if (peer.id === _peer.id) sync(_peer, done)
+          })
+        }
+        cb()
       })
       var syncer = api2.sync.replicate(peer)
       syncer.on('error', function (err) {
-        if (first) t.ok(err, 'error on first ok')
-        else t.same(err.message, 'timed out due to missing data', 'error message for missing data')
+        if (numSyncs === 1) t.ok(err, 'error on first ok')
+        else if (numSyncs === 2) t.same(err.message, 'timed out due to missing data', 'error message for missing data')
       })
 
       syncer.on('progress', function (progress) {
-        if (first && progress.db.sofar > 450 && progress.db.sofar < 455 && !restarted) {
+        if (numSyncs === 1 && progress.db.sofar > 450 && progress.db.sofar < 455 && !restarted) {
           t.ok(peer.started, 'started is true')
           restart()
           restarted = true
