@@ -63,13 +63,12 @@ test('sync progress: 6 entries', function (t) {
       var a = sync(db1, { live: false })
       var b = sync(db2, { live: false })
 
-      var eventsLeftA = 15
-      var eventsLeftB = 15
+      var aLastProgress, bLastProgress
       a.on('progress', function (sofar, total) {
-        eventsLeftA--
+        aLastProgress = { sofar, total }
       })
       b.on('progress', function (sofar, total) {
-        eventsLeftB--
+        bLastProgress = { sofar, total }
       })
 
       pump(a, b, a, function (err) {
@@ -78,8 +77,8 @@ test('sync progress: 6 entries', function (t) {
         t.equals(feed1.feeds()[1].length, 3)
         t.equals(feed2.feeds()[0].length, 3)
         t.equals(feed2.feeds()[1].length, 3)
-        t.equals(eventsLeftA, 0)
-        t.equals(eventsLeftB, 0)
+        t.same(aLastProgress.sofar, aLastProgress.total, 'a progress ok')
+        t.same(bLastProgress.sofar, bLastProgress.total, 'b progress ok')
       })
     })
   })
@@ -125,11 +124,8 @@ test('sync progress: 200 entries', function (t) {
 })
 
 test('sync progress: 3 devices', function (t) {
-  t.plan(10)
+  t.plan(7)
 
-  let aEvents = 0
-  let bEvents = 0
-  let cEvents = 0
   let aLastProgress
   let bLastProgress
   let cLastProgress
@@ -149,23 +145,17 @@ test('sync progress: 3 devices', function (t) {
         var c = sync(db3, { live: false })
 
         a.on('progress', function (sofar, total) {
-          aEvents++
           aLastProgress = { sofar, total }
         })
         b.on('progress', function (sofar, total) {
-          bEvents++
           bLastProgress = { sofar, total }
         })
         c.on('progress', function (sofar, total) {
-          cEvents++
           cLastProgress = { sofar, total }
         })
 
         pump(a, b, a, function (err) {
           t.error(err)
-          t.same(aEvents, 15, 'a # of progress events')
-          t.same(bEvents, 15, 'b # of progress events')
-          t.same(cEvents, 2, 'c # of progress events')
           t.same(aLastProgress.sofar, aLastProgress.total, 'a progress ok')
           t.same(bLastProgress.sofar, bLastProgress.total, 'b progress ok')
           t.same(cLastProgress.sofar, cLastProgress.total, 'c progress ok')
