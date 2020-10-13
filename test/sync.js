@@ -1133,6 +1133,113 @@ tape('sync: missing data still ends', function (t) {
   })
 })
 
+tape.only('sync: missing data syncfile still ends', function (t) {
+  t.plan(19)
+  var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
+  var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
+  createApis(opts, function (api1, api2, close) {
+    var pending = 4
+    var restarted = false
+    var _api1 = null
+
+    let numSyncs = 0
+
+    api1.sync.once('peer', written.bind(null, null))
+    api2.sync.once('peer', written.bind(null, null))
+    api1.sync.listen(() => {
+      api1.sync.join()
+    })
+    api2.sync.listen(() => {
+      api2.sync.join()
+    })
+    helpers.writeBigData(api1, 50, written)
+    helpers.writeBigDataNoPhotos(api2, 450, written)
+
+    function written (err) {
+      t.error(err, 'written no error')
+      if (--pending === 0) {
+        t.ok(api1.sync.peers().length > 0, 'api 1 has peers')
+        t.ok(api2.sync.peers().length > 0, 'api 2 has peers')
+        if (api2.sync.peers().length >= 1) {
+          sync(api2.sync.peers()[0])
+        }
+      }
+    }
+
+    function restart () {
+      api1.sync.leave()
+      api1.close((err) => {
+        api1.osm.close(() => {
+          t.error(err, 'closed first api')
+          _api1 = helpers.createApi(api1._dir)
+          helpers.writeBigDataNoPhotos(_api1, 200, () => {
+            _api1.sync.listen(() => {
+              api2.sync.once('peer', (peer) => {
+                sync(peer)
+              })
+              _api1.sync.join()
+            })
+          })
+        })
+      })
+    }
+
+    function done () {
+      _api1.close(() => {
+        _api1.osm.close(() => {
+          api2.close(() => {
+            t.end()
+          })
+        })
+      })
+    }
+
+    function syncFile (peer, cb) {
+      var syncer = api2.sync.replicate({filename: tmpfile})
+      syncer.on('end', function () {
+        console.log('END')
+      })
+      syncer.on('error', function (err) {
+        t.same(err.message, 'timed out due to missing data', 'error message for missing data')
+        done()
+      })
+    }
+
+    function sync (peer, cb) {
+      if (!cb) cb = () => {}
+      t.ok(peer, 'syncronizing ' + numSyncs)
+      numSyncs++
+      api2.sync.once('down', (downPeer) => {
+        t.pass('emit down event on close')
+        t.notOk(downPeer.connected, 'not connected anymore')
+        if (numSyncs === 2) {
+          // SYNC AGAIN!
+          api2.sync.once('peer', (_peer) => {
+            if (peer.id === _peer.id) syncFile(_peer, done)
+          })
+        }
+        cb()
+      })
+      var syncer = api2.sync.replicate(peer)
+      syncer.on('error', function (err) {
+        if (numSyncs === 1) t.ok(err, 'error on first ok')
+      })
+
+      syncer.on('progress', function (progress) {
+        if (numSyncs === 1 && progress.db.sofar > 450 && progress.db.sofar < 455 && !restarted) {
+          t.ok(peer.started, 'started is true')
+          restart()
+          restarted = true
+        }
+      })
+
+      syncer.on('end', function () {
+        t.ok(true, 'replication complete')
+      })
+    }
+  })
+})
+
 tape('sync: 200 photos & close/reopen real-world scenario', function (t) {
   t.plan(18)
   var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}

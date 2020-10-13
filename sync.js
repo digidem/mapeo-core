@@ -319,13 +319,14 @@ class Sync extends events.EventEmitter {
 
   /**
    * Replicate from a given file. Use `replicate` instead.
-   * @param  {String}   peer    A peer.
+   * @param  {Peer}   peer    A peer.
    * @return {EventEmitter}     Listen to 'error', 'end' and 'progress' events
    */
   replicateFromFile (peer, opts) {
     var self = this
     var emitter = peer.sync
     var filename = peer.filename
+    var heartbeat
     opts = opts || {}
 
     fs.access(filename, function (err) {
@@ -367,8 +368,18 @@ class Sync extends events.EventEmitter {
         var pending = 2
         pump(r1, r2, r1, fin)
         pump(m1, m2, m1, fin)
+        heartbeat = setInterval(() => {
+          var stale = self.state.stale(peer)
+          if (stale) {
+            var err = new Error('timed out due to missing data')
+            err.code = ERR_MISSING_DATA
+            r1.destroy(err)
+          }
+          debug('heartbeat', stale)
+        }, DEFAULT_HEARTBEAT_INTERVAL)
         function fin (err) {
           // HACK(noffle): workaround for sync bug
+          if (heartbeat) clearInterval(heartbeat)
           if (err && err.message === 'premature close') err = undefined
 
           if (err) error = err
