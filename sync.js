@@ -423,11 +423,11 @@ class Sync extends events.EventEmitter {
   _swarm (id) {
     var swarm = Swarm(Object.assign(this.opts, {id: id}))
 
-    swarm.on('connection', this.onConnection.bind(this))
+    swarm.on('connection', this.addPeer.bind(this))
     return swarm
   }
 
-  onConnection (connection, info) {
+  addPeer (connection, info) {
     var self = this
     debug('connection', info.host, info.port, info.id.toString('hex'))
 
