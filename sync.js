@@ -50,8 +50,9 @@ const DEFAULT_INTERNET_DISCO = Object.assign(
   }
 )
 
+// When a sync fails to finish, and one of the feeds in the database (a hypercore feed)
+// is incomplete, sync will throw this error after 20 seconds of inactive replication
 const ERR_MISSING_DATA = 'ERR_MISSING_DATA'
-
 const DEFAULT_HEARTBEAT_INTERVAL = 1000 * 20 // 20 seconds
 
 // Available states for displaying syncronization progress to clients
@@ -72,9 +73,21 @@ function PeerState (topic, message, other) {
   return { topic, message, ...other }
 }
 
+/**
+ * Called by Sync.addPeer to add a peer to the SyncState
+ * @param {DuplexStream} connection Duplex stream, but has only been tested in production using TCP
+ * @param {Object} info 
+ */
+function WifiPeer (connection, info) {
+  info.type = 'wifi'
+  info.connection = connection
+  info.swarmId = info.id // XXX: not used; for backwards compatibility
+  info.id = info.id.toString('hex')
+  return info
+}
+
 // SyncState is a state machine that manages the list of peers
 // and their states, represented by PeerState objects
-
 class SyncState {
   constructor () {
     this._state = {}
@@ -254,10 +267,16 @@ class Sync extends events.EventEmitter {
     return this.state.peers()
   }
 
-  // You MUST call `addPeer` before calling replicate
-  // if using a wifi peer (host/port)...
-  //
-  // This API could be improved
+  /**
+   * Replicate with a given filename or host/port. 
+   * If you are using this function to replicate with a Wifi peer (tcp socket) then
+   * this function needs to be called AFTER addPeer(socket, info)
+   * 
+   * This could be refactored.
+   * 
+   * @param {PeerQuery} A query for the peer
+   * @param {Object} opts Options for the replication 
+   */
   replicate ({host, port, filename}, opts) {
     if (!opts) opts = {}
     var peer
@@ -470,6 +489,12 @@ class Sync extends events.EventEmitter {
     return swarm
   }
 
+  /**
+   * Add a peer to the list of available peers. Must be called before `replicate`
+   * 
+   * @param {DuplexStream} connection This is a duplex stream, although it has only been tested in production with TCP sockets.  
+   * @param {Object} info This is an object that contains information about the TCP socket, including a unique, persistent id, as well as host, and port
+   */
   addPeer (connection, info) {
     var self = this
     debug('connection', info.host, info.port, info.id.toString('hex'))
@@ -551,6 +576,9 @@ class Sync extends events.EventEmitter {
       connection.removeListener('error', onClose)
     }
 
+    // Peers announce their device type, version, and name
+    // When a user hits 'SYNC' on the client, then the client calls the replicate
+    // function and accepts the handshake
     function onHandshake (req, accept) {
       debug('got handshake', info.host, info.port)
 
@@ -585,14 +613,6 @@ function isGzipFile (filepath, cb) {
       })
     })
   })
-}
-
-function WifiPeer (connection, info) {
-  info.type = 'wifi'
-  info.connection = connection
-  info.swarmId = info.id // XXX: not used; for backwards compatibility
-  info.id = info.id.toString('hex')
-  return info
 }
 
 /**
