@@ -421,106 +421,108 @@ class Sync extends events.EventEmitter {
   }
 
   _swarm (id) {
-    var self = this
     var swarm = Swarm(Object.assign(this.opts, {id: id}))
 
-    swarm.on('connection', (connection, info) => {
-      debug('connection', info.host, info.port, info.id.toString('hex'))
-
-      let peer
-      let deviceType
-      let disconnected = false
-      let heartbeat
-
-      connection.on('close', onClose)
-      connection.on('error', onClose)
-
-      var open = true
-      var stream
-      setTimeout(doSync, 500)
-
-      function onClose (err) {
-        disconnected = true
-        if (peer) peer.connected = false
-        if (heartbeat) clearInterval(heartbeat)
-        debug('onClose', info.host, info.port, err)
-        if (!open) return
-        open = false
-        if (peer) {
-          debug('emitting sync end/error event', info.host, info.port, err)
-          if (err) peer.sync.emit('error', err)
-          else peer.sync.emit('end')
-          self.emit('down', peer)
-        }
-        debug('down', info.host, info.port)
-      }
-
-      function doSync () {
-        if (!open || disconnected) return
-        debug('doSync', info.host, info.port)
-        // Set up the sync stream immediately, but don't do anything with it
-        // until one side initiates the sync operation.
-        deviceType = self.opts.deviceType
-        const id = Buffer.isBuffer(info.id) ? info.id.toString('hex') : info.id
-        stream = MapeoSync(self.osm, self.media, {
-          id: id,
-          deviceType: deviceType,
-          deviceName: self.name || os.hostname(),
-          handshake: onHandshake
-        })
-        stream.once('sync-start', function () {
-          debug('sync started', info.host, info.port)
-          if (peer) peer.sync.emit('sync-start')
-          self.osm.core.pause()
-          // XXX: This is a hack to ensure sync streams always end eventually
-          // Ideally, we'd open a sparse hypercore instead.
-          heartbeat = setInterval(() => {
-            var stale = self.state.stale(peer)
-            if (stale) {
-              var err = new Error('timed out due to missing data')
-              err.code = ERR_MISSING_DATA
-              connection.destroy(err)
-            }
-            debug('heartbeat', stale)
-          }, DEFAULT_HEARTBEAT_INTERVAL)
-        })
-        stream.on('progress', (progress) => {
-          debug('sync progress', info.host, info.port, progress)
-          if (peer) peer.sync.emit('progress', progress)
-        })
-
-        pump(stream, connection, stream, function (err) {
-          debug('pump ended', info.host, info.port, err)
-          if (peer && peer.started) {
-            self.osm.core.resume()
-          }
-          if (peer && peer.started && !stream.goodFinish && !err) {
-            err = new Error('sync stream terminated on remote side')
-          }
-          if (stream.goodFinish && err) err = undefined
-          onClose(err)
-        })
-        connection.removeListener('close', onClose)
-        connection.removeListener('error', onClose)
-      }
-
-      function onHandshake (req, accept) {
-        debug('got handshake', info.host, info.port)
-
-        // as soon as any data is received, accept! Because this means that
-        // the other side just have accepted & wants to start.
-        stream.once('accepted', function () {
-          accept()
-        })
-
-        peer = self.state.addWifiPeer(connection, info)
-        peer.handshake = { accept: accept }
-        peer.deviceType = req.deviceType
-        peer.name = req.deviceName
-        self.emit('peer', peer)
-      }
-    })
+    swarm.on('connection', this.addPeer.bind(this))
     return swarm
+  }
+
+  addPeer (connection, info) {
+    var self = this
+    debug('connection', info.host, info.port, info.id.toString('hex'))
+
+    let peer
+    let deviceType
+    let disconnected = false
+    let heartbeat
+
+    connection.on('close', onClose)
+    connection.on('error', onClose)
+
+    var open = true
+    var stream
+    setTimeout(doSync, 500)
+
+    function onClose (err) {
+      disconnected = true
+      if (peer) peer.connected = false
+      if (heartbeat) clearInterval(heartbeat)
+      debug('onClose', info.host, info.port, err)
+      if (!open) return
+      open = false
+      if (peer) {
+        debug('emitting sync end/error event', info.host, info.port, err)
+        if (err) peer.sync.emit('error', err)
+        else peer.sync.emit('end')
+        self.emit('down', peer)
+      }
+      debug('down', info.host, info.port)
+    }
+
+    function doSync () {
+      if (!open || disconnected) return
+      debug('doSync', info.host, info.port)
+      // Set up the sync stream immediately, but don't do anything with it
+      // until one side initiates the sync operation.
+      deviceType = self.opts.deviceType
+      const id = Buffer.isBuffer(info.id) ? info.id.toString('hex') : info.id
+      stream = MapeoSync(self.osm, self.media, {
+        id: id,
+        deviceType: deviceType,
+        deviceName: self.name || os.hostname(),
+        handshake: onHandshake
+      })
+      stream.once('sync-start', function () {
+        debug('sync started', info.host, info.port)
+        if (peer) peer.sync.emit('sync-start')
+        self.osm.core.pause()
+        // XXX: This is a hack to ensure sync streams always end eventually
+        // Ideally, we'd open a sparse hypercore instead.
+        heartbeat = setInterval(() => {
+          var stale = self.state.stale(peer)
+          if (stale) {
+            var err = new Error('timed out due to missing data')
+            err.code = ERR_MISSING_DATA
+            connection.destroy(err)
+          }
+          debug('heartbeat', stale)
+        }, DEFAULT_HEARTBEAT_INTERVAL)
+      })
+      stream.on('progress', (progress) => {
+        debug('sync progress', info.host, info.port, progress)
+        if (peer) peer.sync.emit('progress', progress)
+      })
+
+      pump(stream, connection, stream, function (err) {
+        debug('pump ended', info.host, info.port, err)
+        if (peer && peer.started) {
+          self.osm.core.resume()
+        }
+        if (peer && peer.started && !stream.goodFinish && !err) {
+          err = new Error('sync stream terminated on remote side')
+        }
+        if (stream.goodFinish && err) err = undefined
+        onClose(err)
+      })
+      connection.removeListener('close', onClose)
+      connection.removeListener('error', onClose)
+    }
+
+    function onHandshake (req, accept) {
+      debug('got handshake', info.host, info.port)
+
+      // as soon as any data is received, accept! Because this means that
+      // the other side just have accepted & wants to start.
+      stream.once('accepted', function () {
+        accept()
+      })
+
+      peer = self.state.addWifiPeer(connection, info)
+      peer.handshake = { accept: accept }
+      peer.deviceType = req.deviceType
+      peer.name = req.deviceName
+      self.emit('peer', peer)
+    }
   }
 }
 
