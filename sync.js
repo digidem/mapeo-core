@@ -11,6 +11,7 @@ const crypto = require('hypercore-crypto')
 const datDefaults = require('dat-swarm-defaults')
 const MapeoSync = require('./lib/sync-stream')
 const progressSync = require('./lib/db-sync-progress')
+const websocket = require('websocket-stream')
 
 const SYNC_DEFAULT_KEY = 'mapeo-sync'
 const SYNCFILE_FORMATS = {
@@ -159,6 +160,19 @@ class SyncState {
     return peer
   }
 
+  addWebsocketPeer (connection, info) {
+    const peerId = info.id.toString('hex')
+    let peer = this._state[peerId]
+    if (!peer) {
+      peer = WebsocketPeer(connection, info)
+      this._add(peer)
+    } else {
+      // reuse peer
+      this.init(peer)
+    }
+    return peer
+  }
+
   onsync (peer) {
     peer.started = true
     peer.state = PeerState(ReplicationState.STARTED)
@@ -221,7 +235,7 @@ class Sync extends events.EventEmitter {
     return this.state.peers()
   }
 
-  replicate ({host, port, filename}, opts) {
+  replicate ({ host, port, filename }, opts) {
     if (!opts) opts = {}
     var peer
 
@@ -242,6 +256,41 @@ class Sync extends events.EventEmitter {
     } else throw new Error('Requires filename or host and port')
 
     return peer.sync
+  }
+
+  connectWebsocket (url, projectKey) {
+    let {
+      protocol,
+      hostname: host,
+      port: rawPort
+    } = new URL(url)
+
+    let port = rawPort
+    if (!port) {
+      port = (protocol === 'ws:') ? 80 : 443
+    } else {
+      port = parseInt(rawPort, 10)
+    }
+
+    const info = {
+      id: url,
+      name: url,
+      host,
+      port,
+      type: 'websocket'
+    }
+
+    var key = discoveryKey(projectKey)
+
+    const replicationURL = (new URL(`./replicate/v1/${key}`, url)).href
+
+    const connection = websocket(replicationURL, { binary: true })
+
+    const peer = this.state.addWebsocketPeer(connection, info)
+
+    this.addPeer(connection, info)
+
+    return peer
   }
 
   replicateNetwork (peer, opts) {
@@ -516,8 +565,11 @@ class Sync extends events.EventEmitter {
       stream.once('accepted', function () {
         accept()
       })
-
-      peer = self.state.addWifiPeer(connection, info)
+      if (info.type === 'ws') {
+        peer = self.state.addWebsocketPeer(connection, info)
+      } else {
+        peer = self.state.addWifiPeer(connection, info)
+      }
       peer.handshake = { accept: accept }
       peer.deviceType = req.deviceType
       peer.name = req.deviceName
@@ -549,6 +601,13 @@ function WifiPeer (connection, info) {
   info.connection = connection
   info.swarmId = info.id // XXX: not used; for backwards compatibility
   info.id = info.id.toString('hex')
+  return info
+}
+
+function WebsocketPeer (connection, info) {
+  info.type = 'websocket'
+  info.connection = connection
+  info.swarmId = info.id
   return info
 }
 

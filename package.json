@@ -4,6 +4,7 @@
   "description": "Offline p2p mapping library",
   "main": "index.js",
   "scripts": {
+    "lint": "standard",
     "test": "tape test/*.js",
     "deps": "dependency-check ."
   },
@@ -42,7 +43,8 @@
     "run-parallel": "^1.1.9",
     "shp-write": "github:digidem/shp-write",
     "statuses": "^1.5.0",
-    "through2": "^3.0.0"
+    "through2": "^3.0.0",
+    "websocket-stream": "^5.5.2"
   },
   "devDependencies": {
     "clone": "^2.1.2",
