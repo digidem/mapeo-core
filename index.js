@@ -223,18 +223,25 @@ class Mapeo extends events.EventEmitter {
       cb = opts
       opts = {}
     }
+    return pump(this.createDataStream(opts), fs.createWriteStream(filename), cb)
+  }
+
+  createDataStream (opts = {}) {
     if (!opts.format) opts.format = 'geojson'
     var GeoJSONStream = exportGeoJson(this.osm, opts)
+    var outputStream = pumpify()
     switch (opts.format) {
-      case 'geojson': return pump(GeoJSONStream, fs.createWriteStream(filename), cb)
+      case 'geojson':
+        outputStream.setPipeline(GeoJSONStream)
+        break
       case 'shapefile':
         GeoJSONStream.pipe(concat((geojson) => {
-          var zipStream = shapefile.zipStream(JSON.parse(geojson))
-          pump(zipStream, fs.createWriteStream(filename), cb)
+          outputStream.setPipeline(shapefile.zipStream(JSON.parse(geojson)))
         }))
-        return
-      default: return cb(new Error('Extension not supported'))
+        break
+      default: throw new Error('Unsupported format, must be either `geojson` or `shapefile`.')
     }
+    return outputStream
   }
 
   getDeviceId (cb) {

@@ -90,6 +90,16 @@ Valid `opts` include:
   format.
 * `opts.presets`: an object that represents the contents of a `presets.json` file
 
+### `mapeo.createDataStream(opts)`
+
+Create a ReadableStream of data in the Mapeo OSM (Territory) database, in either GeoJSON or Shapefile format. The stream for Shapefiles is a zip file.
+
+Valid `opts` include:
+
+* `opts.format`: "geojson" or a "shapefile". Shapefiles export into zip
+  format.
+* `opts.presets`: an object that represents the contents of a `presets.json` file
+
 ### `mapeo.observationConvert(obs, cb)`
 
 Convert an observation to an OSM type `node`.
@@ -103,7 +113,7 @@ Retrieves the current device's unique ID (string).
 Retrieves the status of the feeds, returns an array of feeds, containing the Device IDs and their download status.
 
 ```
-{ 
+{
   [{
     id: DeviceID (String[64]),
     sofar: Number,
@@ -155,7 +165,7 @@ An invalid `projectKey` will throw an error.
 
 ### sync.close([cb])
 
-Unannounces the sync service & cleans up the underlying UDP socket. Optionally accepts `cb` which is called once this is complete. 
+Unannounces the sync service & cleans up the underlying UDP socket. Optionally accepts `cb` which is called once this is complete.
 
 Emits `close` event.
 
