@@ -7,6 +7,7 @@ const pump = require('pump')
 const fs = require('fs')
 const shapefile = require('shp-write')
 const concat = require('concat-stream')
+const duplexify = require('duplexify')
 
 const exportGeoJson = require('./lib/export-geojson')
 const Importer = require('./lib/importer')
@@ -229,14 +230,15 @@ class Mapeo extends events.EventEmitter {
   createDataStream (opts = {}) {
     if (!opts.format) opts.format = 'geojson'
     var GeoJSONStream = exportGeoJson(this.osm, opts)
-    var outputStream = pumpify()
+    var outputStream = duplexify()
+    outputStream.setWritable(null)
     switch (opts.format) {
       case 'geojson':
-        outputStream.setPipeline(GeoJSONStream)
+        outputStream.setReadable(GeoJSONStream)
         break
       case 'shapefile':
         GeoJSONStream.pipe(concat((geojson) => {
-          outputStream.setPipeline(shapefile.zipStream(JSON.parse(geojson)))
+          outputStream.setReadable(shapefile.zipStream(JSON.parse(geojson)))
         }))
         break
       default: throw new Error('Unsupported format, must be either `geojson` or `shapefile`.')

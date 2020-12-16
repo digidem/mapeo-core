@@ -1,19 +1,17 @@
 const test = require('tape')
 const concat = require('concat-stream')
+const tmp = require('tmp')
+const fs = require('fs')
 const data = require('./data-fixture')
 
 const helpers = require('./helpers')
 const junglePresets = require('./jungle/presets.json')
-const exportGeoJson = require('../lib/export-geojson')
+
+tmp.setGracefulCleanup()
 
 test('exportData: geojson when no data', (t) => {
   var mapeo = helpers.createApi()
   mapeo.on('error', console.error)
-
-  function done () {
-    t.end()
-    mapeo.close()
-  }
 
   var expected = {
     type: 'FeatureCollection',
@@ -21,11 +19,14 @@ test('exportData: geojson when no data', (t) => {
   }
 
   mapeo.osm.ready(function () {
-    var rs = exportGeoJson(mapeo.osm)
-    rs.pipe(concat((data) => {
-      t.same(expected, JSON.parse(data))
-      done()
-    }))
+    var filename = tmp.tmpNameSync()
+    mapeo.exportData(filename, err => {
+      t.error(err)
+      var actual = JSON.parse(fs.readFileSync(filename, 'utf8'))
+      t.same(actual, expected)
+      mapeo.close()
+      t.end()
+    })
   })
 })
 
@@ -41,17 +42,18 @@ test('exportData: geojson with polygon', (t) => {
   mapeo.osm.ready(function () {
     mapeo.osm.batch(data.polygon.batch, (err) => {
       t.error(err)
-      var rs = exportGeoJson(mapeo.osm)
-      rs.pipe(concat((geojson) => {
-        var actual = JSON.parse(geojson)
+      var filename = tmp.tmpNameSync()
+      mapeo.exportData(filename, err => {
+        t.error(err)
+        var actual = JSON.parse(fs.readFileSync(filename, 'utf8'))
         actual.features = actual.features.map((f) => {
           delete f.id
           return f
         })
 
-        t.same(data.polygon.expected, actual)
+        t.same(actual, data.polygon.expected)
         done()
-      }))
+      })
     })
   })
 })
@@ -68,22 +70,24 @@ test('exportData: geojson with polygon and presets', (t) => {
   }
 
   mapeo.osm.ready(function () {
-    var batch = data.polygon.batch
-    batch[0].value.tags = {'type': 'animal', 'area': 'yes', 'animal-type': 'bluebird'}
+    var batch = [...data.polygon.batch]
+    // Don't mutate batch, because we might re-use it in tests
+    batch[0] = { ...batch[0], value: { ...batch[0].value, tags: {'type': 'animal', 'area': 'yes', 'animal-type': 'bluebird'} } }
     mapeo.osm.batch(batch, (err) => {
       t.error(err)
       getOsmStr(mapeo, (err, data) => {
         t.error(err)
-        var rs = exportGeoJson(mapeo.osm, {presets: junglePresets})
-        rs.pipe(concat((data) => {
-          exportedGeojson = JSON.parse(data)
+        var filename = tmp.tmpNameSync()
+        mapeo.exportData(filename, {presets: junglePresets}, err => {
+          t.error(err)
+          exportedGeojson = JSON.parse(fs.readFileSync(filename, 'utf8'))
           var feature = exportedGeojson.features[0]
           t.ok(feature.properties.icon)
           t.same(feature.properties.type, batch[0].value.tags.type)
           t.same(feature.properties.area, batch[0].value.tags.area)
           t.same(feature.properties['animal-type'], batch[0].value.tags['animal-type'])
           done()
-        }))
+        })
       })
     })
   })
