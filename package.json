@@ -33,6 +33,7 @@
     "handshake-stream": "^3.0.0",
     "hypercore-crypto": "^1.0.0",
     "inherits": "^2.0.3",
+    "mapeo-entity-filter": "^2.0.0",
     "multifeed": "^4.3.0",
     "multiplex": "^6.7.0",
     "osm-p2p-geojson": "^4.0.1",
@@ -43,7 +44,8 @@
     "run-parallel": "^1.1.9",
     "shp-write": "github:digidem/shp-write",
     "statuses": "^1.5.0",
-    "through2": "^3.0.0"
+    "through2": "^3.0.0",
+    "through2-filter": "^3.0.0"
   },
   "devDependencies": {
     "clone": "^2.1.2",

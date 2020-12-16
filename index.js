@@ -8,6 +8,8 @@ const fs = require('fs')
 const shapefile = require('shp-write')
 const concat = require('concat-stream')
 const duplexify = require('duplexify')
+const throughFilter = require('through2-filter')
+const compileFilter = require('mapeo-entity-filter')
 
 const exportGeoJson = require('./lib/export-geojson')
 const Importer = require('./lib/importer')
@@ -230,7 +232,9 @@ class Mapeo extends events.EventEmitter {
   createDataStream (opts = {}) {
     if (!opts.format) opts.format = 'geojson'
     var bbox = opts.bbox || [ -Infinity, -Infinity, Infinity, Infinity ]
+    var filterFn = opts.filter ? compileFilter(opts.filter) : noop
     var osmReadStream = this.osm.query(bbox, opts)
+    var filterStream = throughFilter.obj(filterFn)
     var geoJSONStream = exportGeoJson(this.osm, opts)
     var outputStream = duplexify()
     outputStream.setWritable(null)
@@ -245,7 +249,7 @@ class Mapeo extends events.EventEmitter {
         break
       default: throw new Error('Unsupported format, must be either `geojson` or `shapefile`.')
     }
-    pump(osmReadStream, geoJSONStream, (err) => {
+    pump(osmReadStream, filterStream, geoJSONStream, (err) => {
       if (err) outputStream.emit('error', err)
     })
     return outputStream
@@ -328,7 +332,9 @@ function whitelistProps (obs) {
   return newObs
 }
 
-function noop () {}
+function noop (v) {
+  return v
+}
 
 Mapeo.errors = errors
 Mapeo.CURRENT_SCHEMA = CURRENT_SCHEMA

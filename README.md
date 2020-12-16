@@ -99,6 +99,7 @@ Valid `opts` include:
 * `opts.format`: "geojson" or a "shapefile". Shapefiles export into zip
   format.
 * `opts.presets`: an object that represents the contents of a `presets.json` file
+* `opts.filter`: An array [`mapeo-entity-filter`](https://github.com/digidem/mapeo-entity-filter) that will filter osm entities that are included in the exported data, e.g. to only export data with a tag `type=fauna` then pass the filter `['==', 'type', 'fauna']`
 
 ### `mapeo.observationConvert(obs, cb)`
 

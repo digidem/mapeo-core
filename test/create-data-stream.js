@@ -89,6 +89,100 @@ test('exportData: geojson with polygon and presets', (t) => {
   })
 })
 
+test('createDataStream: filter only point', (t) => {
+  var mapeo = helpers.createApi()
+  mapeo.on('error', console.error)
+
+  function done () {
+    t.end()
+    mapeo.close()
+  }
+
+  var filter = ['==', '$type', 'node']
+  var batchAll = data.polygon.batch.concat(data.way.batch, data.node.batch)
+
+  mapeo.osm.ready(function () {
+    mapeo.osm.batch(batchAll, (err) => {
+      t.error(err)
+      var rs = mapeo.createDataStream({ filter })
+      rs.pipe(concat((geojson) => {
+        var actual = JSON.parse(geojson)
+        actual.features = actual.features.map((f) => {
+          delete f.id
+          return f
+        })
+        t.same(actual, data.node.expected)
+        done()
+      }))
+    })
+  })
+})
+
+test('createDataStream: filter only with tag \'interesting\'', (t) => {
+  var mapeo = helpers.createApi()
+  mapeo.on('error', console.error)
+
+  function done () {
+    t.end()
+    mapeo.close()
+  }
+
+  var filter = ['has', 'interesting']
+  var batchAll = data.polygon.batch.concat(data.way.batch, data.node.batch)
+  var expected = {
+    type: 'FeatureCollection',
+    // TODO: Order is not guaranteed!
+    features: [...data.way.expected.features, ...data.node.expected.features]
+  }
+
+  mapeo.osm.ready(function () {
+    mapeo.osm.batch(batchAll, (err) => {
+      t.error(err)
+      var rs = mapeo.createDataStream({ filter })
+      rs.pipe(concat((geojson) => {
+        var actual = JSON.parse(geojson)
+        actual.features = actual.features.map((f) => {
+          delete f.id
+          return f
+        })
+        t.same(actual, expected)
+        done()
+      }))
+    })
+  })
+})
+
+test('createDataStream: filter only with tag \'area\' == \'yes\'', (t) => {
+  var mapeo = helpers.createApi()
+  mapeo.on('error', console.error)
+
+  function done () {
+    t.end()
+    mapeo.close()
+  }
+
+  var filter = ['==', 'area', 'yes']
+  var batchAll = data.polygon.batch.concat(data.way.batch, data.node.batch)
+
+  mapeo.osm.ready(function () {
+    mapeo.osm.batch(batchAll, (err) => {
+      t.error(err)
+      var rs = mapeo.createDataStream({ filter })
+      rs.pipe(concat((geojson) => {
+        var actual = JSON.parse(geojson)
+        actual.features = actual.features.map((f) => {
+          delete f.id
+          return f
+        })
+        t.same(actual, data.polygon.expected)
+        done()
+      }))
+    })
+  })
+})
+
+// **TODO**: Add test for sync file creation
+
 function getOsmStr (mapeo, cb) {
   var query = mapeo.osm.query([-Infinity, -Infinity, Infinity, Infinity])
   query.pipe(concat((data) => {
