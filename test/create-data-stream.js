@@ -21,6 +21,8 @@ test('createDataStream: geojson when no data', (t) => {
 
   mapeo.osm.ready(function () {
     var rs = mapeo.createDataStream()
+    rs.on('error', t.error)
+
     rs.pipe(concat((data) => {
       t.same(expected, JSON.parse(data))
       done()
