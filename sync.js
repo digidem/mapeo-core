@@ -12,12 +12,20 @@ const datDefaults = require('dat-swarm-defaults')
 const MapeoSync = require('./lib/sync-stream')
 const progressSync = require('./lib/db-sync-progress')
 
+// This is an insecure discovery key that will discover all local devices that
+// don't have a project key in their configuration
 const SYNC_DEFAULT_KEY = 'mapeo-sync'
+
+// hyperlog-sneakernet is an old format that is no longer supported.
+// osm-p2p-syncfile is the supported implementation.
+// See https://www.npmjs.com/package/osm-p2p-syncfile module for more details
 const SYNCFILE_FORMATS = {
   'hyperlog-sneakernet': 1,
   'osm-p2p-syncfile'   : 2
 }
 
+// When connecting to a local network, use these
+// options for discovery-swarm
 const DEFAULT_LOCAL_DISCO = {
   dns: {
     interval: 3000
@@ -26,6 +34,12 @@ const DEFAULT_LOCAL_DISCO = {
   utp: false
 }
 
+// When internet connectivity is on, use these
+// options for discovery-swarm
+//
+// Internet Discovery is not yet enabled by Desktop or Mobile
+// TODO: in production, we should not use datDefaults because
+// it depends on some servers that mafintosh maintains
 const DEFAULT_INTERNET_DISCO = Object.assign(
   {},
   datDefaults(),
@@ -36,10 +50,12 @@ const DEFAULT_INTERNET_DISCO = Object.assign(
   }
 )
 
+// When a sync fails to finish, and one of the feeds in the database (a hypercore feed)
+// is incomplete, sync will throw this error after 20 seconds of inactive replication
 const ERR_MISSING_DATA = 'ERR_MISSING_DATA'
-
 const DEFAULT_HEARTBEAT_INTERVAL = 1000 * 20 // 20 seconds
 
+// Available states for displaying syncronization progress to clients
 const ReplicationState = {
   WIFI_READY: 'replication-wifi-ready',
   PROGRESS: 'replication-progress',
@@ -48,12 +64,30 @@ const ReplicationState = {
   STARTED: 'replication-started'
 }
 
+// These properties will be passed to the client when there is an error
 const multifeedErrorProps = ['code', 'usVersion', 'themVersion', 'usClient', 'themClient']
 
+// Simple wrapper for the PeerState object
+// that requires a topic and message
 function PeerState (topic, message, other) {
   return { topic, message, ...other }
 }
 
+/**
+ * Called by Sync.addPeer to add a peer to the SyncState
+ * @param {DuplexStream} connection Duplex stream, but has only been tested in production using TCP
+ * @param {Object} info 
+ */
+function WifiPeer (connection, info) {
+  info.type = 'wifi'
+  info.connection = connection
+  info.swarmId = info.id // XXX: not used; for backwards compatibility
+  info.id = info.id.toString('hex')
+  return info
+}
+
+// SyncState is a state machine that manages the list of peers
+// and their states, represented by PeerState objects
 class SyncState {
   constructor () {
     this._state = {}
@@ -65,6 +99,8 @@ class SyncState {
     this._state[peer.id] = peer
   }
 
+  // Start tracking a peer's state
+  // and include that peer in the list of all peers
   init (peer) {
     peer.started = false
     peer.connected = true
@@ -84,11 +120,14 @@ class SyncState {
     peer.sync.on('end', onend)
   }
 
+  // Progress event listeners are added after sync-start by
+  // the caller of peer.add
   addProgressEventListeners (peer) {
     peer.sync.onprogress = (progress) => this.onprogress(peer, progress)
     peer.sync.on('progress', peer.sync.onprogress)
   }
 
+  // Get a peer by it's host and port
   get (host, port) {
     var res = Object.values(this._state)
       .filter(function (peer) {
@@ -101,6 +140,10 @@ class SyncState {
     }
   }
 
+  // We need to know if a peer has been hanging for a period of time
+  // with no progress. This could happen if replication is opened
+  // in non-sparse mode or live mode. It will then continue hanging and waiting
+  // for updates until it is told to stop.
   stale (peer) {
     var NOT_STALE = [
       ReplicationState.STARTED,
@@ -133,6 +176,7 @@ class SyncState {
     return peer.state.topic === ReplicationState.COMPLETE
   }
 
+  // Add a peer that was discovered via Wifi (contains a TCP socket)
   addWifiPeer (connection, info) {
     const peerId = info.id.toString('hex')
     let peer = this._state[peerId]
@@ -146,6 +190,7 @@ class SyncState {
     return peer
   }
 
+  // Add a peer that is a file
   addFilePeer (filename) {
     const peer = {
       id: filename,
@@ -197,6 +242,7 @@ class SyncState {
   }
 }
 
+// Sync class manages discovery of peers and replication
 class Sync extends events.EventEmitter {
   constructor (osm, media, opts) {
     super()
@@ -221,6 +267,16 @@ class Sync extends events.EventEmitter {
     return this.state.peers()
   }
 
+  /**
+   * Replicate with a given filename or host/port. 
+   * If you are using this function to replicate with a Wifi peer (tcp socket) then
+   * this function needs to be called AFTER addPeer(socket, info)
+   * 
+   * This could be refactored.
+   * 
+   * @param {PeerQuery} A query for the peer
+   * @param {Object} opts Options for the replication 
+   */
   replicate ({host, port, filename}, opts) {
     if (!opts) opts = {}
     var peer
@@ -244,6 +300,7 @@ class Sync extends events.EventEmitter {
     return peer.sync
   }
 
+  // replicateNetwork on a peer that already exists (from sync.peers())
   replicateNetwork (peer, opts) {
     if (!peer.handshake) {
       process.nextTick(() => {
@@ -264,6 +321,7 @@ class Sync extends events.EventEmitter {
     return peer.sync
   }
 
+  // Start listening on discovery swarm
   listen (cb) {
     if (!cb) cb = () => {}
     if (this.swarm && !this._destroyingSwarm) {
@@ -288,11 +346,13 @@ class Sync extends events.EventEmitter {
     else _listen()
   }
 
+  // Stop listening for project key
   leave (projectKey) {
     var key = discoveryKey(projectKey)
     this.swarm.leave(key)
   }
 
+  // Start listening for project key
   join (projectKey) {
     const key = discoveryKey(projectKey)
     const join = () => this.swarm.join(key)
@@ -301,10 +361,12 @@ class Sync extends events.EventEmitter {
     else join()
   }
 
+  // Alias for close
   destroy (cb) {
     this.close(cb)
   }
 
+  // Destroy everything (all tcp sockets and swarms)
   close (cb) {
     if (!cb) cb = () => {}
     if (!this.swarm || this._destroyingSwarm) return process.nextTick(cb)
@@ -427,6 +489,12 @@ class Sync extends events.EventEmitter {
     return swarm
   }
 
+  /**
+   * Add a peer to the list of available peers. Must be called before `replicate`
+   * 
+   * @param {DuplexStream} connection This is a duplex stream, although it has only been tested in production with TCP sockets.  
+   * @param {Object} info This is an object that contains information about the TCP socket, including a unique, persistent id, as well as host, and port
+   */
   addPeer (connection, info) {
     var self = this
     debug('connection', info.host, info.port, info.id.toString('hex'))
@@ -508,6 +576,9 @@ class Sync extends events.EventEmitter {
       connection.removeListener('error', onClose)
     }
 
+    // Peers announce their device type, version, and name
+    // When a user hits 'SYNC' on the client, then the client calls the replicate
+    // function and accepts the handshake
     function onHandshake (req, accept) {
       debug('got handshake', info.host, info.port)
 
@@ -542,14 +613,6 @@ function isGzipFile (filepath, cb) {
       })
     })
   })
-}
-
-function WifiPeer (connection, info) {
-  info.type = 'wifi'
-  info.connection = connection
-  info.swarmId = info.id // XXX: not used; for backwards compatibility
-  info.id = info.id.toString('hex')
-  return info
 }
 
 /**
