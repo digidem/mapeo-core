@@ -21,7 +21,7 @@ module.exports = {
     batch: json2batch([
       {
         type: 'node',
-        id: 1,
+        id: 'A',
         lat: 1.234,
         lon: 4.321,
         tags: {
@@ -49,27 +49,27 @@ module.exports = {
     batch: json2batch([
       {
         type: 'way',
-        id: 'A',
+        id: 'B',
         tags: {
           interesting: 'this is'
         },
-        nodes: ['B', 'C', 'D']
-      },
-      {
-        type: 'node',
-        id: 'B',
-        lat: 0.0,
-        lon: 1.0
+        nodes: ['C', 'D', 'E']
       },
       {
         type: 'node',
         id: 'C',
         lat: 0.0,
-        lon: 1.1
+        lon: 1.0
       },
       {
         type: 'node',
         id: 'D',
+        lat: 0.0,
+        lon: 1.1
+      },
+      {
+        type: 'node',
+        id: 'E',
         lat: 0.1,
         lon: 1.2
       }
@@ -98,31 +98,31 @@ module.exports = {
     batch: json2batch([
       {
         type: 'way',
-        id: 'A',
-        nodes: ['B', 'C', 'D', 'E', 'B'],
+        id: 'F',
+        nodes: ['G', 'H', 'I', 'J', 'G'],
         tags: {area: 'yes'}
       },
       {
         type: 'node',
-        id: 'B',
+        id: 'G',
         lat: 0.0,
         lon: 0.0
       },
       {
         type: 'node',
-        id: 'C',
+        id: 'H',
         lat: 0.0,
         lon: 1.0
       },
       {
         type: 'node',
-        id: 'D',
+        id: 'I',
         lat: 1.0,
         lon: 1.0
       },
       {
         type: 'node',
-        id: 'E',
+        id: 'J',
         lat: 1.0,
         lon: 0.0
       }
