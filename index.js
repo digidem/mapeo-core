@@ -232,7 +232,7 @@ class Mapeo extends events.EventEmitter {
   createDataStream (opts = {}) {
     if (!opts.format) opts.format = 'geojson'
     var bbox = opts.bbox || [ -Infinity, -Infinity, Infinity, Infinity ]
-    var filterFn = opts.filter ? compileFilter(opts.filter) : noop
+    var filterFn = opts.filter ? compileFilter(opts.filter) : identity
     var osmReadStream = this.osm.query(bbox, opts)
     var filterStream = throughFilter.obj(filterFn)
     var geoJSONStream = exportGeoJson(this.osm, opts)
@@ -247,7 +247,13 @@ class Mapeo extends events.EventEmitter {
           outputStream.setReadable(shapefile.zipStream(JSON.parse(geojson)))
         }))
         break
-      default: throw new Error('Unsupported format, must be either `geojson` or `shapefile`.')
+      default:
+        process.nextTick(() => {
+          outputStream.emit(
+            'error',
+            new Error('Unsupported format, must be either `geojson` or `shapefile`.')
+          )
+        })
     }
     pump(osmReadStream, filterStream, geoJSONStream, (err) => {
       if (err) outputStream.emit('error', err)
@@ -332,7 +338,9 @@ function whitelistProps (obs) {
   return newObs
 }
 
-function noop (v) {
+function noop () {}
+
+function identity (v) {
   return v
 }
 
