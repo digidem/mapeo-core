@@ -7,11 +7,10 @@ const junglePresets = require('./jungle/presets.json')
 
 test('createDataStream: geojson when no data', (t) => {
   var mapeo = helpers.createApi()
-  mapeo.on('error', console.error)
+  mapeo.on('error', t.error)
 
   function done () {
-    t.end()
-    mapeo.close()
+    mapeo.close(err => { t.error(err); t.end() })
   }
 
   var expected = {
@@ -35,8 +34,7 @@ test('createDataStream: geojson with polygon', (t) => {
   mapeo.on('error', console.error)
 
   function done () {
-    t.end()
-    mapeo.close()
+    mapeo.close(err => { t.error(err); t.end() })
   }
 
   mapeo.osm.ready(function () {
@@ -50,7 +48,7 @@ test('createDataStream: geojson with polygon', (t) => {
           return f
         })
 
-        t.same(data.polygon.expected, actual)
+        t.same(actual, data.polygon.expected)
         done()
       }))
     })
@@ -59,11 +57,10 @@ test('createDataStream: geojson with polygon', (t) => {
 
 test('exportData: geojson with polygon and presets', (t) => {
   var mapeo = helpers.createApi()
-  mapeo.on('error', console.error)
+  mapeo.on('error', t.error)
 
   function done () {
-    t.end()
-    mapeo.close()
+    mapeo.close(err => { t.error(err); t.end() })
   }
 
   mapeo.osm.ready(function () {
@@ -91,11 +88,10 @@ test('exportData: geojson with polygon and presets', (t) => {
 
 test('createDataStream: filter only point', (t) => {
   var mapeo = helpers.createApi()
-  mapeo.on('error', console.error)
+  mapeo.on('error', t.error)
 
   function done () {
-    t.end()
-    mapeo.close()
+    mapeo.close(err => { t.error(err); t.end() })
   }
 
   var filter = ['==', '$type', 'node']
@@ -120,11 +116,10 @@ test('createDataStream: filter only point', (t) => {
 
 test('createDataStream: filter only with tag \'interesting\'', (t) => {
   var mapeo = helpers.createApi()
-  mapeo.on('error', console.error)
+  mapeo.on('error', t.error)
 
   function done () {
-    t.end()
-    mapeo.close()
+    mapeo.close(err => { t.error(err); t.end() })
   }
 
   var filter = ['has', 'interesting']
@@ -154,11 +149,10 @@ test('createDataStream: filter only with tag \'interesting\'', (t) => {
 
 test('createDataStream: filter only with tag \'area\' == \'yes\'', (t) => {
   var mapeo = helpers.createApi()
-  mapeo.on('error', console.error)
+  mapeo.on('error', t.error)
 
   function done () {
-    t.end()
-    mapeo.close()
+    mapeo.close(err => { t.error(err); t.end() })
   }
 
   var filter = ['==', 'area', 'yes']
