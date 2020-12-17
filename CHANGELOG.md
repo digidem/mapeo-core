@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [8.4.0](https://github.com/digidem/mapeo-core/compare/v8.3.2...v8.4.0) (2020-12-17)
+
+
+### Features
+
+* Add createDataStream() for exporting data, with optional filter ([#111](https://github.com/digidem/mapeo-core/issues/111)) ([bdfae30](https://github.com/digidem/mapeo-core/commit/bdfae303db5df076a2a5cdcd8810b646d61eb951))
+* Expose onConnection for direct peers ([#103](https://github.com/digidem/mapeo-core/issues/103)) ([3eb9217](https://github.com/digidem/mapeo-core/commit/3eb921751aaf52401411736ff65ce3d69b09f293))
+
 ### [8.2.0](https://github.com/digidem/mapeo-core/compare/v8.1.3...v8.2.0) (2020-05-18)
 
 ### Bug Fixes
