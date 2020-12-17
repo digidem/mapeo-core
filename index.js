@@ -7,6 +7,9 @@ const pump = require('pump')
 const fs = require('fs')
 const shapefile = require('shp-write')
 const concat = require('concat-stream')
+const duplexify = require('duplexify')
+const throughFilter = require('through2-filter')
+const compileFilter = require('mapeo-entity-filter')
 
 const exportGeoJson = require('./lib/export-geojson')
 const Importer = require('./lib/importer')
@@ -223,18 +226,39 @@ class Mapeo extends events.EventEmitter {
       cb = opts
       opts = {}
     }
+    return pump(this.createDataStream(opts), fs.createWriteStream(filename), cb)
+  }
+
+  createDataStream (opts = {}) {
     if (!opts.format) opts.format = 'geojson'
-    var GeoJSONStream = exportGeoJson(this.osm, opts)
+    var bbox = opts.bbox || [ -Infinity, -Infinity, Infinity, Infinity ]
+    var filterFn = opts.filter ? compileFilter(opts.filter) : identity
+    var osmReadStream = this.osm.query(bbox, opts)
+    var filterStream = throughFilter.obj(filterFn)
+    var geoJSONStream = exportGeoJson(this.osm, opts)
+    var outputStream = duplexify()
+    outputStream.setWritable(null)
     switch (opts.format) {
-      case 'geojson': return pump(GeoJSONStream, fs.createWriteStream(filename), cb)
+      case 'geojson':
+        outputStream.setReadable(geoJSONStream)
+        break
       case 'shapefile':
-        GeoJSONStream.pipe(concat((geojson) => {
-          var zipStream = shapefile.zipStream(JSON.parse(geojson))
-          pump(zipStream, fs.createWriteStream(filename), cb)
+        geoJSONStream.pipe(concat((geojson) => {
+          outputStream.setReadable(shapefile.zipStream(JSON.parse(geojson)))
         }))
-        return
-      default: return cb(new Error('Extension not supported'))
+        break
+      default:
+        process.nextTick(() => {
+          outputStream.emit(
+            'error',
+            new Error('Unsupported format, must be either `geojson` or `shapefile`.')
+          )
+        })
     }
+    pump(osmReadStream, filterStream, geoJSONStream, (err) => {
+      if (err) outputStream.emit('error', err)
+    })
+    return outputStream
   }
 
   getDeviceId (cb) {
@@ -315,6 +339,10 @@ function whitelistProps (obs) {
 }
 
 function noop () {}
+
+function identity (v) {
+  return v
+}
 
 Mapeo.errors = errors
 Mapeo.CURRENT_SCHEMA = CURRENT_SCHEMA
