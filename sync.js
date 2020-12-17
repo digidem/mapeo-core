@@ -99,7 +99,6 @@ function WebsocketPeer (connection, info) {
   return info
 }
 
-
 // SyncState is a state machine that manages the list of peers
 // and their states, represented by PeerState objects
 class SyncState {
