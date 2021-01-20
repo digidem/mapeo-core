@@ -218,6 +218,18 @@ If you want to replicate with a peer that is not discovered yet, but you have
 the host and port, we haven't made this easy at the moment. The code is written
 internally but not exposed via a public API. PRs welcome.
 
+### var peer = sync.connectWebsocket(url, projectKey)
+
+Use this to connect to and sync with a [mapeo-web](https://github.com/digidem/mapeo-web) instnce in the cloud.
+
+The `url` should be the `ws://` or `wss://` URL for the server.
+
+Optionally accepts a `projectKey` which must be a 32-byte buffer or a string hex encoding of a 32-byte buffer.
+
+This will connect only with cloud instances that have also passed in the same `projectKey`.
+
+Returns a `peer` instance.
+
 ## Importer API (expertimental)
 
 The Importer allows you to import data to the osm database from other formats.

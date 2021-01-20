@@ -23,7 +23,9 @@ function createApi (_dir, opts) {
 
   mkdirp.sync(dir)
 
-  var osm = osmdb(dir)
+  var osm = osmdb(Object.assign({
+    dir
+  }, opts))
   var media = blobstore(path.join(dir, 'media'))
 
   var mapeo = new Mapeo(osm, media, Object.assign({}, opts, {

@@ -700,4 +700,6 @@ function discoveryKey (projectKey) {
   }
 }
 
+Sync.discoveryKey = discoveryKey
+
 module.exports = Sync
