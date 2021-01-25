@@ -1,7 +1,6 @@
 # @mapeo/core
 
-[![Build
-Status](https://travis-ci.org/digidem/mapeo-core.svg?branch=master)](https://travis-ci.org/digidem/mapeo-core)
+[![Build Status](https://github.com/digidem/mapeo-core/workflows/Node.js%20CI/badge.svg)](https://github.com/digidem/mapeo-core/actions)
 
 Offline p2p mapping library.
 
