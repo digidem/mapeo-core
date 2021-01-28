@@ -169,6 +169,14 @@ tape('sync with mapeo-web server', function (t) {
   }
 })
 
+tape('zzz', t=>{
+  console.log(1)
+  setTimeout(() => {
+  console.log(2)
+    t.end()
+  }, 80_000)
+})
+
 tape('sync: trying to sync to unknown peer', function (t) {
   var api1 = helpers.createApi(null)
   function done () {
