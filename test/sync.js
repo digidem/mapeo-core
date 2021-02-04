@@ -4,8 +4,23 @@ var tape = require('tape')
 var rimraf = require('rimraf')
 var itar = require('indexed-tarball')
 var crypto = require('crypto')
+var tmp = require('tmp')
+var MapeoWeb = require('mapeo-web')
+var MapeoWebClient = require('mapeo-web/client')
+var pino = require('pino')
+var getPort = require('get-port')
+var discoveryKey = require('../sync').discoveryKey
 
 var helpers = require('./helpers')
+
+function createWeb () {
+  var storageLocation = tmp.dirSync().name
+
+  return MapeoWeb.create({
+    storageLocation: storageLocation,
+    logger: pino({level: 'silent'})
+  })
+}
 
 function createApis (opts, cb) {
   if (!cb && typeof opts === 'function') {
@@ -43,6 +58,116 @@ function createApis (opts, cb) {
     })
   })
 }
+
+tape('sync with mapeo-web server', function (t) {
+  const projectKey = crypto.randomBytes(32)
+  const mapeo = helpers.createApi(null, {
+    encryptionKey: projectKey
+  })
+
+  const mapeoWeb = createWeb()
+
+  mapeo.osm.ready(() => {
+    listen((e, port) => {
+      t.error(e, 'able to listen')
+      putProject(port, (e) => {
+        t.error(e, 'added project')
+        writeOSM((e, id) => {
+          mapeo.sync.once('peer', (peer) => verifyPeer(peer, id, port))
+          t.error(e, 'initialized OSM data')
+          writeMedia((e) => {
+            t.error(e, 'initialized media')
+            replicate(port)
+          })
+        })
+      })
+    })
+  })
+
+  function verifyPeer (peer, osmId, port) {
+    t.pass('Got peer')
+    const sync = mapeo.sync.replicate(peer)
+    sync.on('end', () => {
+      t.pass('Finished sync')
+      verifyData(osmId, () => {
+        listAndRemove(port, finishUp)
+      })
+    })
+  }
+
+  function listAndRemove (port, cb) {
+    const keyString = projectKey.toString('hex')
+    const url = `http://localhost:${port}`
+
+    MapeoWebClient.list({ url }).then(async (keys) => {
+      t.deepEqual(keys, [{ discoveryKey: discoveryKey(keyString) }], 'Project in list on server')
+
+      await MapeoWebClient.remove({ url, projectKey })
+
+      const finalKeys = await MapeoWebClient.list({ url })
+
+      t.deepEqual(finalKeys, [], 'Project removed from server')
+
+      cb(null)
+    }).catch(cb)
+  }
+
+  function verifyData (osmId, cb) {
+    const local = mapeoWeb.get(projectKey)
+
+    local.osm.get(osmId, (e, node) => {
+      t.error(e, 'No erorr getting OSM')
+      t.ok(node, 'OSM node exists')
+      local.media.exists('foo.txt', (err, exists) => {
+        t.error(err, 'No error reading file')
+        t.ok(exists, 'File exists')
+        cb()
+      })
+    })
+  }
+
+  function finishUp (err) {
+    if (err) t.error(err)
+    mapeoWeb.close((err) => {
+      t.error(err, 'Closed with no errors')
+      t.end()
+    })
+  }
+
+  function replicate (port) {
+    const url = `ws://localhost:${port}/`
+    mapeo.sync.connectWebsocket(url, projectKey)
+  }
+
+  function writeMedia (cb) {
+    const ws = mapeo.media.createWriteStream('foo.txt')
+    ws.on('finish', cb)
+    ws.on('error', cb)
+    ws.end('bar')
+  }
+
+  function writeOSM (cb) {
+    const observation = { lat: 1, lon: 2, type: 'observation' }
+    mapeo.osm.create(observation, cb)
+  }
+
+  function putProject (port, cb) {
+    const keyString = projectKey.toString('hex')
+    const url = `http://localhost:${port}`
+
+    MapeoWebClient.add({ url, projectKey: keyString }).then(async (res) => {
+      const { id } = res
+      t.ok(id, 'Got discoveryKey from add')
+      cb(null)
+    }).catch(cb)
+  }
+
+  function listen (cb) {
+    getPort().then((port) => {
+      mapeoWeb.listen(port, () => cb(null, port))
+    }).catch(cb)
+  }
+})
 
 tape('sync: trying to sync to unknown peer', function (t) {
   var api1 = helpers.createApi(null)
@@ -286,10 +411,10 @@ tape('bad sync: syncfile replication: osm-p2p-syncfile', function (t) {
 
   var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
   var syncfile = new itar(tmpfile)
-  syncfile.userdata({syncfile: { 'p2p-db': 'hyperlog' } }, start)
+  syncfile.userdata({ syncfile: { 'p2p-db': 'hyperlog' } }, start)
 
   function start () {
-    createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
+    createApis({api1: {writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
       api1.sync.replicate({filename: tmpfile})
         .once('end', function () {
           t.fail()
@@ -311,7 +436,7 @@ tape('bad sync: syncfile replication: osm-p2p-syncfile', function (t) {
 })
 
 tape('sync: syncfile replication: osm-p2p-syncfile', function (t) {
-  createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
+  createApis({api1: {writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
     // create test data
     var id
     var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
@@ -392,7 +517,7 @@ tape('sync: try to sync two different projectKey syncfiles together', function (
   syncfile.userdata({syncfile: { 'p2p-db': 'kappa-osm', discoveryKey: key1} }, start)
 
   function start () {
-    createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
+    createApis({api1: {writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
       api1.sync.replicate({filename: tmpfile}, {projectKey: key2})
         .once('end', function () {
           close(() => {
@@ -416,7 +541,7 @@ tape('sync: try to sync two different projectKey syncfiles together', function (
 })
 
 tape('sync: syncfile /wo projectKey, api with projectKey set', function (t) {
-  createApis({api1:{writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
+  createApis({api1: {writeFormat: 'osm-p2p-syncfile'}}, function (api1, api2, close) {
     // create test data
     var id
     var tmpfile = path.join(os.tmpdir(), 'sync1-' + Math.random().toString().substring(2))
@@ -490,7 +615,7 @@ tape('sync: syncfile /wo projectKey, api with projectKey set', function (t) {
 tape('sync: desktop <-> desktop photos', function (t) {
   t.plan(14)
 
-  var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
+  var opts = {api1: {deviceType: 'desktop'}, api2: {deviceType: 'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
     var total = 5
@@ -575,7 +700,7 @@ tape('sync: deletes are not synced back', function (t) {
 
   var deleted
 
-  var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
+  var opts = {api1: {deviceType: 'desktop'}, api2: {deviceType: 'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
     var total = 5
@@ -591,7 +716,7 @@ tape('sync: deletes are not synced back', function (t) {
     api2.sync.listen(() => {
       api2.sync.join()
     })
-    helpers.writeBigData(api1, total, written)  // write 5 entries
+    helpers.writeBigData(api1, total, written) // write 5 entries
     writeBlob(api2, 'goodbye_world.png', written)
 
     function written (err) {
@@ -756,7 +881,7 @@ tape('sync: mobile <-> desktop photos', function (t) {
 tape('sync: mobile <-> mobile photos', function (t) {
   t.plan(12)
 
-  var opts = {api1:{deviceType:'mobile'}, api2:{deviceType:'mobile'}}
+  var opts = {api1: {deviceType: 'mobile'}, api2: {deviceType: 'mobile'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
     var total = 5
@@ -824,9 +949,9 @@ tape('sync: mobile <-> mobile photos', function (t) {
 })
 
 tape('sync: with two peers available, sync with one only triggers events for one sync', function (t) {
-  var opts = {api1:{name: 'boop', deviceType:'desktop'}, api2:{name: 'beep', deviceType:'desktop'}}
+  var opts = {api1: {name: 'boop', deviceType: 'desktop'}, api2: {name: 'beep', deviceType: 'desktop'}}
   createApis(opts, function (api1, api2, close1) {
-    var opts = {api1:{name: 'bork', deviceType:'mobile'}, api2:{name: 'baz', deviceType:'mobile'}}
+    var opts = {api1: {name: 'bork', deviceType: 'mobile'}, api2: {name: 'baz', deviceType: 'mobile'}}
     createApis(opts, function (api3, api4, close2) {
       var pending = 6
       var total = 20
@@ -895,11 +1020,10 @@ tape('sync: with two peers available, sync with one only triggers events for one
   })
 })
 
-
 tape('sync: destroy during sync is reflected in peer state', function (t) {
   t.plan(11)
 
-  var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
+  var opts = {api1: {deviceType: 'desktop'}, api2: {deviceType: 'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
     var total = 20
@@ -954,7 +1078,7 @@ tape('sync: destroy during sync is reflected in peer state', function (t) {
 tape('sync: peer.connected property', function (t) {
   t.plan(13)
 
-  var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
+  var opts = {api1: {deviceType: 'desktop'}, api2: {deviceType: 'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
     var total = 5
@@ -1002,7 +1126,7 @@ tape('sync: peer.connected property', function (t) {
 tape('sync: peer.connected property on graceful exit', function (t) {
   t.plan(10)
 
-  var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
+  var opts = {api1: {deviceType: 'desktop'}, api2: {deviceType: 'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 2
 
@@ -1039,7 +1163,7 @@ tape('sync: peer.connected property on graceful exit', function (t) {
 
 tape('sync: missing data still ends', function (t) {
   t.plan(19)
-  var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
+  var opts = {api1: {deviceType: 'desktop'}, api2: {deviceType: 'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
     var restarted = false
@@ -1135,7 +1259,7 @@ tape('sync: missing data still ends', function (t) {
 
 tape('sync: 200 photos & close/reopen real-world scenario', function (t) {
   t.plan(18)
-  var opts = {api1:{deviceType:'desktop'}, api2:{deviceType:'desktop'}}
+  var opts = {api1: {deviceType: 'desktop'}, api2: {deviceType: 'desktop'}}
   createApis(opts, function (api1, api2, close) {
     var pending = 4
     var total = 200
