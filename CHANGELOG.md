@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [8.5.0](https://github.com/digidem/mapeo-core/compare/v8.4.0...v8.5.0) (2021-02-04)
+
+
+### Features
+
+* Add websocket sync ([#108](https://github.com/digidem/mapeo-core/issues/108)) ([59b6f42](https://github.com/digidem/mapeo-core/commit/59b6f424ec3d81b5fbe7d4ea5769e7202e02d200)), closes [#111](https://github.com/digidem/mapeo-core/issues/111) [#107](https://github.com/digidem/mapeo-core/issues/107) [#106](https://github.com/digidem/mapeo-core/issues/106) [#109](https://github.com/digidem/mapeo-core/issues/109) [#112](https://github.com/digidem/mapeo-core/issues/112) [#107](https://github.com/digidem/mapeo-core/issues/107)
+
 ## [8.4.0](https://github.com/digidem/mapeo-core/compare/v8.3.2...v8.4.0) (2020-12-17)
 
 
