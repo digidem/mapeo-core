@@ -186,6 +186,13 @@ tape('sync: trying to sync to unknown peer', function (t) {
   })
 })
 
+tape('sync: leave even if swarm is undefined', function (t) {
+  var api1 = helpers.createApi(null)
+  t.notOk(api1.sync.leave())
+  api1.close()
+  t.end()
+})
+
 tape('sync: two servers find each other with default sync key', function (t) {
   t.plan(3)
 
