@@ -410,7 +410,12 @@ class Sync extends events.EventEmitter {
   // Stop listening for project key
   leave (projectKey) {
     var key = discoveryKey(projectKey)
-    this.swarm.leave(key)
+    debug('sync leave')
+    if (this.swarm) this.swarm.leave(key)
+    else {
+      debug('sync leaving silently')
+      return
+    }
   }
 
   // Start listening for project key
