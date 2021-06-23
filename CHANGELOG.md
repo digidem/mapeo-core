@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [8.6.0](https://github.com/digidem/mapeo-core/compare/v8.5.0...v8.6.0) (2021-06-23)
+
+
+### Features
+
+* **export:** Optional include metadata in export ([#120](https://github.com/digidem/mapeo-core/issues/120)) ([bbbe7a0](https://github.com/digidem/mapeo-core/commit/bbbe7a0d8fadccd05efa85901a417d4c34d02805))
+
 ## [8.5.0](https://github.com/digidem/mapeo-core/compare/v8.4.0...v8.5.0) (2021-02-04)
 
 
