@@ -1,5 +1,6 @@
 const test = require('tape')
 const concat = require('concat-stream')
+const cloneDeep = require('clone-deep')
 const data = require('./data-fixture')
 
 const helpers = require('./helpers')
@@ -49,6 +50,34 @@ test('createDataStream: geojson with polygon', (t) => {
         })
 
         t.same(actual, data.polygon.expected)
+        done()
+      }))
+    })
+  })
+})
+
+test('createDataStream: include metadata', (t) => {
+  var mapeo = helpers.createApi()
+  mapeo.on('error', console.error)
+
+  function done () {
+    mapeo.close(err => { t.error(err); t.end() })
+  }
+
+  mapeo.osm.ready(function () {
+    mapeo.osm.batch(data.polygon.batch, (err) => {
+      t.error(err)
+      var rs = mapeo.createDataStream({ metadata: ['id'] })
+      rs.pipe(concat((geojson) => {
+        var actual = JSON.parse(geojson)
+
+        // Expect properties.id to match id of input way
+        var expected = cloneDeep(data.polygon.expected)
+        var expectedId = data.polygon.batch.find(v => v.value.type === 'way').id
+        expected.features[0].properties.id = expectedId
+        expected.features[0].id = expectedId
+
+        t.same(actual, expected)
         done()
       }))
     })

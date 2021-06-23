@@ -99,6 +99,7 @@ Valid `opts` include:
   format.
 * `opts.presets`: an object that represents the contents of a `presets.json` file
 * `opts.filter`: An array [`mapeo-entity-filter`](https://github.com/digidem/mapeo-entity-filter) that will filter osm entities that are included in the exported data, e.g. to only export data with a tag `type=fauna` then pass the filter `['==', 'type', 'fauna']`
+* `opts.metadata`: An array of metadata to include in the exported geojson. Can be: `'id' | 'version' | 'timestamp'`. Default: `['timestamp']`. If `id` is included, the feature `id` will also be set in output.
 
 ### `mapeo.observationConvert(obs, cb)`
 
