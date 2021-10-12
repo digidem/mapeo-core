@@ -448,6 +448,7 @@ class Sync extends events.EventEmitter {
   /**
    * Replicate from a given file. Use `replicate` instead.
    * @param  {String}   peer    A peer.
+   * @param {{createFile: ?boolean, projectKey: ?string, writeFormat: ?string}} [opts]
    * @return {EventEmitter}     Listen to 'error', 'end' and 'progress' events
    */
   replicateFromFile (peer, opts) {
@@ -479,9 +480,26 @@ class Sync extends events.EventEmitter {
           if (data && data['p2p-db'] && data['p2p-db'] !== 'kappa-osm') {
             return onerror(new Error('trying to sync this kappa-osm database with a ' + data['p2p-db'] + ' database!'))
           }
-          if (data && data.discoveryKey && opts.projectKey && data.discoveryKey !== discoKey) {
-            return onerror(new Error(`trying to sync two different projects (us=${discoKey}) (syncfile=${data.discoveryKey})`))
+
+          if (!opts.createFile) {
+            const ourProjectId = discoKey // This is SYNC_DEFAULT_KEY if opts.projectKey is undefined
+            const fileProjectId = (data && data.discoveryKey) || SYNC_DEFAULT_KEY
+
+            if (ourProjectId !== fileProjectId) {
+              function formatId (id) {
+                return id === SYNC_DEFAULT_KEY ? id : id.slice(0, 7)
+              }
+
+              return onerror(
+                new Error(
+                  `trying to sync two different projects (us=${formatId(
+                    ourProjectId
+                  )}) (syncfile=${formatId(fileProjectId)})`
+                )
+              )
+            }
           }
+
           start()
         })
       })

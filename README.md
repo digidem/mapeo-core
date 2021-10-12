@@ -205,6 +205,8 @@ Both `replicate` and `replicateNetwork` return an EventEmitter `ev`. It can emit
 
 Valid `opts` include:
 
+- `opts.createFile` (boolean): a flag used by `replicateFromFile` to indicate that the target file needs to be created before attempting to sync with it, as opposed to using some pre-existing file created in a different context.
+
 - `opts.projectKey` (string): a unique identifier that prohibits sync with a
   syncfile that declares a different project ID. If either side doesn't have a
   project ID set, sync will be permitted.
