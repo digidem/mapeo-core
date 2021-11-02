@@ -486,17 +486,21 @@ class Sync extends events.EventEmitter {
             const fileProjectId = (data && data.discoveryKey) || SYNC_DEFAULT_KEY
 
             if (ourProjectId !== fileProjectId) {
-              function formatId (id) {
-                return id === SYNC_DEFAULT_KEY ? id : id.slice(0, 7)
-              }
-
-              return onerror(
-                new Error(
-                  `trying to sync two different projects (us=${formatId(
-                    ourProjectId
-                  )}) (syncfile=${formatId(fileProjectId)})`
+              syncfile.close(() => {
+                onerror(
+                  new Error(
+                    `trying to sync two different projects (us=${formatId(
+                      ourProjectId
+                    )}) (syncfile=${formatId(fileProjectId)})`
+                  )
                 )
-              )
+
+                function formatId (id) {
+                  return id === SYNC_DEFAULT_KEY ? id : id.slice(0, 7)
+                }
+              })
+
+              return
             }
           }
 
