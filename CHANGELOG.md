@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [8.6.2](https://github.com/digidem/mapeo-core/compare/v8.6.1...v8.6.2) (2021-11-16)
+
+
+### Bug Fixes
+
+* Close syncfile properly after an invalid sync attempt ([#132](https://github.com/digidem/mapeo-core/issues/132)) ([e428e8c](https://github.com/digidem/mapeo-core/commit/e428e8c7ba210d67a67178534c31647a5ae5a1ad))
+
 ### [8.6.1](https://github.com/digidem/mapeo-core/compare/v8.6.0...v8.6.1) (2021-10-12)
 
 
