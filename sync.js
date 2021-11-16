@@ -484,18 +484,14 @@ class Sync extends events.EventEmitter {
       if (err) {
         // file doesn't exist, write
         if (self.opts.writeFormat === 'osm-p2p-syncfile') sync()
-        else return onFileError(new Error('unsupported syncfile type'))
+        else return emitError(new Error('unsupported syncfile type'))
       } else {
         // read
         isGzipFile(filename, function (err, isGzip) {
-          if (err) return onFileError(err)
+          if (err) return emitError(err)
           if (!isGzip) sync()
-          else return onFileError(new Error('unsupported syncfile type'))
+          else return emitError(new Error('unsupported syncfile type'))
         })
-      }
-
-      function onFileError (err) {
-        emitter.emit('error', err)
       }
     })
 
@@ -505,27 +501,33 @@ class Sync extends events.EventEmitter {
         encryptionKey: opts.projectKey
       })
 
-      function closeSyncfile (err, onClose) {
+      function closeSyncfile (onClose) {
         syncfile.close(function (closeErr) {
-          if (err || closeErr) {
-            emitter.emit('error', err || closeErr)
-            return
-          }
-
-          if (onClose) onClose()
+          onClose(closeErr)
         })
       }
 
+      function createSyncfileErrorHandler (err) {
+        return function (closeErr) {
+          const errorToEmit = err || closeErr
+          if (errorToEmit) {
+            emitError(errorToEmit)
+          }
+        }
+      }
+
       syncfile.ready(function (err) {
-        if (err) return closeSyncfile(err)
+        if (err) return closeSyncfile(createSyncfileErrorHandler(err))
         syncfile.userdata(function (err, data) {
-          if (err) return closeSyncfile(err)
+          if (err) return closeSyncfile(handeSyncfileError(err))
           if (data && data['p2p-db'] && data['p2p-db'] !== 'kappa-osm') {
             return closeSyncfile(
-              new Error(
-                'trying to sync this kappa-osm database with a ' +
-                  data['p2p-db'] +
-                  ' database!'
+              createSyncfileErrorHandler(
+                new Error(
+                  'trying to sync this kappa-osm database with a ' +
+                    data['p2p-db'] +
+                    ' database!'
+                )
               )
             )
           }
@@ -537,10 +539,12 @@ class Sync extends events.EventEmitter {
 
             if (ourProjectId !== fileProjectId) {
               return closeSyncfile(
-                new Error(
-                  `trying to sync two different projects (us=${formatId(
-                    ourProjectId
-                  )}) (syncfile=${formatId(fileProjectId)})`
+                createSyncfileErrorHandler(
+                  new Error(
+                    `trying to sync two different projects (us=${formatId(
+                      ourProjectId
+                    )}) (syncfile=${formatId(fileProjectId)})`
+                  )
                 )
               )
 
@@ -574,7 +578,12 @@ class Sync extends events.EventEmitter {
             }
             if (opts.projectKey) userdata.discoveryKey = discoKey
             syncfile.userdata(userdata, function () {
-              closeSyncfile(error, function () {
+              closeSyncfile(function (closeErr) {
+                if (error || closeErr) {
+                  createSyncfileErrorHandler(error)(closeErr)
+                  return
+                }
+
                 self.osm.ready(function () {
                   self.emit('down', peer)
                   emitter.emit('end')
@@ -600,6 +609,10 @@ class Sync extends events.EventEmitter {
           emitter.emit('progress', progress)
         })
       }
+    }
+
+    function emitError (err) {
+      emitter.emit('error', err)
     }
 
     return emitter
