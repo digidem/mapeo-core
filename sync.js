@@ -22,7 +22,7 @@ const SYNC_DEFAULT_KEY = 'mapeo-sync'
 // See https://www.npmjs.com/package/osm-p2p-syncfile module for more details
 const SYNCFILE_FORMATS = {
   'hyperlog-sneakernet': 1,
-  'osm-p2p-syncfile'   : 2
+  'osm-p2p-syncfile': 2
 }
 
 // When connecting to a local network, use these
@@ -41,15 +41,11 @@ const DEFAULT_LOCAL_DISCO = {
 // Internet Discovery is not yet enabled by Desktop or Mobile
 // TODO: in production, we should not use datDefaults because
 // it depends on some servers that mafintosh maintains
-const DEFAULT_INTERNET_DISCO = Object.assign(
-  {},
-  datDefaults(),
-  {
-    dns: {
-      interval: 3000
-    }
+const DEFAULT_INTERNET_DISCO = Object.assign({}, datDefaults(), {
+  dns: {
+    interval: 3000
   }
-)
+})
 
 // When a sync fails to finish, and one of the feeds in the database (a hypercore feed)
 // is incomplete, sync will throw this error after 20 seconds of inactive replication
@@ -66,7 +62,13 @@ const ReplicationState = {
 }
 
 // These properties will be passed to the client when there is an error
-const multifeedErrorProps = ['code', 'usVersion', 'themVersion', 'usClient', 'themClient']
+const multifeedErrorProps = [
+  'code',
+  'usVersion',
+  'themVersion',
+  'usClient',
+  'themClient'
+]
 
 // Simple wrapper for the PeerState object
 // that requires a topic and message
@@ -77,7 +79,7 @@ function PeerState (topic, message, other) {
 /**
  * Called by Sync.addPeer to add a peer to the SyncState
  * @param {DuplexStream} connection Duplex stream, but has only been tested in production using TCP
- * @param {Object} info 
+ * @param {Object} info
  */
 function WifiPeer (connection, info) {
   info.type = 'wifi'
@@ -90,7 +92,7 @@ function WifiPeer (connection, info) {
 /**
  * Called by Sync.addPeer to add a peer to the SyncState
  * @param {DuplexStream} connection Duplex stream, but has only been tested in production using TCP
- * @param {Object} info 
+ * @param {Object} info
  */
 function WebsocketPeer (connection, info) {
   info.type = 'websocket'
@@ -119,13 +121,14 @@ class SyncState {
     peer.connected = true
     peer.sync = new events.EventEmitter()
     var onsync = () => this.onsync(peer)
-    var onerror = (error) => this.onerror(peer, error)
+    var onerror = error => this.onerror(peer, error)
     var onend = () => {
       this.onend(peer)
       peer.sync.removeListener('sync-start', onsync)
       peer.sync.removeListener('end', onend)
       peer.sync.removeListener('error', onerror)
-      if (peer.sync.onprogress) peer.sync.removeListener('progress', peer.sync.onprogress)
+      if (peer.sync.onprogress)
+        peer.sync.removeListener('progress', peer.sync.onprogress)
     }
 
     peer.sync.on('sync-start', onsync)
@@ -136,16 +139,15 @@ class SyncState {
   // Progress event listeners are added after sync-start by
   // the caller of peer.add
   addProgressEventListeners (peer) {
-    peer.sync.onprogress = (progress) => this.onprogress(peer, progress)
+    peer.sync.onprogress = progress => this.onprogress(peer, progress)
     peer.sync.on('progress', peer.sync.onprogress)
   }
 
   // Get a peer by it's host and port
   get (host, port) {
-    var res = Object.values(this._state)
-      .filter(function (peer) {
-        return peer.port === port && peer.host === host
-      })
+    var res = Object.values(this._state).filter(function (peer) {
+      return peer.port === port && peer.host === host
+    })
     if (res.length) {
       return res[0]
     } else {
@@ -170,19 +172,29 @@ class SyncState {
     // progress but the other side has not yet acknowlegded to us that it has
     // finished downloading
     // we can remove this check once we have ACKs or proper backpressure
-    var INCOMPLETE = peer.state.message.db.sofar !== peer.state.message.db.total ||
+    var INCOMPLETE =
+      peer.state.message.db.sofar !== peer.state.message.db.total ||
       peer.state.message.media.sofar !== peer.state.message.media.total
     var staleDate = Date.now() - DEFAULT_HEARTBEAT_INTERVAL
-    return peer.state.topic === ReplicationState.PROGRESS &&
-      (peer.state.message.timestamp < staleDate) && INCOMPLETE
+    return (
+      peer.state.topic === ReplicationState.PROGRESS &&
+      peer.state.message.timestamp < staleDate &&
+      INCOMPLETE
+    )
   }
 
   _isactive (peer) {
-    return peer.state.topic === ReplicationState.PROGRESS || peer.state.topic === ReplicationState.STARTED
+    return (
+      peer.state.topic === ReplicationState.PROGRESS ||
+      peer.state.topic === ReplicationState.STARTED
+    )
   }
 
   _isclosed (peer) {
-    return peer.state.topic === ReplicationState.COMPLETE || peer.state.topic === ReplicationState.ERROR
+    return (
+      peer.state.topic === ReplicationState.COMPLETE ||
+      peer.state.topic === ReplicationState.ERROR
+    )
   }
 
   _iscomplete (peer) {
@@ -249,7 +261,11 @@ class SyncState {
     multifeedErrorProps.forEach(key => {
       if (error[key]) errorMetadata[key] = error[key]
     })
-    peer.state = PeerState(ReplicationState.ERROR, error ? error.toString() : 'Error', errorMetadata)
+    peer.state = PeerState(
+      ReplicationState.ERROR,
+      error ? error.toString() : 'Error',
+      errorMetadata
+    )
   }
 
   onend (peer) {
@@ -261,8 +277,9 @@ class SyncState {
 
   // XXX: depends on 'peer' being a persistent reference
   peers () {
-    return Object.values(this._state).map((peer) => {
-      if (this._iscomplete(peer)) peer.state.lastCompletedDate = peer.state.message
+    return Object.values(this._state).map(peer => {
+      if (this._iscomplete(peer))
+        peer.state.lastCompletedDate = peer.state.message
       return peer
     })
   }
@@ -272,9 +289,13 @@ class SyncState {
 class Sync extends events.EventEmitter {
   constructor (osm, media, opts) {
     super()
-    opts = Object.assign(opts.internetDiscovery ? DEFAULT_INTERNET_DISCO : DEFAULT_LOCAL_DISCO, opts)
+    opts = Object.assign(
+      opts.internetDiscovery ? DEFAULT_INTERNET_DISCO : DEFAULT_LOCAL_DISCO,
+      opts
+    )
     opts.writeFormat = opts.writeFormat || 'osm-p2p-syncfile'
-    if (!SYNCFILE_FORMATS[opts.writeFormat]) throw new Error('unknown syncfile write format: ' + opts.writeFormat)
+    if (!SYNCFILE_FORMATS[opts.writeFormat])
+      throw new Error('unknown syncfile write format: ' + opts.writeFormat)
 
     this.osm = osm
     this.media = media
@@ -294,16 +315,16 @@ class Sync extends events.EventEmitter {
   }
 
   /**
-   * Replicate with a given filename or host/port. 
+   * Replicate with a given filename or host/port.
    * If you are using this function to replicate with a Wifi peer (tcp socket) then
    * this function needs to be called AFTER addPeer(socket, info)
-   * 
+   *
    * This could be refactored.
-   * 
+   *
    * @param {PeerQuery} A query for the peer
-   * @param {Object} opts Options for the replication 
+   * @param {Object} opts Options for the replication
    */
-  replicate ({host, port, filename}, opts) {
+  replicate ({ host, port, filename }, opts) {
     if (!opts) opts = {}
     var peer
 
@@ -327,15 +348,11 @@ class Sync extends events.EventEmitter {
   }
 
   connectWebsocket (url, projectKey) {
-    let {
-      protocol,
-      hostname: host,
-      port: rawPort
-    } = new URL(url)
+    let { protocol, hostname: host, port: rawPort } = new URL(url)
 
     let port = rawPort
     if (!port) {
-      port = (protocol === 'ws:') ? 80 : 443
+      port = protocol === 'ws:' ? 80 : 443
     } else {
       port = parseInt(rawPort, 10)
     }
@@ -350,7 +367,7 @@ class Sync extends events.EventEmitter {
 
     var key = discoveryKey(projectKey)
 
-    const replicationURL = (new URL(`./replicate/v1/${key}`, url)).href
+    const replicationURL = new URL(`./replicate/v1/${key}`, url).href
 
     const connection = websocket(replicationURL, { binary: true })
 
@@ -365,14 +382,20 @@ class Sync extends events.EventEmitter {
   replicateNetwork (peer, opts) {
     if (!peer.handshake) {
       process.nextTick(() => {
-        peer.sync.emit('error', new Error('trying to sync before handshake has occurred'))
+        peer.sync.emit(
+          'error',
+          new Error('trying to sync before handshake has occurred')
+        )
       })
       return peer.sync
     }
 
     if (!peer.connected) {
       process.nextTick(() => {
-        peer.sync.emit('error', new Error('trying to sync to a peer that is not connected'))
+        peer.sync.emit(
+          'error',
+          new Error('trying to sync to a peer that is not connected')
+        )
       })
       return peer.sync
     }
@@ -458,45 +481,76 @@ class Sync extends events.EventEmitter {
     opts = opts || {}
 
     fs.access(filename, function (err) {
-      if (err) { // file doesn't exist, write
+      if (err) {
+        // file doesn't exist, write
         if (self.opts.writeFormat === 'osm-p2p-syncfile') sync()
-        else return onerror(new Error('unsupported syncfile type'))
-      } else { // read
+        else return emitError(new Error('unsupported syncfile type'))
+      } else {
+        // read
         isGzipFile(filename, function (err, isGzip) {
-          if (err) return onerror(err)
+          if (err) return emitError(err)
           if (!isGzip) sync()
-          else return onerror(new Error('unsupported syncfile type'))
+          else return emitError(new Error('unsupported syncfile type'))
         })
       }
     })
 
     function sync () {
       const discoKey = discoveryKey(opts.projectKey)
-      const syncfile = new Syncfile(filename, os.tmpdir(), { encryptionKey: opts.projectKey })
+      const syncfile = new Syncfile(filename, os.tmpdir(), {
+        encryptionKey: opts.projectKey
+      })
+
+      function closeSyncfile (onClose) {
+        syncfile.close(function (closeErr) {
+          onClose(closeErr)
+        })
+      }
+
+      function createSyncfileErrorHandler (err) {
+        return function (closeErr) {
+          const errorToEmit = err || closeErr
+          if (errorToEmit) {
+            emitError(errorToEmit)
+          }
+        }
+      }
+
       syncfile.ready(function (err) {
-        if (err) return onerror(err)
+        if (err) return closeSyncfile(createSyncfileErrorHandler(err))
         syncfile.userdata(function (err, data) {
-          if (err) return onerror(err)
+          if (err) return closeSyncfile(handeSyncfileError(err))
           if (data && data['p2p-db'] && data['p2p-db'] !== 'kappa-osm') {
-            return onerror(new Error('trying to sync this kappa-osm database with a ' + data['p2p-db'] + ' database!'))
+            return closeSyncfile(
+              createSyncfileErrorHandler(
+                new Error(
+                  'trying to sync this kappa-osm database with a ' +
+                    data['p2p-db'] +
+                    ' database!'
+                )
+              )
+            )
           }
 
           if (!opts.createFile) {
             const ourProjectId = discoKey // This is SYNC_DEFAULT_KEY if opts.projectKey is undefined
-            const fileProjectId = (data && data.discoveryKey) || SYNC_DEFAULT_KEY
+            const fileProjectId =
+              (data && data.discoveryKey) || SYNC_DEFAULT_KEY
 
             if (ourProjectId !== fileProjectId) {
+              return closeSyncfile(
+                createSyncfileErrorHandler(
+                  new Error(
+                    `trying to sync two different projects (us=${formatId(
+                      ourProjectId
+                    )}) (syncfile=${formatId(fileProjectId)})`
+                  )
+                )
+              )
+
               function formatId (id) {
                 return id === SYNC_DEFAULT_KEY ? id : id.slice(0, 7)
               }
-
-              return onerror(
-                new Error(
-                  `trying to sync two different projects (us=${formatId(
-                    ourProjectId
-                  )}) (syncfile=${formatId(fileProjectId)})`
-                )
-              )
             }
           }
 
@@ -504,9 +558,9 @@ class Sync extends events.EventEmitter {
         })
       })
 
-      function start() {
-        const r1 = syncfile.replicateData({live: false})
-        const r2 = progressSync(self, {live: false})
+      function start () {
+        const r1 = syncfile.replicateData({ live: false })
+        const r2 = progressSync(self, { live: false })
         const m1 = syncfile.replicateMedia()
         const m2 = createMediaReplicationStream(self.media)
         var error
@@ -524,7 +578,17 @@ class Sync extends events.EventEmitter {
             }
             if (opts.projectKey) userdata.discoveryKey = discoKey
             syncfile.userdata(userdata, function () {
-              syncfile.close(onend.bind(null, error))
+              closeSyncfile(function (closeErr) {
+                if (error || closeErr) {
+                  createSyncfileErrorHandler(error)(closeErr)
+                  return
+                }
+
+                self.osm.ready(function () {
+                  self.emit('down', peer)
+                  emitter.emit('end')
+                })
+              })
             })
           }
         }
@@ -547,16 +611,8 @@ class Sync extends events.EventEmitter {
       }
     }
 
-    function onerror (err) {
+    function emitError (err) {
       emitter.emit('error', err)
-    }
-
-    function onend (err) {
-      if (err) return onerror(err)
-      self.osm.ready(function () {
-        self.emit('down', peer)
-        emitter.emit('end')
-      })
     }
 
     return emitter
@@ -567,7 +623,7 @@ class Sync extends events.EventEmitter {
   }
 
   _swarm (id) {
-    var swarm = Swarm(Object.assign(this.opts, {id: id}))
+    var swarm = Swarm(Object.assign(this.opts, { id: id }))
 
     swarm.on('connection', this.addPeer.bind(this))
     return swarm
@@ -575,8 +631,8 @@ class Sync extends events.EventEmitter {
 
   /**
    * Add a peer to the list of available peers. Must be called before `replicate`
-   * 
-   * @param {DuplexStream} connection This is a duplex stream, although it has only been tested in production with TCP sockets.  
+   *
+   * @param {DuplexStream} connection This is a duplex stream, although it has only been tested in production with TCP sockets.
    * @param {Object} info This is an object that contains information about the TCP socket, including a unique, persistent id, as well as host, and port
    */
   addPeer (connection, info) {
@@ -640,7 +696,7 @@ class Sync extends events.EventEmitter {
           debug('heartbeat', stale)
         }, DEFAULT_HEARTBEAT_INTERVAL)
       })
-      stream.on('progress', (progress) => {
+      stream.on('progress', progress => {
         debug('sync progress', info.host, info.port, progress)
         if (peer) peer.sync.emit('progress', progress)
       })
@@ -692,7 +748,7 @@ function isGzipFile (filepath, cb) {
       var magic = Buffer.alloc(2)
       fs.read(fd, magic, 0, 2, 0, function (err) {
         if (err) return cb(err)
-        const isGzip = (magic.toString('hex') === '1f8b')
+        const isGzip = magic.toString('hex') === '1f8b'
         fs.close(fd, function (err) {
           if (err) return cb(err)
           cb(null, isGzip)
@@ -718,7 +774,9 @@ function discoveryKey (projectKey) {
   if (Buffer.isBuffer(projectKey) && projectKey.length === 32) {
     return crypto.discoveryKey(projectKey).toString('hex')
   } else {
-    throw new Error('projectKey must be undefined or a 32-byte Buffer, or a hex string encoding a 32-byte buffer')
+    throw new Error(
+      'projectKey must be undefined or a 32-byte Buffer, or a hex string encoding a 32-byte buffer'
+    )
   }
 }
 
