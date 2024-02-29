@@ -25,10 +25,11 @@ jobs:
          # "12.19.0" Currently fails - used in current version of nodejs-mobile@0.3.2 (nodejs-mobile-react-native@0.6.2)
          - "12.18.3" # Used in current electron@11
          - "14.x" # Test latest LTS Node for forwards compat
+         - "18.17.1" # Used in nodejs-mobile-react-native@18.17.7
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
     - run: npm ci
